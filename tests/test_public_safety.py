@@ -53,16 +53,16 @@ class PublicSafety(unittest.TestCase):
             self.assertNotIn('/.codex/', '/'+rel)
             self.assertFalse(rel.endswith(('.exe','.pem','.pfx','.key','.log','.jsonl')))
     def test_ignore_patterns(self):
-        rules=(ROOT/'.gitignore').read_text()
+        rules=(ROOT/'.gitignore').read_text(encoding='utf-8')
         for name in ['settings.json','history.jsonl','auth.json','.codex/','bin/','dist/']:
             self.assertIn(name,rules)
     def test_session_used_without_reading_auth_file(self):
-        code=(ROOT/'src/CodexReader.cs').read_text()
+        code=(ROOT/'src/CodexReader.cs').read_text(encoding='utf-8')
         self.assertIn('account/rateLimits/read',code)
         self.assertNotIn('File.ReadAllText(auth',code)
         self.assertNotIn('GetCookies',code)
     def test_ci_scope_and_no_secret_dependency(self):
-        workflow=(ROOT/'.github/workflows/build-windows.yml').read_text()
+        workflow=(ROOT/'.github/workflows/build-windows.yml').read_text(encoding='utf-8')
         self.assertIn('contents: read',workflow)
         self.assertIn('pull-requests: read',workflow)
         self.assertIn('timeout-minutes:',workflow)

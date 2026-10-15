@@ -13,10 +13,10 @@ class ReleaseStaticTests(unittest.TestCase):
             a = (ROOT/'src'/name).read_bytes()
             self.assertEqual(hashlib.sha256(a).hexdigest(), HASHES[name], name)
     def test_version(self):
-        self.assertIn('4.4.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text())
-        self.assertIn('V4.4.0', (ROOT/'src'/'MonitorForm.cs').read_text())
+        self.assertIn('4.4.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
+        self.assertIn('V4.4.0', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
     def test_self_tests_count(self):
-        s=(ROOT/'src'/'SelfTests.cs').read_text()
+        s=(ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8')
         self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,38)
     def test_winexe(self):
         s=(ROOT/'BUILD-RELEASE-V4.4.ps1').read_text(encoding='utf-8-sig')
@@ -43,7 +43,7 @@ class ReleaseStaticTests(unittest.TestCase):
         self.assertNotIn('history.jsonl',s)
         self.assertNotIn('settings.json',s)
     def test_windows_ci(self):
-        s=(ROOT/'.github'/'workflows'/'build-windows.yml').read_text()
+        s=(ROOT/'.github'/'workflows'/'build-windows.yml').read_text(encoding='utf-8')
         self.assertIn('windows-2022',s)
         self.assertIn('actions/upload-artifact@v4',s)
         self.assertIn('workflow_dispatch',s)
