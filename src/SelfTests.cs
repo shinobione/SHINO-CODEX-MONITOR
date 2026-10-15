@@ -201,7 +201,38 @@ namespace ShinoCodexMonitor
                 perf.Sample(DateTimeOffset.UtcNow);
                 Assert(perf.Summary().Contains("RAM courante"));
             });
-            report.Insert(0, "SHINO // CODEX V4.4.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("GitHub Release stable parsée", delegate {
+                PublicRelease r = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.2\",\"draft\":false,\"prerelease\":false}");
+                Assert(r.Number.Equals(new Version(4, 5, 2)) && r.PageUrl == ReleaseUpdater.RepoUrl + "/releases/tag/v4.5.2");
+            });
+            Check("Nouvelle version détectée", delegate {
+                PublicRelease r = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.1\"}");
+                Assert(ReleaseUpdater.IsNewer(r, new Version(4, 5, 0, 0)));
+            });
+            Check("Version identique non proposée", delegate {
+                PublicRelease r = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.0\"}");
+                Assert(!ReleaseUpdater.IsNewer(r, new Version(4, 5, 0, 0)));
+            });
+            Check("Version publique précédente non proposée", delegate {
+                PublicRelease r = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.4.0\"}");
+                Assert(!ReleaseUpdater.IsNewer(r, new Version(4, 5, 0, 0)));
+            });
+            Check("Tag trompeur interdit", delegate {
+                Assert(ReleaseUpdater.ParseTag("v4.5.1-beta") == null && ReleaseUpdater.ParseTag("../../other") == null);
+            });
+            Check("Release brouillon rejetée", delegate {
+                bool failed = false;
+                try { ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.3\",\"draft\":true}"); }
+                catch (InvalidDataException) { failed = true; }
+                Assert(failed);
+            });
+            Check("Release prerelease rejetée", delegate {
+                bool failed = false;
+                try { ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.3\",\"prerelease\":true}"); }
+                catch (InvalidDataException) { failed = true; }
+                Assert(failed);
+            });
+            report.Insert(0, "SHINO // CODEX V4.5.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

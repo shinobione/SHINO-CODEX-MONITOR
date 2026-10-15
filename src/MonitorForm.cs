@@ -67,12 +67,14 @@ namespace ShinoCodexMonitor
         private string lastWakeReason = "Aucune";
         private Point? dragMouse, dragOrigin;
         private readonly Dictionary<string, ToolStripMenuItem> intervalItems = new Dictionary<string, ToolStripMenuItem>();
+        private ToolStripMenuItem updateMenuItem;
+        private bool updateCheckRunning;
 
         internal MonitorForm()
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.4.0";
+            Text = "SHINO // CODEX MONITOR V4.5.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -83,7 +85,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.4.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.5.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -93,7 +95,7 @@ namespace ShinoCodexMonitor
             status = TextLabel("● Initialisation Codex...", 8, UiColors.Muted, false);
             Controls.Add(status);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.4.0", Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.5.0", Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -228,6 +230,8 @@ namespace ShinoCodexMonitor
             Menu(context, "Afficher / masquer", delegate { ToggleVisibility(); });
             Menu(context, "Actualiser maintenant", delegate { nextRefresh = DateTimeOffset.MinValue; });
             Menu(context, "Tableau officiel Codex", delegate { OpenUrl("https://chatgpt.com/codex/cloud/settings/analytics#usage"); });
+            updateMenuItem = Menu(context, "Vérifier les mises à jour", delegate { CheckForUpdates(); });
+            Menu(context, "Releases GitHub", delegate { OpenUrl(ReleaseUpdater.RepoUrl + "/releases"); });
             context.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem layouts = Menu(context, "Disposition", null);
             foreach (string mode in new string[] { "Vertical", "Compact", "Micro" })
@@ -364,6 +368,56 @@ namespace ShinoCodexMonitor
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
             catch { MessageBox.Show("Ouvre ce lien dans ton navigateur :\n" + url, "Codex"); }
         }
+        private async void CheckForUpdates()
+        {
+            if (updateCheckRunning) return;
+            updateCheckRunning = true;
+            if (updateMenuItem != null) { updateMenuItem.Enabled = false; updateMenuItem.Text = "Vérification GitHub..."; }
+            try
+            {
+                PublicRelease latest = await ReleaseUpdater.CheckAsync();
+                if (IsDisposed || Disposing) return;
+                Version installed = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                Version current = new Version(installed.Major, installed.Minor, installed.Build);
+                if (ReleaseUpdater.IsNewer(latest, current))
+                {
+                    DialogResult choice = MessageBox.Show(
+                        "Version installée : " + current.ToString(3) + "\n" +
+                        "Nouvelle Release : " + latest.Tag + "\n\n" +
+                        "Ouvrir la page officielle GitHub pour télécharger la mise à jour ?\n" +
+                        "Aucun fichier ne sera installé automatiquement.",
+                        "SHINO // CODEX — Mise à jour disponible", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                    if (choice == DialogResult.Yes) OpenUrl(latest.PageUrl);
+                }
+                else
+                {
+                    MessageBox.Show(current.CompareTo(latest.Number) > 0 ?
+                        "Version installée : " + current.ToString(3) + "\n" +
+                        "Dernière Release publique : " + latest.Tag + "\n" +
+                        "Cette version est plus récente que la dernière Release publique." :
+                        "Vous utilisez la dernière version stable publiée : " + latest.Tag,
+                        "SHINO // CODEX — Mises à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception)
+            {
+                if (!IsDisposed && !Disposing)
+                    MessageBox.Show("Impossible de vérifier les Releases GitHub pour le moment.\n" +
+                        "Vérifiez la connexion Internet ou consultez la page Releases.\n" +
+                        "Les quotas Codex ne sont pas affectés.",
+                        "SHINO // CODEX — Vérification indisponible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                updateCheckRunning = false;
+                if (!IsDisposed && updateMenuItem != null && !updateMenuItem.IsDisposed)
+                {
+                    updateMenuItem.Text = "Vérifier les mises à jour";
+                    updateMenuItem.Enabled = true;
+                }
+            }
+        }
+
         private void OpenHistory()
         {
             if (history == null || history.IsDisposed) history = new HistoryWindow(store);
@@ -394,7 +448,7 @@ namespace ShinoCodexMonitor
                 if (!string.IsNullOrEmpty(current) && !StartupEnabled())
                 {
                     DialogResult replace = MessageBox.Show(
-                        "Un ancien emplacement V4 est encore enregistré au démarrage Windows.\n\nLe remplacer par cette V4.4 ?",
+                        "Un ancien emplacement V4 est encore enregistré au démarrage Windows.\n\nLe remplacer par cette V4.5 ?",
                         "Démarrage Windows", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                     if (replace != DialogResult.Yes) return;
                 }
@@ -403,7 +457,7 @@ namespace ShinoCodexMonitor
                     if (key != null && key.GetValue("SHINO_CODEX_MONITOR") != null)
                     {
                         DialogResult decision = MessageBox.Show(
-                            "Un démarrage automatique V3 est détecté. Activer aussi la V4.4 peut lancer deux widgets.\n\nActiver sans modifier la V3 ?",
+                            "Un démarrage automatique V3 est détecté. Activer aussi la V4.5 peut lancer deux widgets.\n\nActiver sans modifier la V3 ?",
                             "Démarrage Windows", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                         if (decision != DialogResult.Yes) return;
                     }
@@ -421,7 +475,7 @@ namespace ShinoCodexMonitor
         private string DiagnosticText()
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
-            return "Version : 4.4.0 (C# / Windows Forms)\n" +
+            return "Version : 4.5.0 (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "Binaire CLI : " + binaryPath + "\n" +

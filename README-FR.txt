@@ -1,32 +1,32 @@
-SHINO // CODEX MONITOR V4.4 — Distribution Windows
+SHINO // CODEX MONITOR V4.5 — Distribution Windows
 
 IMPORTANT : cette archive BUILD KIT contient le code et les scripts de build.
-Ce n'est PAS un logiciel precompile. Ne lancez pas INSTALLER-V4.4.bat dans le BUILD KIT.
-Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip.
+Ce n'est PAS un logiciel precompile. Ne lancez pas INSTALLER-V4.5.bat dans le BUILD KIT.
+Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_5_WINDOWS.zip.
 
 1. METHODE SIMPLE SANS BUILD MANUEL POUR L'UTILISATEUR FINAL
    - Placer le contenu de BUILD KIT a la racine d'un depot GitHub que vous gerez.
-   - Lancer Actions > SHINO Codex Monitor - Build Windows V4.4 > Run workflow.
+   - Lancer Actions > SHINO Codex Monitor - Build Windows V4.5 > Run workflow.
    - Attendre l'execution Windows, verifier qu'elle est verte puis recuperer l'artefact
-     SHINO_CODEX_MONITOR_V4_4_WINDOWS (ZIP contenant un second ZIP).
-   - Extraire SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip, puis lancer INSTALLER-V4.4.bat.
+     SHINO_CODEX_MONITOR_V4_5_WINDOWS (ZIP contenant un second ZIP).
+   - Extraire SHINO_CODEX_MONITOR_V4_5_WINDOWS.zip, puis lancer INSTALLER-V4.5.bat.
    - Aucun compilateur necessaire sur le PC qui installe.
    - Ne pas rendre public de donnees de compte, credentials ou fichiers de configuration.
 
 2. ALTERNATIVE SANS GITHUB, UNE SEULE COMPILATION LOCALE
-   - Mode double-clic : quitter le widget, puis PREPARER-ET-INSTALLER-V4.4.bat.
+   - Mode double-clic : quitter le widget, puis PREPARER-ET-INSTALLER-V4.5.bat.
      Le script construit le paquet, lance les tests, puis installe si tout reussit.
    - Vous n'avez aucune commande de compilation a saisir manuellement.
-   - Double-clic BUILD-RELEASE-V4.4.bat sur un PC Windows 10/11 disposant de .NET Framework 4.x.
-   - La compilation C# et 38 autotests tournent AVANT creation du paquet final.
-   - Distribuer ou archiver dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip.
-   - Pour installer depuis ce paquet, double-clic INSTALLER-V4.4.bat.
+   - Double-clic BUILD-RELEASE-V4.5.bat sur un PC Windows 10/11 disposant de .NET Framework 4.x.
+   - La compilation C# et 45 autotests tournent AVANT creation du paquet final.
+   - Distribuer ou archiver dist/SHINO_CODEX_MONITOR_V4_5_WINDOWS.zip.
+   - Pour installer depuis ce paquet, double-clic INSTALLER-V4.5.bat.
 
 3. INSTALLATION DE LA RELEASE PRECOMPILÉE
    - Quitter la V4.2/V4.3 via l'icone de notification > Quitter completement.
    - Extraire le ZIP final dans un dossier utilisateur (ne pas le lancer depuis l'archive).
-   - Double-cliquer INSTALLER-V4.4.bat.
-   - L'installateur controle l'empreinte SHA-256 et lance 38 autotests.
+   - Double-cliquer INSTALLER-V4.5.bat.
+   - L'installateur controle l'empreinte SHA-256 et lance 45 autotests.
    - Il sauvegarde l'ancien executable en *.previous.exe puis installe sans droits admin.
    - Il cree des raccourcis et une entree dans Applications installees (HKCU).
    - Aucun changement sur l'autostart existant, aucun autostart active par defaut.
@@ -57,6 +57,14 @@ Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.
    - Verifier le rapport des autotests et mesurer RAM/CPU a 15 min d'intervalle.
 
 7. ETAT DE VALIDATION
-   - Build WINDOWS et 38 autotests : NON EXECUTES dans l'environnement de preparation Linux.
+   - Build WINDOWS et 45 autotests : NON EXECUTES dans l'environnement de preparation Linux.
    - La V4.3 source n'a pas encore ete confirmee fonctionnelle sur le PC utilisateur.
    - La V4.2 validee reste la version de secours jusqu'a validation Windows.
+
+8. VERIFICATION DES MISES A JOUR V4.5
+   - Menu systray > Verifier les mises a jour.
+   - Lit seulement la derniere Release GitHub publique en HTTPS.
+   - Ne lit aucun identifiant Codex ou GitHub.
+   - Ouvre la Release dans le navigateur apres ton accord.
+   - Aucun telechargement / lancement / installation automatique.
+   - Sans Internet, affiche une erreur et laisse la collecte Codex intacte.

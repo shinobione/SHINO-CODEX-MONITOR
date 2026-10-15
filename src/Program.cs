@@ -30,7 +30,7 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR V4.4. Ouvre le diagnostic dans le menu de l'application ou conserve la V3.0.2.",
+                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR V4.5. Ouvre le diagnostic dans le menu de l'application ou conserve la V3.0.2.",
                         "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
