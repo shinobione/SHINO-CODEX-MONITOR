@@ -1,0 +1,65 @@
+name: Build Windows - SHINO Codex Monitor
+
+on:
+  push:
+    branches: [main]
+    tags: ["v4.4.*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  windows-build:
+    name: Audit + compilation + autotests
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify public package (no personal files / embedded tokens)
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Build .exe and run 38 C# self-tests
+        shell: powershell
+        run: |
+          & .\BUILD-RELEASE-V4.4.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload precompiled Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHINO-CODEX-MONITOR-v4.4-Windows
+          path: dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/v4.4.')
+    needs: windows-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SHINO-CODEX-MONITOR-v4.4-Windows
+          path: release
+      - name: Create release only after Windows build passed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          gh release create "$VERSION" release/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip --generate-notes --verify-tag

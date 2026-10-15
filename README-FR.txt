@@ -1,0 +1,62 @@
+SHINO // CODEX MONITOR V4.4 — Distribution Windows
+
+IMPORTANT : cette archive BUILD KIT contient le code et les scripts de build.
+Ce n'est PAS un logiciel precompile. Ne lancez pas INSTALLER-V4.4.bat dans le BUILD KIT.
+Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip.
+
+1. METHODE SIMPLE SANS BUILD MANUEL POUR L'UTILISATEUR FINAL
+   - Placer le contenu de BUILD KIT a la racine d'un depot GitHub que vous gerez.
+   - Lancer Actions > SHINO Codex Monitor - Build Windows V4.4 > Run workflow.
+   - Attendre l'execution Windows, verifier qu'elle est verte puis recuperer l'artefact
+     SHINO_CODEX_MONITOR_V4_4_WINDOWS (ZIP contenant un second ZIP).
+   - Extraire SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip, puis lancer INSTALLER-V4.4.bat.
+   - Aucun compilateur necessaire sur le PC qui installe.
+   - Ne pas rendre public de donnees de compte, credentials ou fichiers de configuration.
+
+2. ALTERNATIVE SANS GITHUB, UNE SEULE COMPILATION LOCALE
+   - Mode double-clic : quitter le widget, puis PREPARER-ET-INSTALLER-V4.4.bat.
+     Le script construit le paquet, lance les tests, puis installe si tout reussit.
+   - Vous n'avez aucune commande de compilation a saisir manuellement.
+   - Double-clic BUILD-RELEASE-V4.4.bat sur un PC Windows 10/11 disposant de .NET Framework 4.x.
+   - La compilation C# et 38 autotests tournent AVANT creation du paquet final.
+   - Distribuer ou archiver dist/SHINO_CODEX_MONITOR_V4_4_WINDOWS.zip.
+   - Pour installer depuis ce paquet, double-clic INSTALLER-V4.4.bat.
+
+3. INSTALLATION DE LA RELEASE PRECOMPILÉE
+   - Quitter la V4.2/V4.3 via l'icone de notification > Quitter completement.
+   - Extraire le ZIP final dans un dossier utilisateur (ne pas le lancer depuis l'archive).
+   - Double-cliquer INSTALLER-V4.4.bat.
+   - L'installateur controle l'empreinte SHA-256 et lance 38 autotests.
+   - Il sauvegarde l'ancien executable en *.previous.exe puis installe sans droits admin.
+   - Il cree des raccourcis et une entree dans Applications installees (HKCU).
+   - Aucun changement sur l'autostart existant, aucun autostart active par defaut.
+   - Le widget se lance sans console apres l'installation.
+
+4. DONNEES ET DESINSTALLATION
+   - Executable : %LOCALAPPDATA%\Programs\SHINO Codex Monitor\SHINO-CODEX-MONITOR.exe
+   - Preferences et historique : %LOCALAPPDATA%\SHINO-CODEX-MONITOR\settings.json / history.jsonl
+   - Donnees conservees pendant mise a jour et desinstallation.
+   - Desinstaller via Applications installees ou raccourci menu Demarrer ; saisir OUI.
+   - Ne pas supprimer manuellement les JSON si vous souhaitez les garder.
+
+5. RETOUR ARRIERE ET LIMITES
+   - Si l'installation echoue AVANT remplacement, l'executable precedent reste intact.
+   - Sur disque NTFS, le nouveau binaire remplace atomiquement l'ancien, qui est sauvegarde en *.previous.exe.
+   - Pour restaurer : quitter l'app, copier previous.exe sur SHINO-CODEX-MONITOR.exe.
+   - Codex CLI connecte a votre compte reste necessaire ; aucun mot de passe saisi dans l'app.
+   - Aucun appel payant a un modele ; quota exact selon les donnees disponibles du CLI.
+   - L'empreinte SHA-256 detecte un ZIP altere, mais ne constitue PAS une signature numerique.
+   - Le binaire est non signe : Windows SmartScreen peut demander verification.
+   - Ne pas executer un binaire obtenu d'une source non fiable.
+
+6. TESTS DE RECETTE A FAIRE SUR WINDOWS
+   - Verifier l'affichage avec le dashboard officiel Codex (meme compte/instant).
+   - Veille/reveil : les donnees deviennent grises jusqu'a nouvelle lecture valide.
+   - Coupure reseau/401/403 : donnees signalees indisponibles/perimees.
+   - Systray, clic, pin, resets, historique 24h/7j/14j, DPI et plusieurs ecrans.
+   - Verifier le rapport des autotests et mesurer RAM/CPU a 15 min d'intervalle.
+
+7. ETAT DE VALIDATION
+   - Build WINDOWS et 38 autotests : NON EXECUTES dans l'environnement de preparation Linux.
+   - La V4.3 source n'a pas encore ete confirmee fonctionnelle sur le PC utilisateur.
+   - La V4.2 validee reste la version de secours jusqu'a validation Windows.

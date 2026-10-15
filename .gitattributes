@@ -1,0 +1,8 @@
+*.ps1 text eol=lf
+*.bat text eol=crlf
+*.cs text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.ico binary

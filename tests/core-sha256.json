@@ -1,0 +1,10 @@
+{
+  "Models.cs": "72f10d7af43bd379e9592ec5d2b3d3dd2a1ad7b470694122c028df78ca25b798",
+  "WakeGuard.cs": "4d73498962c324d9503063c8224c304e2475849d9185a5a646d9674717299eee",
+  "RuntimeMetrics.cs": "b5b41b6a13e224b83fad487a66a0aeb9d2b27a2cab0dc3c2fd6ae7183cf145df",
+  "CodexReader.cs": "b830cbe3230804430ff160bce76d34698287ef92c7b80ea7788aa32242ae8251",
+  "LocalStore.cs": "ce90a9b3ad2bb3e9b187719f77c07c4cd41701759e91adfdd9727aa0d72b0b67",
+  "HistoryWindow.cs": "ca8307d2dbbb684ac2b4c592ce72ed78a80abe6f1d1aedb7cef4351480fb5715",
+  "AlertRules.cs": "65539c002e6e61978c69d265033d2ecf18cb2c66cbcb4a38b3a73d3f8771ddfd",
+  "QuotaTrayIcon.cs": "5534c218bf26cb3647e98b3545cff2e68981b48c7cc24e8443200afbd34ee7e2"
+}
