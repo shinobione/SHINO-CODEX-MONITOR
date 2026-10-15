@@ -59,11 +59,15 @@ jobs:
               if archive.testzip() is not None:
                   raise SystemExit('Archive ZIP corrompue')
               names = archive.namelist()
-              executables = [n for n in names if n.endswith('/SHINO-CODEX-MONITOR.exe')]
-              checksums = [n for n in names if n.endswith('/SHA256SUMS.txt')]
-              installers = [n for n in names if n.endswith('/INSTALLER-V4.5.bat')]
+              # Windows Compress-Archive can place files at ZIP root or under
+              # a staging directory. Only exact basenames are allowed.
+              def basename(path):
+                  return path.replace('\\', '/').rsplit('/', 1)[-1]
+              executables = [n for n in names if basename(n) == 'SHINO-CODEX-MONITOR.exe']
+              checksums = [n for n in names if basename(n) == 'SHA256SUMS.txt']
+              installers = [n for n in names if basename(n) == 'INSTALLER-V4.5.bat']
               if len(executables) != 1 or len(checksums) != 1 or len(installers) != 1:
-                  raise SystemExit('Contenu du paquet Windows incorrect')
+                  raise SystemExit('Contenu du paquet Windows incorrect. Fichiers : ' + ', '.join(names))
               checksum_text = archive.read(checksums[0]).decode('utf-8-sig')
               match = re.search(r'(?im)^([0-9a-f]{64})\s+SHINO-CODEX-MONITOR\.exe\s*$', checksum_text)
               if not match:
