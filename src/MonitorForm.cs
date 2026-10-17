@@ -74,7 +74,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.5.1";
+            Text = "SHINO // CODEX MONITOR V4.6.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -85,7 +85,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.5.1", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.6.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -95,7 +95,7 @@ namespace ShinoCodexMonitor
             status = TextLabel("● Initialisation Codex...", 8, UiColors.Muted, false);
             Controls.Add(status);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.5.1", Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.6.0", Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -384,10 +384,11 @@ namespace ShinoCodexMonitor
                     DialogResult choice = MessageBox.Show(
                         "Version installée : " + current.ToString(3) + "\n" +
                         "Nouvelle Release : " + latest.Tag + "\n\n" +
-                        "Ouvrir la page officielle GitHub pour télécharger la mise à jour ?\n" +
-                        "Aucun fichier ne sera installé automatiquement.",
+                        "Télécharger et vérifier la mise à jour officielle GitHub ?\n" +
+                        "Le téléchargement n'installe rien. Installation après un deuxième accord explicite.\n" +
+                        "En cas de problème, tu pourras utiliser la page Releases.",
                         "SHINO // CODEX — Mise à jour disponible", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-                    if (choice == DialogResult.Yes) OpenUrl(latest.PageUrl);
+                    if (choice == DialogResult.Yes) await DownloadAndConfirm(latest);
                 }
                 else
                 {
@@ -415,6 +416,45 @@ namespace ShinoCodexMonitor
                     updateMenuItem.Text = "Vérifier les mises à jour";
                     updateMenuItem.Enabled = true;
                 }
+            }
+        }
+
+        private async Task DownloadAndConfirm(PublicRelease latest)
+        {
+            StagedUpdate staged = null;
+            if (updateMenuItem != null) updateMenuItem.Text = "Téléchargement sécurisé...";
+            try
+            {
+                // Refuse absent or contradictory GitHub release asset digest.
+                ReleaseAsset asset = ReleasePackage.SelectAsset(latest, latest.ApiResponse);
+                staged = await ReleasePackage.StageAsync(asset);
+                if (IsDisposed || Disposing) return;
+                DialogResult yes = MessageBox.Show(
+                    "Archive officielle téléchargée et SHA-256 vérifié.\n" +
+                    "Version : " + latest.Tag + "\n" +
+                    "Taille : " + asset.Size + " octets\n" +
+                    "Empreinte GitHub : " + asset.Sha256 + "\n\n" +
+                    "Installer cette version maintenant ? Le widget va se fermer.\n" +
+                    "La version précédente restera sauvegardée. L'exécutable n'est PAS signé.",
+                    "SHINO // CODEX — Confirmer l'installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (yes != DialogResult.Yes) return;
+                UpdateHandoff.Start(staged);
+                exiting = true;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && !Disposing)
+                    MessageBox.Show("Mise à jour interrompue sans modification de l'installation.\n" +
+                        ex.Message + "\n\nConsulte si nécessaire : " + latest.PageUrl,
+                        "SHINO // CODEX — Mise à jour indisponible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                if (!IsDisposed && updateMenuItem != null) updateMenuItem.Text = "Vérifier les mises à jour";
+                // Do not retain rejected downloads; never remove an in-progress installation.
+                if (staged != null && !exiting)
+                    try { Directory.Delete(staged.Directory, true); } catch { }
             }
         }
 
@@ -475,7 +515,7 @@ namespace ShinoCodexMonitor
         private string DiagnosticText()
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
-            return "Version : 4.5.1 (C# / Windows Forms)\n" +
+            return "Version : 4.6.0 (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "Binaire CLI : " + binaryPath + "\n" +

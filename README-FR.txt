@@ -69,9 +69,17 @@ Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_5_WINDOWS.
    - Aucun telechargement / lancement / installation automatique.
    - Sans Internet, affiche une erreur et laisse la collecte Codex intacte.
 
-9. AVERTISSEMENT AU DEMARRAGE - V4.5.1
+9. AVERTISSEMENT AU DEMARRAGE - V4.6.0
    L'installateur tente de retirer le marquage Internet (MOTW) uniquement
    sur l'executable installe, apres verifications du SHA-256 et des 45
    autotests. Le logiciel reste non signe. SmartScreen n'est pas desactive.
    Si Windows affiche encore un avertissement, verifier le fichier et
    ses proprietes, ainsi que les politiques de votre installation.
+
+10. MISE A JOUR V4.6
+   Clic droit systray > Verifier les mises a jour.
+   Confirmer un TELECHARGEMENT HTTPS officiel, puis une INSTALLATION distincte.
+   Rejette un digest GitHub manquant, un zip corrompu, un chemin dangereux.
+   Le programme se ferme uniquement apres confirmation de l'installation.
+   Une fenetre PowerShell temporaire peut s'afficher pendant l'installation.
+   Donnees locales settings.json / history.jsonl conservees. Binaire non signe.

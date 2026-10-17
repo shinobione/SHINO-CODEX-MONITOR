@@ -232,7 +232,91 @@ namespace ShinoCodexMonitor
                 catch (InvalidDataException) { failed = true; }
                 Assert(failed);
             });
-            report.Insert(0, "SHINO // CODEX V4.5.1 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("Release officielle : nom et empreinte GitHub", delegate {
+                PublicRelease rel = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}");
+                string digest = new string('a', 64);
+                ReleaseAsset a = ReleasePackage.SelectAsset(rel, "{\"assets\":[{\"name\":\"SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip\",\"size\":1234,\"digest\":\"sha256:" + digest + "\"}]}");
+                Assert(a.Name == "SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip" && a.Size == 1234 && a.Sha256 == digest && a.Url.StartsWith(ReleaseUpdater.RepoUrl));
+            });
+            Check("Mise à jour : absence SHA-256 refusée", delegate {
+                bool rejected = false;
+                try { ReleasePackage.SelectAsset(ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}"), "{\"assets\":[{\"name\":\"SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip\",\"size\":1234}]}"); }
+                catch (InvalidDataException) { rejected = true; }
+                Assert(rejected);
+            });
+            Check("Mise à jour : doublon ZIP refusé", delegate {
+                bool rejected = false;
+                string a = "{\"name\":\"SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip\",\"size\":123,\"digest\":\"sha256:" + new string('a',64) + "\"}";
+                try { ReleasePackage.SelectAsset(ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}"), "{\"assets\":[" + a + "," + a + "]}"); }
+                catch (InvalidDataException) { rejected = true; }
+                Assert(rejected);
+            });
+            Check("Mise à jour : taille excessive refusée", delegate {
+                bool rejected = false;
+                try { ReleasePackage.SelectAsset(ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}"),
+                   "{\"assets\":[{\"name\":\"SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip\",\"size\":9999999999,\"digest\":\"sha256:" + new string('a',64) + "\"}]}"); }
+                catch (InvalidDataException) { rejected = true; }
+                Assert(rejected);
+            });
+            Check("Redirection HTTP ou domaine externe refusés", delegate {
+                bool blocked1 = false, blocked2 = false;
+                try { ReleasePackage.ValidateRedirect("http://github.com/a"); } catch (InvalidDataException) { blocked1 = true; }
+                try { ReleasePackage.ValidateRedirect("https://evil.example.com/payload"); } catch (InvalidDataException) { blocked2 = true; }
+                Assert(blocked1 && blocked2);
+            });
+            Check("Redirection GitHub HTTPS acceptée", delegate {
+                Assert(ReleasePackage.ValidateRedirect("https://release-assets.githubusercontent.com/file") == "https://release-assets.githubusercontent.com/file");
+            });
+            Check("Mise à jour : nom d'archive versionné", delegate {
+                Assert(ReleasePackage.AssetFile(new Version(4,6,0)) == "SHINO_CODEX_MONITOR_V4_6_WINDOWS.zip" &&
+                    ReleasePackage.InstallerFile(new Version(4,6,0)) == "INSTALLER-V4.6.ps1");
+            });
+            Check("Téléchargement partiel ou hachage faux refusé", delegate {
+                string tmp = Path.GetTempFileName();
+                try {
+                    File.WriteAllText(tmp, "bad");
+                    bool badLength = false, badHash = false;
+                    ReleaseAsset a = new ReleaseAsset { Size = 8, Sha256 = new string('0',64) };
+                    try { ReleasePackage.VerifyAssetFile(a, tmp); } catch (InvalidDataException) { badLength = true; }
+                    a.Size = 3;
+                    try { ReleasePackage.VerifyAssetFile(a, tmp); } catch (InvalidDataException) { badHash = true; }
+                    Assert(badLength && badHash);
+                } finally { File.Delete(tmp); }
+            });
+            Check("ZIP avec chemin parent rejeté", delegate {
+                string temp = Path.Combine(Path.GetTempPath(), "SHINO-UPDATE-TEST-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(temp);
+                try {
+                    string zip = Path.Combine(temp, "test.zip");
+                    using (System.IO.Compression.ZipArchive a = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create)) {
+                        using (StreamWriter writer = new StreamWriter(a.CreateEntry("../SHINO-CODEX-MONITOR.exe").Open())) writer.Write("exe");
+                        using (StreamWriter writer = new StreamWriter(a.CreateEntry("SHA256SUMS.txt").Open())) writer.Write("none");
+                        using (StreamWriter writer = new StreamWriter(a.CreateEntry("INSTALLER-V4.6.ps1").Open())) writer.Write("none");
+                        using (StreamWriter writer = new StreamWriter(a.CreateEntry("INSTALLER-V4.6.bat").Open())) writer.Write("none");
+                        using (StreamWriter writer = new StreamWriter(a.CreateEntry("README-FR.txt").Open())) writer.Write("none");
+                    }
+                    ReleaseAsset file = new ReleaseAsset { Size = new FileInfo(zip).Length, Sha256 = ReleasePackage.HashFile(zip), Release = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}") };
+                    bool blocked = false;
+                    try { ReleasePackage.VerifyZip(file, zip, Path.Combine(temp,"extracted")); } catch (InvalidDataException) { blocked = true; }
+                    Assert(blocked && !File.Exists(Path.Combine(temp, "SHINO-CODEX-MONITOR.exe")));
+                } finally { Directory.Delete(temp, true); }
+            });
+            Check("Mise à jour : absence de fichier d'installation refusée", delegate {
+                string temp = Path.Combine(Path.GetTempPath(), "SHINO-UPDATE-TEST-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(temp);
+                try {
+                    string zip = Path.Combine(temp, "test.zip");
+                    using (System.IO.Compression.ZipArchive a = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create)) {
+                        foreach(string n in new [] { "SHINO-CODEX-MONITOR.exe", "SHA256SUMS.txt", "README-FR.txt", "SHINO-CODEX.ico", "DESINSTALLER-V4.6.ps1" })
+                            using (StreamWriter writer = new StreamWriter(a.CreateEntry(n).Open())) writer.Write("bad");
+                    }
+                    ReleaseAsset file = new ReleaseAsset { Size = new FileInfo(zip).Length, Sha256 = ReleasePackage.HashFile(zip), Release = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.6.0\"}") };
+                    bool blocked = false;
+                    try { ReleasePackage.VerifyZip(file, zip, Path.Combine(temp,"extracted")); } catch (InvalidDataException) { blocked = true; }
+                    Assert(blocked);
+                } finally { Directory.Delete(temp, true); }
+            });
+            report.Insert(0, "SHINO // CODEX V4.6.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

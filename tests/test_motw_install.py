@@ -2,7 +2,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = (ROOT / 'INSTALLER-V4.5.ps1').read_text(encoding='utf-8-sig')
+SCRIPT = (ROOT / 'INSTALLER-V4.6.ps1').read_text(encoding='utf-8-sig')
 
 
 class TargetedMotwTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class TargetedMotwTests(unittest.TestCase):
 
     def test_not_before_validation(self):
         self.assertLess(SCRIPT.index('$expected -ne $observed'), SCRIPT.index('Unblock-File -LiteralPath'))
-        self.assertLess(SCRIPT.index('45/45'), SCRIPT.index('Unblock-File -LiteralPath'))
+        self.assertLess(SCRIPT.index('55/55'), SCRIPT.index('Unblock-File -LiteralPath'))
         self.assertLess(SCRIPT.index('if ($ValidateOnly)'), SCRIPT.index('Unblock-File -LiteralPath'))
 
     def test_installed_binary_verified_before_unblock(self):
@@ -32,7 +32,7 @@ class TargetedMotwTests(unittest.TestCase):
             self.assertNotIn(forbidden, SCRIPT)
 
     def test_version_display(self):
-        self.assertIn("-Name DisplayVersion -Value '4.5.1'", SCRIPT)
+        self.assertIn("-Name DisplayVersion -Value '4.6.0'", SCRIPT)
 
 if __name__ == '__main__':
     unittest.main()

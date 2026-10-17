@@ -9,6 +9,14 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            // Explicit CI-only live download smoke test, without opening the widget
+            // or installing anything. Does not depend on an authenticated Codex CLI.
+            if (Environment.GetCommandLineArgs().Length > 1 &&
+                Environment.GetCommandLineArgs()[1] == "--update-download-smoke")
+            {
+                Environment.ExitCode = UpdateDownloadSmoke.Run();
+                return;
+            }
             bool isNew = false;
             using (Mutex mutex = new Mutex(true, @"Local\SHINO_CODEX_MONITOR_NATIVE_V4", out isNew))
             {
@@ -30,7 +38,7 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR V4.5. Ouvre le diagnostic dans le menu de l'application ou conserve la V3.0.2.",
+                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR V4.6. Ouvre le diagnostic dans le menu de l'application ou conserve la V3.0.2.",
                         "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
