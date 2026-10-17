@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, trois dispositions, jauges colorées, resets, historique local et alertes.
 
-> **État :** V4.5.0 source candidate. Version publique stable actuelle : v4.4.0. Compilation et tests Windows V4.5 à effectuer avant une nouvelle Release. Les binaires ne sont pas signés.
+> **État :** V4.5.1 candidate, correctif ciblé de l’installateur. Dernière Release publique validée : v4.5.0. La V4.5.1 doit passer la CI Windows et être testée avant une nouvelle Release. Les binaires ne sont pas signés.
 
 ## Confidentialité
 
@@ -53,3 +53,7 @@ Le programme actuel continue de fonctionner si GitHub est indisponible.
 
 **Publication :** la V4.5 n'est pas publiée tant que sa CI Windows ne passe pas et
 qu'un tag `v4.5.x` n'a pas été créé.
+
+## Avertissement de sécurité au démarrage (V4.5.1)
+
+Après vérification du SHA-256 et réussite des autotests, l’installateur retire, **sur le seul exécutable installé**, le marquage Internet éventuel (`Unblock-File`). Il ne désactive aucune protection Windows, ne modifie pas les clés de sécurité et n’accorde aucune confiance à l’éditeur : **le binaire reste non signé**. Si l’opération échoue, un avertissement explicite est affiché. L’intégrité SHA-256 contenue dans le même ZIP ne constitue pas une preuve d’authenticité de l’éditeur. Télécharger uniquement la Release du dépôt officiel.

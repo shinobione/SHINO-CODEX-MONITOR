@@ -68,3 +68,10 @@ Un paquet Windows precompile se cree sous dist/SHINO_CODEX_MONITOR_V4_5_WINDOWS.
    - Ouvre la Release dans le navigateur apres ton accord.
    - Aucun telechargement / lancement / installation automatique.
    - Sans Internet, affiche une erreur et laisse la collecte Codex intacte.
+
+9. AVERTISSEMENT AU DEMARRAGE - V4.5.1
+   L'installateur tente de retirer le marquage Internet (MOTW) uniquement
+   sur l'executable installe, apres verifications du SHA-256 et des 45
+   autotests. Le logiciel reste non signe. SmartScreen n'est pas desactive.
+   Si Windows affiche encore un avertissement, verifier le fichier et
+   ses proprietes, ainsi que les politiques de votre installation.

@@ -30,6 +30,24 @@ jobs:
         shell: pwsh
         run: |
           python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Test Windows MOTW clearing on isolated non-executable fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $probe = Join-Path $env:TEMP ('SHINO-MOTW-TEST-' + [guid]::NewGuid().ToString('N') + '.txt')
+          try {
+            [IO.File]::WriteAllText($probe, 'SHINO test fixture, no user data')
+            Set-Content -LiteralPath $probe -Stream Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3" -ErrorAction Stop
+            $before = Get-Item -LiteralPath $probe -Stream Zone.Identifier -ErrorAction Stop
+            if (!$before) { throw 'Fixture MOTW not written' }
+            Unblock-File -LiteralPath $probe -ErrorAction Stop
+            $after = Get-Item -LiteralPath $probe -Stream Zone.Identifier -ErrorAction SilentlyContinue
+            if ($after) { throw 'Unblock-File did not clear MOTW' }
+            Write-Host 'PASS: isolated MOTW fixture was unblocked'
+          }
+          finally {
+            Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+          }
       - name: Build .exe and run 45 C# self-tests
         shell: powershell
         run: |
