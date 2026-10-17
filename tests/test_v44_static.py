@@ -18,7 +18,7 @@ class ReleaseStaticTests(unittest.TestCase):
         self.assertIn('SHINO // CODEX V4.7.0', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
     def test_self_tests_count(self):
         s=(ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8')
-        self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,55)
+        self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,63)
     def test_winexe(self):
         s=(ROOT/'BUILD-RELEASE-V4.7.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('/target:winexe',s)
