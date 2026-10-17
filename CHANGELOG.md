@@ -1,6 +1,8 @@
 # SHINO // CODEX MONITOR — Change log
 
-## V4.7.1 — Appearance & Layout Polish (candidate)
+**Validation V4.7.1 :** CI Windows 60/60 tests Python, 76/76 autotests C#, compilation et test de téléchargement réel sans installation. Interface vérifiée sur PC utilisateur avant le dernier correctif ; reset en état bloqué encore à revalider en conditions réelles. Exécutable non signé.
+
+## V4.7.1 — Appearance & Layout Polish
 
 - Micro-widget : zone de fermeture réservée ; nombre hebdomadaire non recouvert.
 - Tableau circulaire : 540 px de large au lieu de 768, roues de 130 px et colonnes rapprochées.
@@ -9,17 +11,17 @@
 - Diagnostic : version exacte lue depuis l'assembly, sans numéro de version obsolète.
 - Collecteur Codex inchangé, aucune nouvelle fonctionnalité réseau.
 
-## V4.7.0 — Circular Dashboard (candidate)
+## V4.7.0 — Circular Dashboard
 
 - Nouveau mode Circulaire (deux roues), pourcentages restants, reset et fraîcheur.
 - Cinq seuils : 76–100 violet, 51–75 turquoise, 26–50 doré, 11–25 orange, 0–10 rouge.
 - Barres et tray alignés sur la même palette ; gris pour les données périmées.
 - Préférences existantes conservées : cinq nouvelles couleurs sans écraser les quatre anciennes.
-- Collecte Codex inchangée. V4.7 en PR draft, aucun binaire public publié.
+- Collecte Codex inchangée ; interface intégrée à V4.7.1.
 
 # Journal des changements
 
-## V4.6.0 — One-Click Update (candidate)
+## V4.6.0 — One-Click Update
 
 - Téléchargement opt-in depuis une Release GitHub stable plus récente.
 - Empreinte GitHub `assets[].digest` obligatoire et vérification SHA-256 complète.
@@ -32,7 +34,7 @@
 
 
 
-## V4.6.0 — Correctif installateur (candidate)
+## V4.5.1 — Correctif installateur
 
 - Vérification SHA-256 **du binaire installé**, après remplacement atomique.
 - Suppression ciblée et documentée du marquage Internet éventuel du seul EXE installé avec `Unblock-File`.
