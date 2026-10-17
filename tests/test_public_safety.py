@@ -6,9 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # A deliberately narrow allowlist: a file accidentally copied into the project must fail CI.
 TOP_LEVEL = {
     '.gitignore','.gitattributes','README.md','README-FR.txt','SECURITY.md',
-    'BUILD-RELEASE-V4.5.bat','BUILD-RELEASE-V4.5.ps1',
-    'INSTALLER-V4.5.bat','INSTALLER-V4.5.ps1',
-    'DESINSTALLER-V4.5.ps1','PREPARER-ET-INSTALLER-V4.5.bat',
+    'BUILD-RELEASE-V4.6.bat','BUILD-RELEASE-V4.6.ps1',
+    'INSTALLER-V4.6.bat','INSTALLER-V4.6.ps1',
+    'DESINSTALLER-V4.6.ps1','PREPARER-ET-INSTALLER-V4.6.bat',
     'SHINO-CODEX.ico','app.manifest','CHANGELOG.md'
 }
 ALLOW_DIRECTORIES = {'.github/workflows','src','tests'}

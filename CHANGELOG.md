@@ -1,6 +1,19 @@
 # Journal des changements
 
-## V4.5.1 — Correctif installateur (candidate)
+## V4.6.0 — One-Click Update (candidate)
+
+- Téléchargement opt-in depuis une Release GitHub stable plus récente.
+- Empreinte GitHub `assets[].digest` obligatoire et vérification SHA-256 complète.
+- Extraction sur liste blanche uniquement, limite de taille, prévention de traversée ZIP.
+- Double confirmation de l'utilisateur, handoff PowerShell ponctuel après fermeture.
+- Sauvegarde du précédent exécutable par l'installateur existant, préférences et historique conservés.
+- Échec réseau et intégrité : aucune modification de l'installation.
+- Pas de mise à jour silencieuse, pas de secret, pas de droits administrateur.
+- Tests réels Windows / reprise après veille et rollback restent à valider.
+
+
+
+## V4.6.0 — Correctif installateur (candidate)
 
 - Vérification SHA-256 **du binaire installé**, après remplacement atomique.
 - Suppression ciblée et documentée du marquage Internet éventuel du seul EXE installé avec `Unblock-File`.
