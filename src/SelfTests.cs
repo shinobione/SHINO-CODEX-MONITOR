@@ -316,7 +316,42 @@ namespace ShinoCodexMonitor
                     Assert(blocked);
                 } finally { Directory.Delete(temp, true); }
             });
-            report.Insert(0, "SHINO // CODEX V4.6.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("Palette : bornes violet 100 et 76", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(QuotaPalette.Hex(100, p) == p.Color76 && QuotaPalette.Hex(76, p) == p.Color76);
+            });
+            Check("Palette : turquoise 75 et 51", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(QuotaPalette.Hex(75, p) == p.Color51 && QuotaPalette.Hex(51, p) == p.Color51);
+            });
+            Check("Palette : doré 50 et 26", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(QuotaPalette.Hex(50, p) == p.Color26 && QuotaPalette.Hex(26, p) == p.Color26);
+            });
+            Check("Palette : orange 25 et 11", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(QuotaPalette.Hex(25, p) == p.Color11 && QuotaPalette.Hex(11, p) == p.Color11);
+            });
+            Check("Palette : rouge 10 et 0", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(QuotaPalette.Hex(10, p) == p.Color0 && QuotaPalette.Hex(0, p) == p.Color0);
+            });
+            Check("Palette : clamp et défauts migrés", delegate {
+                Preferences p = Preferences.Defaults();
+                p.Color76 = null; p.Color0 = "invalid"; p.Sanitize();
+                Assert(QuotaPalette.Hex(109, p) == p.Color76 && QuotaPalette.Hex(-5, p) == p.Color0);
+            });
+            Check("Affichage circulaire préserve mode Micro", delegate {
+                Preferences p = Preferences.Defaults(); p.Layout = "Circular"; p.Sanitize();
+                Assert(p.Layout == "Circular");
+                p.Layout = "Micro"; p.Sanitize(); Assert(p.Layout == "Micro");
+            });
+            Check("Fraîcheur : donnée absente et ancienne", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                Assert(MonitorForm.FreshnessLabel(null, now) == "Aucun relevé");
+                Assert(MonitorForm.FreshnessLabel(now.AddMinutes(-2), now).Contains("2 min"));
+            });
+            report.Insert(0, "SHINO // CODEX V4.7.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

@@ -78,20 +78,28 @@ namespace ShinoCodexMonitor
         public string ColorMid { get; set; }
         public string ColorLow { get; set; }
         public string ColorCrit { get; set; }
+        // V4.7 palette keys are independent of old 4-band custom colors.
+        public string Color76 { get; set; }
+        public string Color51 { get; set; }
+        public string Color26 { get; set; }
+        public string Color11 { get; set; }
+        public string Color0 { get; set; }
 
         internal static Preferences Defaults()
         {
             return new Preferences {
                 Top = true, Opacity = .96, Alerts = true, Pinned = true,
                 Alert50 = false, Alert25 = true, Alert10 = true, AlertResets = false,
-                Layout = "Vertical", ResetStyle = "both", TrayStyle = "Percent",
+                Layout = "Circular", ResetStyle = "both", TrayStyle = "Percent",
                 InTaskbar = false, RefreshSeconds = 60, History = true,
-                ColorHigh = "#51D7AF", ColorMid = "#E5B64D", ColorLow = "#F28C38", ColorCrit = "#EE4B55"
+                ColorHigh = "#51D7AF", ColorMid = "#E5B64D", ColorLow = "#F28C38", ColorCrit = "#EE4B55",
+                Color76 = "#A477FF", Color51 = "#51D7AF", Color26 = "#E5B64D",
+                Color11 = "#F28C38", Color0 = "#EE4B55"
             };
         }
         internal void Sanitize()
         {
-            if (Layout != "Vertical" && Layout != "Compact" && Layout != "Micro") Layout = "Vertical";
+            if (Layout != "Circular" && Layout != "Vertical" && Layout != "Compact" && Layout != "Micro") Layout = "Vertical";
             if (TrayStyle != "Percent" && TrayStyle != "Ring") TrayStyle = "Percent";
             if (ResetStyle != "both" && ResetStyle != "absolute" && ResetStyle != "relative" && ResetStyle != "hidden") ResetStyle = "both";
             if (RefreshSeconds != 30 && RefreshSeconds != 60 && RefreshSeconds != 120 && RefreshSeconds != 300) RefreshSeconds = 60;
@@ -100,6 +108,11 @@ namespace ShinoCodexMonitor
             if (!IsHex(ColorMid)) ColorMid = "#E5B64D";
             if (!IsHex(ColorLow)) ColorLow = "#F28C38";
             if (!IsHex(ColorCrit)) ColorCrit = "#EE4B55";
+            if (!IsHex(Color76)) Color76 = "#A477FF";
+            if (!IsHex(Color51)) Color51 = "#51D7AF";
+            if (!IsHex(Color26)) Color26 = "#E5B64D";
+            if (!IsHex(Color11)) Color11 = "#F28C38";
+            if (!IsHex(Color0)) Color0 = "#EE4B55";
         }
         private static bool IsHex(string s)
         {

@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, trois dispositions, jauges colorées, resets, historique local et alertes.
 
-> **État :** V4.6.0 candidate — téléchargement GitHub vérifié et installation après double confirmation. Dernière Release publique validée : v4.5.0 ; V4.5.1 est encore en PR. Compilation et essais Windows V4.6 non exécutés. Binaires non signés.
+> **État :** V4.7.0 candidate — téléchargement GitHub vérifié et installation après double confirmation. Dernière Release publique validée : v4.5.0 ; V4.5.1 est encore en PR. Compilation et essais Windows V4.7 non exécutés. Binaires non signés.
 
 ## Confidentialité
 
@@ -54,11 +54,11 @@ Le programme actuel continue de fonctionner si GitHub est indisponible.
 **Publication :** la V4.5 n'est pas publiée tant que sa CI Windows ne passe pas et
 qu'un tag `v4.5.x` n'a pas été créé.
 
-## Avertissement de sécurité au démarrage (V4.6.0)
+## Avertissement de sécurité au démarrage (V4.7.0)
 
 Après vérification du SHA-256 et réussite des autotests, l’installateur retire, **sur le seul exécutable installé**, le marquage Internet éventuel (`Unblock-File`). Il ne désactive aucune protection Windows, ne modifie pas les clés de sécurité et n’accorde aucune confiance à l’éditeur : **le binaire reste non signé**. Si l’opération échoue, un avertissement explicite est affiché. L’intégrité SHA-256 contenue dans le même ZIP ne constitue pas une preuve d’authenticité de l’éditeur. Télécharger uniquement la Release du dépôt officiel.
 
-## V4.6 : mise à jour assistée
+## V4.7 : mise à jour assistée
 
 Clic droit > **Vérifier les mises à jour** > confirmer **téléchargement** > confirmer **installation**.
 L'archive provient de GitHub Releases et son SHA-256 doit correspondre à `assets[].digest` dans l'API GitHub.
@@ -69,3 +69,20 @@ le résultat de l'installation. Ne jamais exécuter le téléchargement en mode 
 
 **Limites :** cela vérifie l'intégrité de ce que GitHub a servi, pas une signature numérique de l'éditeur.
 Le processus doit encore être éprouvé de bout en bout sur un PC Windows (veille, réseau, réinstallations et rollback).
+
+## V4.7 Circular Dashboard (candidate)
+
+Dans l'icône système → **Disposition → Circulaire · 2 roues**, affiche les quotas 5 h et 7 jours comme deux anneaux.
+Le pourcentage au centre signifie **quota restant**, jamais consommé. Les réinitialisations affichées
+proviennent exclusivement de Codex CLI. L'état, l'origine et l'âge du relevé restent visibles.
+Donnée absente : « — » ; donnée périmée : anneau gris et pourcentage marqué « * ».
+
+**Couleurs selon le pourcentage entier affiché** : 76–100 violet (`#A477FF`),
+51–75 turquoise (`#51D7AF`), 26–50 doré (`#E5B64D`),
+11–25 orange (`#F28C38`), 0–10 rouge (`#EE4B55`).
+La même échelle colore l'icône système et les anciennes barres.
+Ces cinq nouvelles couleurs ont leurs propres clés dans le JSON, sans effacer les anciennes.
+Une installation neuve propose le mode circulaire par défaut ; les dispositions déjà enregistrées sont respectées.
+
+V4.7 reste une **candidate**, basée sur la branche V4.6. Pas de Release publique avant la compilation
+Windows, les tests de rendu (DPI, écrans) et la validation de l'utilisateur.

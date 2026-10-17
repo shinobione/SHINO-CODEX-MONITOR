@@ -54,6 +54,11 @@ namespace ShinoCodexMonitor
                         preferences.ColorMid = Json.String(Json.Get(dict, "ColorMid")) ?? preferences.ColorMid;
                         preferences.ColorLow = Json.String(Json.Get(dict, "ColorLow")) ?? preferences.ColorLow;
                         preferences.ColorCrit = Json.String(Json.Get(dict, "ColorCrit")) ?? preferences.ColorCrit;
+                        preferences.Color76 = Json.String(Json.Get(dict, "Color76")) ?? preferences.Color76;
+                        preferences.Color51 = Json.String(Json.Get(dict, "Color51")) ?? preferences.Color51;
+                        preferences.Color26 = Json.String(Json.Get(dict, "Color26")) ?? preferences.Color26;
+                        preferences.Color11 = Json.String(Json.Get(dict, "Color11")) ?? preferences.Color11;
+                        preferences.Color0 = Json.String(Json.Get(dict, "Color0")) ?? preferences.Color0;
                     }
                 }
             }

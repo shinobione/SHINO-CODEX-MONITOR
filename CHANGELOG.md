@@ -1,3 +1,13 @@
+# SHINO // CODEX MONITOR — Change log
+
+## V4.7.0 — Circular Dashboard (candidate)
+
+- Nouveau mode Circulaire (deux roues), pourcentages restants, reset et fraîcheur.
+- Cinq seuils : 76–100 violet, 51–75 turquoise, 26–50 doré, 11–25 orange, 0–10 rouge.
+- Barres et tray alignés sur la même palette ; gris pour les données périmées.
+- Préférences existantes conservées : cinq nouvelles couleurs sans écraser les quatre anciennes.
+- Collecte Codex inchangée. V4.7 en PR draft, aucun binaire public publié.
+
 # Journal des changements
 
 ## V4.6.0 — One-Click Update (candidate)
