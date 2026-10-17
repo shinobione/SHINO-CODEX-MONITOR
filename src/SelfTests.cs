@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.7.1");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.7.2");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -418,7 +418,23 @@ namespace ShinoCodexMonitor
                     "Ancienne mesure · reset non vérifié");
                 Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
             });
-            report.Insert(0, "SHINO // CODEX V4.7.1 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("V4.7.2 : proposée à un utilisateur V4.7.1", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
+                Assert(ReleaseUpdater.IsNewer(latest, new Version(4, 7, 1, 0)));
+            });
+            Check("V4.7.1 : non proposée à l'utilisateur V4.7.2", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.1\"}");
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
+            });
+            Check("V4.7.2 : version identique non reproposée", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
+            });
+            Check("V4.7.2 : noms du ZIP et de l'installateur inchangés", delegate {
+                Assert(ReleasePackage.AssetFile(new Version(4, 7, 2)) == "SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip");
+                Assert(ReleasePackage.InstallerFile(new Version(4, 7, 2)) == "INSTALLER-V4.7.ps1");
+            });
+            report.Insert(0, "SHINO // CODEX V4.7.2 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

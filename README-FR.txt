@@ -1,4 +1,4 @@
-SHINO // CODEX MONITOR — VERSION 4.7.1
+SHINO // CODEX MONITOR — CANDIDATE 4.7.2 (NON PUBLIEE)
 ========================================
 
 Application Windows C# WinForms locale pour afficher les quotas Codex du compte
@@ -10,7 +10,8 @@ Projet communautaire non officiel. Aucun secret Codex ne doit etre partage.
    - Recuperer SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip, puis le decompresser.
    - Fermer completement le widget existant (tray > Quitter completement).
    - Lancer INSTALLER-V4.7.bat sans droits administrateur.
-   - Le paquet verifie SHA-256 + 76 autotests Windows avant toute installation.
+   - Le paquet verifie SHA-256 + les autotests du binaire
+     (Release V4.7.1 : 76 tests ; candidate V4.7.2 : 80 tests).
    - L'application est installee sous :
      %LOCALAPPDATA%\Programs\SHINO Codex Monitor
    - Les preferences et l'historique restent sous :
@@ -65,6 +66,13 @@ Projet communautaire non officiel. Aucun secret Codex ne doit etre partage.
    - En cas de dysfonctionnement, conserver la derniere version locale
      validee plutot que desactiver les protections de Windows.
 
-Tests documentes sur GitHub Actions pour V4.7.1 : 60 tests Python et
-76 autotests C# PASS. Le correctif de reset bloque doit encore etre
-reverifie en situation reelle sur un PC utilisateur.
+Derniere Release publique : v4.7.1 (60 tests Python, 76 autotests C# PASS).
+Candidate V4.7.2 : pas encore validee ni publiee au moment de la preparation.
+Les heures de reset en etat bloque restent a verifier en situation reelle.
+
+7) POURQUOI V4.7.2 ?
+   - Une installation locale V4.7.1 existait avant le dernier correctif.
+   - Deux executables V4.7.1 differents ont le meme numero de version.
+   - V4.7.2 permet a la future Release d'etre detectee par le widget 4.7.1.
+   - Pas de modification du collecteur, des quotas ou des donnees locales.
+   - Les scripts restent V4.7 ; le build compile un executable 4.7.2.

@@ -1,5 +1,15 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V4.7.2 — Identification fiable de la version (candidate)
+
+- Numéro d'assembly, affichage du widget et entrée « Applications installées » synchronisés en **4.7.2**.
+- La future Release `v4.7.2` sera détectable par la V4.7.1, contrairement à deux builds portant le même numéro.
+- Agent utilisateur GitHub Releases automatiquement synchronisé avec la version de l'exécutable.
+- Quatre autotests C# dédiés au passage V4.7.1 → V4.7.2, à la non-régression et au nom du ZIP.
+- Scripts d'installation et d'audit attendent **80/80** autotests C#.
+- Code Codex CLI, fenêtres de quota, resets et données personnelles inchangés.
+- **Non publiée** : CI Windows et test de mise à jour sur PC utilisateur encore nécessaires.
+
 **Validation V4.7.1 :** CI Windows 60/60 tests Python, 76/76 autotests C#, compilation et test de téléchargement réel sans installation. Interface vérifiée sur PC utilisateur avant le dernier correctif ; reset en état bloqué encore à revalider en conditions réelles. Exécutable non signé.
 
 ## V4.7.1 — Appearance & Layout Polish

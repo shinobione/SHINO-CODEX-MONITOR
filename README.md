@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **Code actuel : V4.7.1** — 60/60 audits Python et 76/76 autotests C# réussis sur GitHub Actions pour le code fusionné dans `main`. Interface circulaire, apparence et diagnostic confirmés sur un PC Windows ; le dernier correctif d'affichage du reset sous blocage reste à vérifier en situation réelle. Binaires non signés. Voir [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) pour les versions publiées.
+> **État : V4.7.2 candidate (non publiée)**. Dernière Release publique : **v4.7.1**. V4.7.2 incrémente la version interne afin que le widget déjà installé en 4.7.1 puisse détecter une future Release plus récente. Compilation et essais V4.7.2 en attente ; les binaires restent non signés. Consulter [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) pour les versions réellement publiées.
 
 ## Confidentialité
 
@@ -16,7 +16,7 @@ Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**,
 
 1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
 2. Décompresser le ZIP, puis lancer `INSTALLER-V4.7.bat` dans le dossier extrait **sans droits administrateur**.
-3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance **76 autotests Windows**, puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
+3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**76 pour la Release V4.7.1 ; 80 pour la candidate V4.7.2**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
 4. Codex CLI doit être installé et déjà authentifié sur le compte ChatGPT concerné ; pas de clé API ni de mot de passe à saisir dans le widget.
 
 Le binaire **n'est pas signé**. Windows/Chrome peuvent afficher des avertissements ; ne désactivez pas Defender, SmartScreen ou Safe Browsing. En cas de blocage de téléchargement, ne forcez pas son exécution : privilégiez l'inspection et une compilation locale depuis les sources officielles. Un scan antivirus négatif ne constitue pas une garantie d'innocuité.
@@ -93,3 +93,11 @@ Le mode **Micro** réserve une marge au bouton de fermeture ; le mode **Circulai
 ### Réinitialisation lorsque Codex indique « usage bloqué »
 
 Dans la V4.7.1, le menu **Réinitialisations** reste fonctionnel si `ordinaryUsageAllowed=false` et si les quotas sont lus directement et récemment : le message de blocage apparaît en pied de widget, mais la date et/ou le compte à rebours du reset restent affichés sous chaque fenêtre **uniquement si** `resetsAt` a réellement été communiqué par Codex. Sinon : « Reset non communiqué ». Un relevé ancien n'affiche pas son ancien reset comme une donnée fraîche. Les choix « Date/heure + décompte », « Date/heure uniquement », « Décompte uniquement » et « Masquées » restent indépendants du statut bloqué.
+
+## V4.7.2 — Identification fiable des mises à jour (candidate)
+
+La V4.7.1 avait reçu un correctif après qu'un premier exécutable 4.7.1 eut déjà été installé localement. Le vérificateur de mises à jour compare les numéros `Major.Minor.Build` et ne peut pas distinguer deux exécutables différents avec **le même numéro**. La V4.7.2 incrémente explicitement ce numéro dans l'assembly, les libellés Windows, le rapport de tests et l'installateur. Les noms ZIP et scripts restent `V4_7` pour assurer la compatibilité avec le téléchargeur vérifié.
+
+Les User-Agent des requêtes GitHub utilisent désormais automatiquement la version de l'exécutable ; aucune collecte Codex, préférence ou historique local n'est modifié.
+
+La candidate V4.7.2 nécessite la CI Windows et un test de détection de mise à jour sur le PC utilisateur avant publication. Une nouvelle Release n'est **pas** créée automatiquement.

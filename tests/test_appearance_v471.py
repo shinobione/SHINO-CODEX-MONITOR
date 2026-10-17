@@ -44,8 +44,8 @@ class AppearancePolishAudit(unittest.TestCase):
     def test_diagnostic_uses_assembly_version(self):
         self.assertIn('runningVersion.ToString(3)',FORM)
         self.assertNotIn('return "Version : 4.6.0',FORM)
-        self.assertIn('V4.7.1',FORM)
-        self.assertIn('SHINO // CODEX V4.7.1',TESTS)
+        self.assertIn('V4.7.2',FORM)
+        self.assertIn('SHINO // CODEX V4.7.2',TESTS)
 
     def test_no_codex_reader_changes_or_global_security_bypass(self):
         self.assertNotIn('CodexReader',MODELS)
