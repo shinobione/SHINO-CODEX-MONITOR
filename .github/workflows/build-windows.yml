@@ -2,10 +2,10 @@ name: Build Windows - SHINO Codex Monitor
 
 on:
   push:
-    branches: [main, feature/v4.5.1-targeted-motw-fix, feature/v4.6-one-click-update, feature/v4.7-circular-dashboard, feature/v4.9-desktop-experience]
+    branches: [main, feature/v4.5.1-targeted-motw-fix, feature/v4.6-one-click-update, feature/v4.7-circular-dashboard, feature/v4.8-desktop-experience, feature/v4.9-reliability]
     tags: []  # No automatic public Release for an unapproved candidate
   pull_request:
-    branches: [main, feature/v4.5.1-targeted-motw-fix, feature/v4.6-one-click-update, feature/v4.7-circular-dashboard]
+    branches: [main, feature/v4.8-desktop-experience]
   workflow_dispatch:
 
 permissions:
