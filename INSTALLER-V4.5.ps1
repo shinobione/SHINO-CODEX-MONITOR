@@ -16,7 +16,7 @@ $stage = Join-Path $env:TEMP ('SHINO-CODEX-VERIFY-' + [guid]::NewGuid().ToString
 $exeChanged = $false
 $hadOld = $false
 try {
-    Write-Host 'SHINO // CODEX MONITOR 4.4 - paquet precompile' -ForegroundColor Cyan
+    Write-Host 'SHINO // CODEX MONITOR 4.5.1 - paquet precompile' -ForegroundColor Cyan
     foreach ($relative in @($exeName,'SHINO-CODEX.ico','DESINSTALLER-V4.5.ps1','README-FR.txt','SHA256SUMS.txt')) {
         if (!(Test-Path -LiteralPath (Join-Path $package $relative))) { throw ('Fichier absent : ' + $relative) }
     }
@@ -62,6 +62,24 @@ try {
     }
     finally { Remove-Item -LiteralPath $pendingExe -Force -ErrorAction SilentlyContinue }
 
+    # Verify the installed EXE byte-for-byte before any MOTW operation.
+    # Only this already verified local binary may be unblocked; never disable
+    # SmartScreen, Windows attachment policies or global security settings.
+    $installedHash = (Get-FileHash -LiteralPath $installedExe -Algorithm SHA256).Hash.ToUpperInvariant()
+    if ($installedHash -ne $expected) {
+        throw 'Verification du binaire installe echouee : retour arriere.'
+    }
+    try {
+        Unblock-File -LiteralPath $installedExe -ErrorAction Stop
+        Write-Host 'Marquage Internet retire du binaire installe (si present).' -ForegroundColor Green
+    }
+    catch {
+        # The installed application remains unsigned: do not bypass policy or
+        # delete an arbitrary ADS. Report the limitation without hiding errors.
+        Write-Warning ('Marquage Internet non retire : ' + $_.Exception.Message)
+        Write-Warning 'Un avertissement Windows peut encore apparaitre au lancement.'
+    }
+
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut((Join-Path $startMenu 'SHINO Codex Monitor.lnk'))
     $shortcut.TargetPath = $installedExe
@@ -77,7 +95,7 @@ try {
 
     if (!(Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
     New-ItemProperty -Path $uninstallKey -Name DisplayName -Value 'SHINO // CODEX MONITOR' -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.5.0' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.5.1' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name Publisher -Value 'SHINO (local)' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value ($installedExe + ',0') -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $destination -PropertyType String -Force | Out-Null

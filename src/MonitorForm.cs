@@ -74,7 +74,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.5.0";
+            Text = "SHINO // CODEX MONITOR V4.5.1";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -85,7 +85,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.5.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.5.1", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -95,7 +95,7 @@ namespace ShinoCodexMonitor
             status = TextLabel("● Initialisation Codex...", 8, UiColors.Muted, false);
             Controls.Add(status);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.5.0", Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.5.1", Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -475,7 +475,7 @@ namespace ShinoCodexMonitor
         private string DiagnosticText()
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
-            return "Version : 4.5.0 (C# / Windows Forms)\n" +
+            return "Version : 4.5.1 (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "Binaire CLI : " + binaryPath + "\n" +
