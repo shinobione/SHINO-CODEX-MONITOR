@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.9.0");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "5.0.0");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -418,21 +418,21 @@ namespace ShinoCodexMonitor
                     "Ancienne mesure · reset non vérifié");
                 Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
             });
-            Check("V4.9.0 : proposée à un utilisateur V4.7.2", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.9.0\"}");
+            Check("V5.0.0 : proposée à un utilisateur V4.7.2", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v5.0.0\"}");
                 Assert(ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
             });
-            Check("V4.7.2 : non proposée à l'utilisateur V4.9.0", delegate {
+            Check("V4.7.2 : non proposée à l'utilisateur V5.0.0", delegate {
                 PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 9, 0, 0)));
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(5, 0, 0, 0)));
             });
-            Check("V4.9.0 : version identique non reproposée", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.9.0\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 9, 0, 0)));
+            Check("V5.0.0 : version identique non reproposée", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v5.0.0\"}");
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(5, 0, 0, 0)));
             });
-            Check("V4.9.0 : nom ZIP et installateur conformes", delegate {
-                Assert(ReleasePackage.AssetFile(new Version(4, 9, 0)) == "SHINO_CODEX_MONITOR_V4_9_WINDOWS.zip");
-                Assert(ReleasePackage.InstallerFile(new Version(4, 9, 0)) == "INSTALLER-V4.9.ps1");
+            Check("V5.0.0 : nom ZIP et installateur conformes", delegate {
+                Assert(ReleasePackage.AssetFile(new Version(5, 0, 0)) == "SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip");
+                Assert(ReleasePackage.InstallerFile(new Version(5, 0, 0)) == "INSTALLER-V5.0.ps1");
             });
             Check("V4.8 : largeur circulaire bornée", delegate {
                 Assert(DesktopGeometry.ClampWidth(200) == 470 &&
@@ -503,7 +503,49 @@ namespace ShinoCodexMonitor
                 System.Drawing.Rectangle result = DesktopGeometry.ClampToScreen(old, work);
                 Assert(work.Contains(result) && result.Width == 540 && result.Height == 278);
             });
-            report.Insert(0, "SHINO // CODEX V4.9.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("V5 : fenêtre Codex absente explicitement annoncée", delegate {
+                Assert(SourceHealth.WindowLine("5 heures", null, true, DateTimeOffset.UtcNow) ==
+                    "5 heures : Fenêtre non communiquée");
+            });
+            Check("V5 : fenêtre ancienne jamais présentée comme actuelle", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 37, ResetUtc = now.AddHours(2) };
+                string text = SourceHealth.WindowLine("5 heures", w, false, now);
+                Assert(text.Contains("ancienne donnée") && text.Contains("reset non vérifié") &&
+                    !text.Contains("dd/MM"));
+            });
+            Check("V5 : reset futur direct explicitement daté", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 25, ResetUtc = now.AddHours(2) };
+                string text = SourceHealth.WindowLine("5 heures", w, true, now);
+                Assert(text.Contains("25 % restants") && text.Contains("Reset ") &&
+                    !text.Contains("non vérifié"));
+            });
+            Check("V5 : absence ou échéance du reset clairement distinguées", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 0 };
+                Assert(SourceHealth.WindowLine("5 heures", w, true, now).Contains("Reset non communiqué"));
+                w.ResetUtc = now.AddMinutes(-1);
+                Assert(SourceHealth.WindowLine("5 heures", w, true, now).Contains("Reset attendu"));
+            });
+            Check("V5 : état bloqué conservé indépendamment des deux fenêtres", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                Snapshot snap = new Snapshot { CapturedUtc = now, UsageAllowed = false,
+                    Five = new QuotaWindow { Minutes = 300, Remaining = 0, ResetUtc = now.AddHours(1) } };
+                string text = SourceHealth.Build(snap, "Direct", now, 0, "", now.AddMinutes(1), now);
+                Assert(text.Contains("Usage ordinaire signalé bloqué") && text.Contains("0 % restants") &&
+                    text.Contains("7 jours : Fenêtre non communiquée"));
+            });
+            Check("V5 : origine et statut indisponible sans valeur inventée", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                string text = SourceHealth.Build(null, "Indisponible", null, 1,
+                    "Accès refusé (401/403)", now.AddMinutes(2), now);
+                Assert(text.Contains("Codex CLI / account/rateLimits/read") &&
+                    text.Contains("Statut : Indisponible") && text.Contains("Accès refusé") &&
+                    text.Contains("Dernier relevé valide : Aucun") &&
+                    !text.Contains("% restants"));
+            });
+            report.Insert(0, "SHINO // CODEX V5.0.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

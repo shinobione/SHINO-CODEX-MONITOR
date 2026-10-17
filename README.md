@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **État : V4.9.0 Reliability — candidate, non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
+> **État : V5.0.0 Data Trust & Health — préversion expérimentale non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
 
 ## Confidentialité
 
@@ -14,17 +14,17 @@ Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**,
 
 ## Télécharger et installer (Windows)
 
-1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_9_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
-2. Décompresser le ZIP, puis lancer `INSTALLER-V4.9.bat` dans le dossier extrait **sans droits administrateur**.
-3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**92 prévus pour la candidate V4.9.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
+1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
+2. Décompresser le ZIP, puis lancer `INSTALLER-V5.0.bat` dans le dossier extrait **sans droits administrateur**.
+3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**98 prévus pour la préversion V5.0.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
 4. Codex CLI doit être installé et déjà authentifié sur le compte ChatGPT concerné ; pas de clé API ni de mot de passe à saisir dans le widget.
 
 Le binaire **n'est pas signé**. Windows/Chrome peuvent afficher des avertissements ; ne désactivez pas Defender, SmartScreen ou Safe Browsing. En cas de blocage de téléchargement, ne forcez pas son exécution : privilégiez l'inspection et une compilation locale depuis les sources officielles. Un scan antivirus négatif ne constitue pas une garantie d'innocuité.
 
 ## Compiler / tester depuis les sources
 
-- Compiler sans installer : `BUILD-RELEASE-V4.9.bat` (Windows, compilateur C# .NET Framework disponible).
-- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V4.9.bat`.
+- Compiler sans installer : `BUILD-RELEASE-V5.0.bat` (Windows, compilateur C# .NET Framework disponible).
+- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V5.0.bat`.
 - Autotests du binaire : `SHINO-CODEX-MONITOR.exe --self-test`.
 - Audit statique : `python -m unittest discover -s tests -p "test_*.py"`.
 - Build Windows officiel : `.github/workflows/build-windows.yml`. La publication doit porter sur un commit testé.
@@ -137,3 +137,9 @@ Clic droit sur l'icône de zone de notification : les actions **Afficher / masqu
 ## V5 — périmètre à valider avant implémentation majeure
 
 V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans mélange avec l'API OpenAI, l'utilisation du chat classique ni un tableau de bord hébergé. Objectifs proposés : (1) robustesse du monitoring et indicateurs de source/fraîcheur par fenêtre ; (2) parcours Windows stable, accessibilité/DPI/multi-écran ; (3) mise à jour vérifiée et réversible sans créer de service ou abonnement. Aucune nouvelle source de données non documentée sans audit spécifique et accord. Le MVP V5 sera défini après validation Windows de V4.9 et choix du changement réellement utile.
+
+## V5.0.0 — Première tranche « Data Trust & Health » (expérimentale)
+
+**Quotas & données → État des données Codex** ouvre un rapport local en lecture seule : origine réelle Codex CLI, état de fraîcheur, âge/heure locale du dernier relevé, échecs, dernier message d'erreur et prochaine tentative. Il décrit séparément les fenêtres 5 h / 7 jours seulement si leurs valeurs ont réellement été communiquées ; ne fabrique ni pourcentage ni reset. Une donnée ancienne est explicitement étiquetée comme ancienne ; l'alerte `Usage bloqué` demeure distincte des resets. Aucune requête payante, aucun accès à auth.json, cookie ou mot de passe n'est ajouté.
+
+**Ce n'est pas une V5 finalisée** : le rapport est pour le moment une boîte de dialogue WinForms plutôt qu'un panneau de monitoring dédié. Le rendu à plusieurs DPI, le comportement réel après veille, la comparaison au tableau Codex et le flux de mise à jour depuis V4.7.2 restent à valider. Le jalon produit est suivi dans [GitHub #9](https://github.com/shinobione/SHINO-CODEX-MONITOR/issues/9). Aucune Release V5 avant validation du MVP sur Windows.
