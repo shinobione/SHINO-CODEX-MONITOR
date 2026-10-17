@@ -13,7 +13,7 @@ class TargetedMotwTests(unittest.TestCase):
 
     def test_not_before_validation(self):
         self.assertLess(SCRIPT.index('$expected -ne $observed'), SCRIPT.index('Unblock-File -LiteralPath'))
-        self.assertLess(SCRIPT.index('63/63'), SCRIPT.index('Unblock-File -LiteralPath'))
+        self.assertLess(SCRIPT.index('68/68'), SCRIPT.index('Unblock-File -LiteralPath'))
         self.assertLess(SCRIPT.index('if ($ValidateOnly)'), SCRIPT.index('Unblock-File -LiteralPath'))
 
     def test_installed_binary_verified_before_unblock(self):
