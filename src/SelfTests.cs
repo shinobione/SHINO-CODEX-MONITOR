@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.7.2");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.8.0");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -418,23 +418,69 @@ namespace ShinoCodexMonitor
                     "Ancienne mesure · reset non vérifié");
                 Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
             });
-            Check("V4.7.2 : proposée à un utilisateur V4.7.1", delegate {
+            Check("V4.8.0 : proposée à un utilisateur V4.7.2", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.8.0\"}");
+                Assert(ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
+            });
+            Check("V4.7.2 : non proposée à l'utilisateur V4.8.0", delegate {
                 PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
-                Assert(ReleaseUpdater.IsNewer(latest, new Version(4, 7, 1, 0)));
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 8, 0, 0)));
             });
-            Check("V4.7.1 : non proposée à l'utilisateur V4.7.2", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.1\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
+            Check("V4.8.0 : version identique non reproposée", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.8.0\"}");
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 8, 0, 0)));
             });
-            Check("V4.7.2 : version identique non reproposée", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
+            Check("V4.8.0 : nom ZIP et installateur conformes", delegate {
+                Assert(ReleasePackage.AssetFile(new Version(4, 8, 0)) == "SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip");
+                Assert(ReleasePackage.InstallerFile(new Version(4, 8, 0)) == "INSTALLER-V4.8.ps1");
             });
-            Check("V4.7.2 : noms du ZIP et de l'installateur inchangés", delegate {
-                Assert(ReleasePackage.AssetFile(new Version(4, 7, 2)) == "SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip");
-                Assert(ReleasePackage.InstallerFile(new Version(4, 7, 2)) == "INSTALLER-V4.7.ps1");
+            Check("V4.8 : largeur circulaire bornée", delegate {
+                Assert(DesktopGeometry.ClampWidth(200) == 470 &&
+                    DesktopGeometry.ClampWidth(800) == 720 &&
+                    DesktopGeometry.ClampWidth(540) == 540);
             });
-            report.Insert(0, "SHINO // CODEX V4.7.2 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("V4.8 : proportions circulaires conservées", delegate {
+                Assert(DesktopGeometry.HeightForWidth(540) == 278);
+                Assert(DesktopGeometry.HeightForWidth(620) > 278);
+                Assert(DesktopGeometry.Scale(130, 540) == 130);
+            });
+            Check("V4.8 : rectangles des roues redimensionnés", delegate {
+                System.Drawing.Rectangle r = DesktopGeometry.ScaleRect(85, 78, 130, 130, 620);
+                Assert(r.Width > 130 && r.Height > 130 && r.X > 85);
+            });
+            Check("V4.8 : aimantation bord gauche et haut", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(0, 0, 1920, 1040);
+                System.Drawing.Rectangle w = DesktopGeometry.Snap(
+                    new System.Drawing.Rectangle(14, 13, 540, 278), work, 20);
+                Assert(w.Left == 0 && w.Top == 0);
+            });
+            Check("V4.8 : aimantation bord droit et bas", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(0, 0, 1920, 1040);
+                System.Drawing.Rectangle w = DesktopGeometry.Snap(
+                    new System.Drawing.Rectangle(1394, 752, 540, 278), work, 20);
+                Assert(w.Right == 1920 && w.Bottom == 1040);
+            });
+            Check("V4.8 : écran secondaire à coordonnées négatives", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(-1920, 0, 1920, 1080);
+                System.Drawing.Rectangle w = DesktopGeometry.Snap(
+                    new System.Drawing.Rectangle(-1910, 150, 540, 278), work, 20);
+                Assert(w.Left == -1920 && w.Top == 150);
+            });
+            Check("V4.8 : aucune aimantation distante", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(0, 0, 1920, 1080);
+                System.Drawing.Rectangle r = new System.Drawing.Rectangle(410, 260, 540, 278);
+                Assert(DesktopGeometry.Snap(r, work, 20) == r);
+            });
+            Check("V4.8 : préférences des fenêtres et taille migrées", delegate {
+                Preferences p = Preferences.Defaults();
+                Assert(p.CircularWidth == 540 && !p.SnapToEdges && p.AlertFive && p.AlertWeek);
+                p.CircularWidth = -42; p.Sanitize();
+                Assert(p.CircularWidth == 540);
+                p.CircularWidth = 700; p.AlertWeek = false; p.SnapToEdges = true;
+                p.Sanitize();
+                Assert(p.CircularWidth == 700 && !p.AlertWeek && p.SnapToEdges);
+            });
+            report.Insert(0, "SHINO // CODEX V4.8.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

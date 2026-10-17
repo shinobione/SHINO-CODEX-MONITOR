@@ -16,8 +16,8 @@ $stage = Join-Path $env:TEMP ('SHINO-CODEX-VERIFY-' + [guid]::NewGuid().ToString
 $exeChanged = $false
 $hadOld = $false
 try {
-    Write-Host 'SHINO // CODEX MONITOR 4.7.2 - paquet precompile' -ForegroundColor Cyan
-    foreach ($relative in @($exeName,'SHINO-CODEX.ico','DESINSTALLER-V4.7.ps1','README-FR.txt','SHA256SUMS.txt')) {
+    Write-Host 'SHINO // CODEX MONITOR 4.8.0 - paquet precompile' -ForegroundColor Cyan
+    foreach ($relative in @($exeName,'SHINO-CODEX.ico','DESINSTALLER-V4.8.ps1','README-FR.txt','SHA256SUMS.txt')) {
         if (!(Test-Path -LiteralPath (Join-Path $package $relative))) { throw ('Fichier absent : ' + $relative) }
     }
     $line = @(Get-Content -LiteralPath $manifest | Where-Object { $_ -match ('\s+' + [regex]::Escape($exeName) + '$') })
@@ -40,8 +40,8 @@ try {
     $testReport = Join-Path $stage 'V4_TEST_REPORT.txt'
     if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $testReport)) { throw 'Autotests Windows : echec (aucune installation).'}
     $result = [IO.File]::ReadAllText($testReport)
-    if (!$result.Contains('80/80') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
-    Write-Host 'Autotests Windows : 80/80 PASS.' -ForegroundColor Green
+    if (!$result.Contains('88/88') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
+    Write-Host 'Autotests Windows : 88/88 PASS.' -ForegroundColor Green
     if ($ValidateOnly) { Write-Host 'Verification seulement : rien installe.' -ForegroundColor Green; exit 0 }
 
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -57,7 +57,7 @@ try {
         }
         $exeChanged = $true
         Copy-Item -LiteralPath (Join-Path $package 'SHINO-CODEX.ico') -Destination $destination -Force
-        Copy-Item -LiteralPath (Join-Path $package 'DESINSTALLER-V4.7.ps1') -Destination $destination -Force
+        Copy-Item -LiteralPath (Join-Path $package 'DESINSTALLER-V4.8.ps1') -Destination $destination -Force
         Copy-Item -LiteralPath (Join-Path $package 'README-FR.txt') -Destination $destination -Force
     }
     finally { Remove-Item -LiteralPath $pendingExe -Force -ErrorAction SilentlyContinue }
@@ -89,19 +89,19 @@ try {
     $shortcut.Save()
     $shortcut = $shell.CreateShortcut((Join-Path $startMenu 'Desinstaller SHINO Codex Monitor.lnk'))
     $shortcut.TargetPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $destination 'DESINSTALLER-V4.7.ps1') + '"'
+    $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $destination 'DESINSTALLER-V4.8.ps1') + '"'
     $shortcut.WorkingDirectory = $destination
     $shortcut.Save()
 
     if (!(Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
     New-ItemProperty -Path $uninstallKey -Name DisplayName -Value 'SHINO // CODEX MONITOR' -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.7.2' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.8.0' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name Publisher -Value 'SHINO (local)' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value ($installedExe + ',0') -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $destination -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name NoModify -Value 1 -PropertyType DWord -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name NoRepair -Value 1 -PropertyType DWord -Force | Out-Null
-    $uninstall = '"' + (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $destination 'DESINSTALLER-V4.7.ps1') + '"'
+    $uninstall = '"' + (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $destination 'DESINSTALLER-V4.8.ps1') + '"'
     New-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstall -PropertyType String -Force | Out-Null
 
     $existingStart = (Get-ItemProperty -Path $runKey -Name $runName -ErrorAction SilentlyContinue).$runName

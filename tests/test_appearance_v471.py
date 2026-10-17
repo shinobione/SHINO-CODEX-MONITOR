@@ -18,12 +18,10 @@ class AppearancePolishAudit(unittest.TestCase):
         self.assertIn('close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10',FORM)
 
     def test_circular_gauges_are_closer(self):
-        m=re.search(r'ClientSize = new Size\((\d+), 278\);.*?PlaceCircular\(five, (\d+), (\d+)\);\s*PlaceCircular\(week, (\d+), (\d+)\);',FORM,re.S)
-        self.assertIsNotNone(m)
-        width, x1, w1, x2, w2=map(int,m.groups())
-        self.assertLessEqual(width,560)
-        self.assertLess(x2+w2/2-x1-w1/2,300)
-        self.assertIn('SetBounds(x + (width - 130) / 2, 78, 130, 130)',FORM)
+        self.assertIn('ClientSize = new Size(w, DesktopGeometry.HeightForWidth(w));',FORM)
+        self.assertIn('PlaceCircular(five, 24, 236)',FORM)
+        self.assertIn('PlaceCircular(week, 280, 236)',FORM)
+        self.assertIn('m.Ring.Bounds = DesktopGeometry.ScaleRect(x + (width - 130) / 2, 78, 130, 130, w)',FORM)
 
     def test_opacity_control_persisted_and_live(self):
         for value in ('70','80','90','96','100'):
@@ -44,8 +42,8 @@ class AppearancePolishAudit(unittest.TestCase):
     def test_diagnostic_uses_assembly_version(self):
         self.assertIn('runningVersion.ToString(3)',FORM)
         self.assertNotIn('return "Version : 4.6.0',FORM)
-        self.assertIn('V4.7.2',FORM)
-        self.assertIn('SHINO // CODEX V4.7.2',TESTS)
+        self.assertIn('V4.8.0',FORM)
+        self.assertIn('SHINO // CODEX V4.8.0',TESTS)
 
     def test_no_codex_reader_changes_or_global_security_bypass(self):
         self.assertNotIn('CodexReader',MODELS)

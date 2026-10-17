@@ -44,6 +44,7 @@ namespace ShinoCodexMonitor
         private readonly Label status;
         private readonly Label statusAge;
         private readonly Panel statusDivider;
+        private readonly Label resizeGrip;
         private readonly Meter five;
         private readonly Meter week;
         private readonly ToolTip tooltip = new ToolTip();
@@ -69,6 +70,8 @@ namespace ShinoCodexMonitor
         private int wakeRefreshes;
         private string lastWakeReason = "Aucune";
         private Point? dragMouse, dragOrigin;
+        private Point? resizeMouse;
+        private int resizeOriginalWidth;
         private readonly Dictionary<string, ToolStripMenuItem> intervalItems = new Dictionary<string, ToolStripMenuItem>();
         private ToolStripMenuItem updateMenuItem;
         private bool updateCheckRunning;
@@ -77,7 +80,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.7.2";
+            Text = "SHINO // CODEX MONITOR V4.8.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -88,7 +91,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.7.2", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.8.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -102,6 +105,11 @@ namespace ShinoCodexMonitor
             Controls.Add(statusAge);
             statusDivider = new Panel { BackColor = UiColors.Track };
             Controls.Add(statusDivider);
+            resizeGrip = TextLabel("◢", 11, UiColors.Muted, true);
+            resizeGrip.Cursor = Cursors.SizeNWSE;
+            resizeGrip.TextAlign = ContentAlignment.MiddleCenter;
+            tooltip.SetToolTip(resizeGrip, "Glisser pour redimensionner les roues");
+            Controls.Add(resizeGrip);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.7.2", Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
@@ -120,6 +128,7 @@ namespace ShinoCodexMonitor
                     if (screen.WorkingArea.IntersectsWith(proposed)) { Location = proposed.Location; break; }
             }
             AttachDrag(this); AttachDrag(header); AttachDrag(version);
+            AttachCircularResize();
             FormClosing += OnFormClosing;
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
             SystemEvents.TimeChanged += OnTimeChanged;
@@ -156,14 +165,18 @@ namespace ShinoCodexMonitor
             m.Track.SetBounds(x, y + (micro ? 31 : 31), width, micro ? 6 : 9);
             m.Fill.Height = m.Track.Height;
             m.Reset.SetBounds(x, y + 44, width, micro ? 18 : 22);
+            m.Reset.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
         }
         private void PlaceCircular(Meter m, int x, int width)
         {
-            m.Name.SetBounds(x, 52, width, 25);
+            int w = settings.CircularWidth;
+            float ratio = w / (float)DesktopGeometry.DefaultWidth;
+            m.Name.Bounds = DesktopGeometry.ScaleRect(x, 52, width, 25, w);
             m.Name.TextAlign = ContentAlignment.MiddleCenter;
-            m.Name.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            m.Ring.SetBounds(x + (width - 130) / 2, 78, 130, 130);
-            m.Reset.SetBounds(x, 209, width, 23);
+            m.Name.Font = new Font("Segoe UI", 9f * ratio, FontStyle.Bold);
+            m.Ring.Bounds = DesktopGeometry.ScaleRect(x + (width - 130) / 2, 78, 130, 130, w);
+            m.Reset.Bounds = DesktopGeometry.ScaleRect(x, 209, width, 23, w);
+            m.Reset.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
             m.Reset.TextAlign = ContentAlignment.MiddleCenter;
             m.Number.Visible = false;
             m.Track.Visible = false;
@@ -188,17 +201,22 @@ namespace ShinoCodexMonitor
             statusDivider.Visible = circular;
             if (circular)
             {
-                ClientSize = new Size(540, 278);
-                header.SetBounds(17, 12, 340, 30);
-                header.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                int w = DesktopGeometry.ClampWidth(settings.CircularWidth);
+                settings.CircularWidth = w;
+                ClientSize = new Size(w, DesktopGeometry.HeightForWidth(w));
+                float ratio = w / (float)DesktopGeometry.DefaultWidth;
+                header.Bounds = DesktopGeometry.ScaleRect(17, 12, 340, 30, w);
+                header.Font = new Font("Segoe UI", 11f * ratio, FontStyle.Bold);
                 version.Visible = true;
-                version.SetBounds(348, 13, 146, 20);
+                version.Bounds = DesktopGeometry.ScaleRect(348, 13, 146, 20, w);
                 version.TextAlign = ContentAlignment.MiddleRight;
                 PlaceCircular(five, 24, 236);
                 PlaceCircular(week, 280, 236);
-                statusDivider.SetBounds(14, 239, 512, 1);
-                status.SetBounds(17, 247, 337, 22);
-                statusAge.SetBounds(355, 247, 169, 22);
+                statusDivider.Bounds = DesktopGeometry.ScaleRect(14, 239, 512, 1, w);
+                status.Bounds = DesktopGeometry.ScaleRect(17, 247, 337, 22, w);
+                statusAge.Bounds = DesktopGeometry.ScaleRect(355, 247, 160, 22, w);
+                status.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
+                statusAge.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
             }
             else if (micro)
             {
@@ -235,6 +253,9 @@ namespace ShinoCodexMonitor
                 status.SetBounds(17, 238, 322, 18);
             }
             close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10, 25, micro ? 24 : 28);
+            resizeGrip.Visible = circular && settings.Pinned;
+            if (circular)
+                resizeGrip.Bounds = DesktopGeometry.ScaleRect(520, 257, 17, 17, settings.CircularWidth);
             Location = new Point(Math.Max(work.Left, Math.Min(Left, work.Right - Width)),
                 Math.Max(work.Top, Math.Min(Top, work.Bottom - Height)));
             PaintSnapshot();
@@ -269,7 +290,38 @@ namespace ShinoCodexMonitor
                     Location = new Point(dragOrigin.Value.X + now.X - dragMouse.Value.X, dragOrigin.Value.Y + now.Y - dragMouse.Value.Y);
                 }
             };
-            control.MouseUp += delegate { if (dragMouse.HasValue) { dragMouse = null; dragOrigin = null; Save(); } };
+            control.MouseUp += delegate {
+                if (!dragMouse.HasValue) return;
+                dragMouse = null; dragOrigin = null;
+                if (settings.Pinned && settings.SnapToEdges)
+                    Location = DesktopGeometry.Snap(Bounds, Screen.FromRectangle(Bounds).WorkingArea, 20).Location;
+                Save();
+            };
+        }
+        private void AttachCircularResize()
+        {
+            resizeGrip.MouseDown += delegate(object sender, MouseEventArgs e) {
+                if (e.Button != MouseButtons.Left || !settings.Pinned || settings.Layout != "Circular") return;
+                resizeMouse = Cursor.Position;
+                resizeOriginalWidth = settings.CircularWidth;
+            };
+            resizeGrip.MouseMove += delegate(object sender, MouseEventArgs e) {
+                if (!resizeMouse.HasValue || Control.MouseButtons != MouseButtons.Left) return;
+                int desired = DesktopGeometry.ClampWidth(resizeOriginalWidth + Cursor.Position.X - resizeMouse.Value.X);
+                // Avoid expensive redraw for every single mouse pixel.
+                if (Math.Abs(desired - settings.CircularWidth) >= 5)
+                {
+                    settings.CircularWidth = desired;
+                    ApplyLayout();
+                }
+            };
+            resizeGrip.MouseUp += delegate {
+                if (!resizeMouse.HasValue) return;
+                resizeMouse = null;
+                if (settings.Pinned && settings.SnapToEdges)
+                    Location = DesktopGeometry.Snap(Bounds, Screen.FromRectangle(Bounds).WorkingArea, 20).Location;
+                Save();
+            };
         }
         private static ToolStripMenuItem Menu(ContextMenuStrip menu, string name, EventHandler handler)
         {
@@ -304,6 +356,7 @@ namespace ShinoCodexMonitor
                 TopMost = settings.Pinned ? settings.Top : true;
                 ShowInTaskbar = settings.Pinned && settings.InTaskbar;
                 if (!settings.Pinned) Hide();
+                ApplyLayout();
                 Save();
             });
             pinned.CheckOnClick = true;
@@ -329,7 +382,7 @@ namespace ShinoCodexMonitor
             ToolStripMenuItem appearance = Menu(context, "Apparence", null);
             ToolStripMenuItem opacity = new ToolStripMenuItem("Opacité");
             appearance.DropDownItems.Add(opacity);
-            foreach (int value in new int[] { 70, 80, 90, 96, 100 })
+            foreach (int value in new int[] { 70, 75, 80, 85, 90, 95, 96, 98, 100 })
             {
                 int percent = value;
                 ToolStripMenuItem option = new ToolStripMenuItem(value + " %") {
@@ -344,6 +397,32 @@ namespace ShinoCodexMonitor
                 };
                 opacity.DropDownItems.Add(option);
             }
+            ToolStripMenuItem circularSize = new ToolStripMenuItem("Taille des roues");
+            appearance.DropDownItems.Add(circularSize);
+            foreach (int value in new int[] { 480, 540, 620, 700 })
+            {
+                int pixels = value;
+                ToolStripMenuItem option = new ToolStripMenuItem(value == 480 ? "Petit · 480 px" :
+                    value == 540 ? "Standard · 540 px" : value == 620 ? "Grand · 620 px" : "Très grand · 700 px") {
+                    Checked = settings.CircularWidth == value
+                };
+                option.Click += delegate {
+                    settings.CircularWidth = pixels;
+                    settings.Layout = "Circular";
+                    foreach (ToolStripItem it in circularSize.DropDownItems)
+                        ((ToolStripMenuItem)it).Checked = (it == option);
+                    // Layout selector must reflect an explicit size change.
+                    foreach (ToolStripItem it in layouts.DropDownItems)
+                        ((ToolStripMenuItem)it).Checked = it.Text.StartsWith("Circulaire");
+                    ApplyLayout(); Save();
+                };
+                circularSize.DropDownItems.Add(option);
+            }
+            ToolStripMenuItem magnet = new ToolStripMenuItem("Aimantation aux bords des écrans") {
+                Checked = settings.SnapToEdges, CheckOnClick = true
+            };
+            magnet.Click += delegate { settings.SnapToEdges = magnet.Checked; Save(); };
+            appearance.DropDownItems.Add(magnet);
             ToolStripMenuItem backgrounds = new ToolStripMenuItem("Couleur du fond");
             appearance.DropDownItems.Add(backgrounds);
             AddBackgroundPreset(backgrounds, "Bleu nuit", "#111926");
@@ -404,6 +483,9 @@ namespace ShinoCodexMonitor
             taskbar.CheckOnClick = true; taskbar.Checked = settings.InTaskbar;
             ToolStripMenuItem alerts = Menu(context, "Notifications intelligentes", null);
             AddAlertToggle(alerts, "Activer les notifications", settings.Alerts, delegate(bool v) { settings.Alerts = v; Save(); });
+            alerts.DropDownItems.Add(new ToolStripSeparator());
+            AddAlertToggle(alerts, "Fenêtre 5 heures", settings.AlertFive, delegate(bool v) { settings.AlertFive = v; Save(); });
+            AddAlertToggle(alerts, "Fenêtre 7 jours", settings.AlertWeek, delegate(bool v) { settings.AlertWeek = v; Save(); });
             alerts.DropDownItems.Add(new ToolStripSeparator());
             AddAlertToggle(alerts, "Seuil 50 %", settings.Alert50, delegate(bool v) { settings.Alert50 = v; Save(); });
             AddAlertToggle(alerts, "Seuil 25 %", settings.Alert25, delegate(bool v) { settings.Alert25 = v; Save(); });
@@ -666,6 +748,9 @@ namespace ShinoCodexMonitor
                 "État : " + State() + "\n" +
                 "Icône de notification : " + settings.TrayStyle + "\n" +
                 "Widget épinglé : " + settings.Pinned + "\n" +
+                "Taille circulaire : " + settings.CircularWidth + " px\n" +
+                "Aimantation : " + settings.SnapToEdges + "\n" +
+                "Alertes 5 h / 7 j : " + settings.AlertFive + "/" + settings.AlertWeek + "\n" +
                 "Alertes 50/25/10/reset : " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
                 "Dernier relevé valide : " + last + "\n" +
                 "Reprises / invalidations : " + wakeRefreshes + "\n" +
@@ -797,8 +882,10 @@ namespace ShinoCodexMonitor
             if (latest.CapturedUtc - previous.CapturedUtc > TimeSpan.FromMinutes(15) ||
                 latest.CapturedUtc < previous.CapturedUtc) return;
             List<string> messages = new List<string>();
-            CollectNotification(messages, "5 h", previous.Five, latest.Five, latest.CapturedUtc);
-            CollectNotification(messages, "7 jours", previous.Week, latest.Week, latest.CapturedUtc);
+            if (settings.AlertFive)
+                CollectNotification(messages, "5 h", previous.Five, latest.Five, latest.CapturedUtc);
+            if (settings.AlertWeek)
+                CollectNotification(messages, "7 jours", previous.Week, latest.Week, latest.CapturedUtc);
             if (messages.Count == 0) return;
             tray.BalloonTipTitle = "SHINO // CODEX MONITOR";
             tray.BalloonTipText = string.Join(" · ", messages.ToArray());

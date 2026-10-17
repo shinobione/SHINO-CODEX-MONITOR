@@ -13,34 +13,34 @@ class ReleaseStaticTests(unittest.TestCase):
             a = (ROOT/'src'/name).read_bytes()
             self.assertEqual(hashlib.sha256(a).hexdigest(), HASHES[name], name)
     def test_version(self):
-        self.assertIn('4.7.2.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
-        self.assertIn('V4.7.2', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
-        self.assertIn('SHINO // CODEX V4.7.2', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
+        self.assertIn('4.8.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
+        self.assertIn('V4.8.0', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
+        self.assertIn('SHINO // CODEX V4.8.0', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
     def test_self_tests_count(self):
         s=(ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8')
-        self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,80)
+        self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,88)
     def test_winexe(self):
-        s=(ROOT/'BUILD-RELEASE-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'BUILD-RELEASE-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('/target:winexe',s)
         self.assertIn('Autotests Windows incomplets',s)
-        self.assertIn("'80/80'",s)
+        self.assertIn("'88/88'",s)
     def test_integrity_before_install(self):
-        s=(ROOT/'INSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'INSTALLER-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertLess(s.index('Get-FileHash'), s.index('New-Item -ItemType Directory -Path $destination'))
-        self.assertLess(s.index('80/80'), s.index('New-Item -ItemType Directory -Path $destination'))
+        self.assertLess(s.index('88/88'), s.index('New-Item -ItemType Directory -Path $destination'))
         self.assertIn('File]::Replace',s)
         self.assertIn('$ValidateOnly',s)
     def test_no_auto_run_creation(self):
-        s=(ROOT/'INSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'INSTALLER-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertNotIn('Set-ItemProperty -Path $runKey',s)
         self.assertNotIn('New-ItemProperty -Path $runKey',s)
     def test_user_level_install(self):
-        s=(ROOT/'INSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'INSTALLER-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('$env:LOCALAPPDATA',s)
         self.assertIn('HKCU:',s)
         self.assertNotIn('HKLM:',s)
     def test_local_data_untouched(self):
-        s=(ROOT/'INSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'INSTALLER-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertNotIn('history.jsonl',s)
         self.assertNotIn('settings.json',s)
     def test_windows_ci(self):
@@ -54,11 +54,11 @@ class ReleaseStaticTests(unittest.TestCase):
                 self.assertNotIn(f.name.lower(),('history.jsonl','settings.json','auth.json','token.json'))
                 self.assertNotEqual(f.suffix.lower(),'.exe')
     def test_uninstall_requires_confirmation(self):
-        s=(ROOT/'DESINSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'DESINSTALLER-V4.8.ps1').read_text(encoding='utf-8-sig')
         self.assertIn("-cne 'OUI'",s)
         self.assertNotIn('Remove-Item -LiteralPath $env:LOCALAPPDATA',s)
     def test_compiler_sources_present(self):
-        s=(ROOT/'BUILD-RELEASE-V4.7.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'BUILD-RELEASE-V4.8.ps1').read_text(encoding='utf-8-sig')
         for p in ROOT.joinpath('src').glob('*.cs'):
             self.assertIn(p.name,s)
 

@@ -1,5 +1,16 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V4.8.0 — Desktop Experience (candidate non publiée)
+
+- Widget circulaire redimensionnable par poignée (470–720 px) et par tailles prédéfinies.
+- Aimantation facultative aux bords utiles des écrans, calcul multi-moniteur en coordonnées Windows.
+- Opacités affinées : 70, 75, 80, 85, 90, 95, 96, 98, 100 %.
+- Notifications activables séparément pour quota 5 h et quota 7 j ; mêmes garde-fous de validité.
+- Quatre nouveaux paramètres sauvegardés sans toucher à l'historique ni au collecteur Codex.
+- Nouveau ZIP / installateur V4.8 prévu ; huit autotests C# et sept audits Python ajoutés.
+- Validation visuelle Windows/DPI et CI à effectuer avant toute Release publique.
+
+
 ## V4.7.2 — Identification fiable de la version (candidate)
 
 - Numéro d'assembly, affichage du widget et entrée « Applications installées » synchronisés en **4.7.2**.

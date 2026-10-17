@@ -19,7 +19,7 @@ class LiveDownloadSmokeAudit(unittest.TestCase):
 
     def test_never_launches_installer(self):
         for bad in ('UpdateHandoff.Start(', 'Process.Start(', 'Start-Process',
-                    'INSTALLER-V4.7.ps1', 'Unblock-File'):
+                    'INSTALLER-V4.8.ps1', 'Unblock-File'):
             self.assertNotIn(bad, SMOKE)
         self.assertIn('Directory.Delete(staged.Directory, true)', SMOKE)
         self.assertIn('Installer: NOT EXECUTED', SMOKE)

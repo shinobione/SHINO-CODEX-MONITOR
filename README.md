@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **État : V4.7.2 candidate (non publiée)**. Dernière Release publique : **v4.7.1**. V4.7.2 incrémente la version interne afin que le widget déjà installé en 4.7.1 puisse détecter une future Release plus récente. CI Windows V4.7.2 réussie (66 tests Python, 80 autotests C#), essai sur PC utilisateur encore attendu ; les binaires restent non signés. Consulter [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) pour les versions réellement publiées.
+> **État : V4.8.0 Desktop Experience — candidate, non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
 
 ## Confidentialité
 
@@ -14,17 +14,17 @@ Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**,
 
 ## Télécharger et installer (Windows)
 
-1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
-2. Décompresser le ZIP, puis lancer `INSTALLER-V4.7.bat` dans le dossier extrait **sans droits administrateur**.
-3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**76 pour la Release V4.7.1 ; 80 pour la candidate V4.7.2**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
+1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
+2. Décompresser le ZIP, puis lancer `INSTALLER-V4.8.bat` dans le dossier extrait **sans droits administrateur**.
+3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**88 prévus pour la candidate V4.8.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
 4. Codex CLI doit être installé et déjà authentifié sur le compte ChatGPT concerné ; pas de clé API ni de mot de passe à saisir dans le widget.
 
 Le binaire **n'est pas signé**. Windows/Chrome peuvent afficher des avertissements ; ne désactivez pas Defender, SmartScreen ou Safe Browsing. En cas de blocage de téléchargement, ne forcez pas son exécution : privilégiez l'inspection et une compilation locale depuis les sources officielles. Un scan antivirus négatif ne constitue pas une garantie d'innocuité.
 
 ## Compiler / tester depuis les sources
 
-- Compiler sans installer : `BUILD-RELEASE-V4.7.bat` (Windows, compilateur C# .NET Framework disponible).
-- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V4.7.bat`.
+- Compiler sans installer : `BUILD-RELEASE-V4.8.bat` (Windows, compilateur C# .NET Framework disponible).
+- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V4.8.bat`.
 - Autotests du binaire : `SHINO-CODEX-MONITOR.exe --self-test`.
 - Audit statique : `python -m unittest discover -s tests -p "test_*.py"`.
 - Build Windows officiel : `.github/workflows/build-windows.yml`. La publication doit porter sur un commit testé.
@@ -101,3 +101,13 @@ La V4.7.1 avait reçu un correctif après qu'un premier exécutable 4.7.1 eut d�
 Les User-Agent des requêtes GitHub utilisent désormais automatiquement la version de l'exécutable ; aucune collecte Codex, préférence ou historique local n'est modifié.
 
 La candidate V4.7.2 a passé la CI Windows. Le test de détection de mise à jour sur le PC utilisateur reste à faire avant publication. Une nouvelle Release n'est **pas** créée automatiquement.
+
+## V4.8.0 — Desktop Experience (candidate)
+
+- **Redimensionnement des roues** : taille circulaire de 470 à 720 px de large. Glisser la poignée en bas à droite du widget épinglé, ou utiliser **Apparence → Taille des roues** (480, 540, 620, 700 px). Les autres modes conservent leurs dimensions et leur fonctionnement.
+- **Aimantation multi-écran** facultative : **Apparence → Aimantation aux bords des écrans** ; lors du relâchement après déplacement/redimensionnement, le widget s'aligne à 20 px près des limites utiles de l'écran Windows le plus proche. Désactivée par défaut pour respecter les positions existantes.
+- **Opacité affinée** : choix de 70, 75, 80, 85, 90, 95, 96, 98 et 100 %. La couleur de fond et les seuils personnalisés restent disponibles.
+- **Notifications par fenêtre** : **Notifications intelligentes → Fenêtre 5 heures / Fenêtre 7 jours**. Les alertes existantes 50/25/10 % et reset ne s'appliquent qu'aux fenêtres cochées et à deux relevés valides ; aucune alerte fondée sur une simple estimation du compte à rebours.
+- **Migration sans perte** : nouvelles clés `CircularWidth`, `SnapToEdges`, `AlertFive` et `AlertWeek` dans `settings.json`, avec valeurs par défaut compatibles. Historique et authentification Codex inchangés.
+
+**Validation :** CI Windows, scénarios DPI 100/150/200 %, passage entre écrans, retour de veille, restauration des positions et rendu en condition réelle à vérifier **avant publication**. La V4.7.2 actuellement publiée et installée reste intacte.

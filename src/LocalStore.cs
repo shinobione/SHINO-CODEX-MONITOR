@@ -38,6 +38,8 @@ namespace ShinoCodexMonitor
                         preferences.Y = Json.Int(Json.Get(dict, "Y"));
                         preferences.Top = Json.Bool(Json.Get(dict, "Top")) ?? preferences.Top;
                         preferences.Opacity = Json.Double(Json.Get(dict, "Opacity")) ?? preferences.Opacity;
+                        preferences.CircularWidth = Json.Int(Json.Get(dict, "CircularWidth")) ?? preferences.CircularWidth;
+                        preferences.SnapToEdges = Json.Bool(Json.Get(dict, "SnapToEdges")) ?? preferences.SnapToEdges;
                         preferences.BackgroundColor = Json.String(Json.Get(dict, "BackgroundColor")) ?? preferences.BackgroundColor;
                         preferences.Alerts = Json.Bool(Json.Get(dict, "Alerts")) ?? preferences.Alerts;
                         preferences.Pinned = Json.Bool(Json.Get(dict, "Pinned")) ?? preferences.Pinned;
@@ -45,6 +47,8 @@ namespace ShinoCodexMonitor
                         preferences.Alert25 = Json.Bool(Json.Get(dict, "Alert25")) ?? preferences.Alert25;
                         preferences.Alert10 = Json.Bool(Json.Get(dict, "Alert10")) ?? preferences.Alert10;
                         preferences.AlertResets = Json.Bool(Json.Get(dict, "AlertResets")) ?? preferences.AlertResets;
+                        preferences.AlertFive = Json.Bool(Json.Get(dict, "AlertFive")) ?? preferences.AlertFive;
+                        preferences.AlertWeek = Json.Bool(Json.Get(dict, "AlertWeek")) ?? preferences.AlertWeek;
                         preferences.Layout = Json.String(Json.Get(dict, "Layout")) ?? preferences.Layout;
                         preferences.ResetStyle = Json.String(Json.Get(dict, "ResetStyle")) ?? preferences.ResetStyle;
                         preferences.TrayStyle = Json.String(Json.Get(dict, "TrayStyle")) ?? preferences.TrayStyle;
