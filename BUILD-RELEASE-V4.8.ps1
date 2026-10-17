@@ -3,8 +3,8 @@ $ProgressPreference = 'SilentlyContinue'
 $root = $PSScriptRoot
 $output = Join-Path $root 'dist'
 $bin = Join-Path $root 'bin'
-$staging = Join-Path $output 'SHINO_CODEX_MONITOR_V4_7_WINDOWS'
-$archive = Join-Path $output 'SHINO_CODEX_MONITOR_V4_7_WINDOWS.zip'
+$staging = Join-Path $output 'SHINO_CODEX_MONITOR_V4_8_WINDOWS'
+$archive = Join-Path $output 'SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip'
 $report = Join-Path $bin 'V4_TEST_REPORT.txt'
 $exe = Join-Path $bin 'SHINO-CODEX-MONITOR.exe'
 try {
@@ -13,7 +13,7 @@ try {
     if (!(Test-Path -LiteralPath $csc)) { throw 'Compilateur C# .NET Framework Windows indisponible.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
-    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LocalStore.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
+    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LocalStore.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
     $sources = @($files | ForEach-Object { Join-Path $root ('src\' + $_) })
     foreach ($source in $sources) { if (!(Test-Path -LiteralPath $source)) { throw ('Source manquante : ' + $source) } }
     $argsCSC = @('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimize+',
@@ -31,17 +31,17 @@ try {
     if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Autotests C# non executes ou en echec.' }
     $result = [IO.File]::ReadAllText($report)
     Write-Host $result
-    if (!$result.Contains('80/80') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
+    if (!$result.Contains('88/88') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
-    foreach ($file in @('INSTALLER-V4.7.bat','INSTALLER-V4.7.ps1','DESINSTALLER-V4.7.ps1','SHINO-CODEX.ico','README-FR.txt')) {
+    foreach ($file in @('INSTALLER-V4.8.bat','INSTALLER-V4.8.ps1','DESINSTALLER-V4.8.ps1','SHINO-CODEX.ico','README-FR.txt')) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $staging
     }
     Copy-Item -LiteralPath $exe -Destination $staging
     $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToUpperInvariant()
     [IO.File]::WriteAllText((Join-Path $staging 'SHA256SUMS.txt'), ($hash + '  SHINO-CODEX-MONITOR.exe' + "`n"), (New-Object System.Text.UTF8Encoding($false)))
     # Validate installer without touching the currently installed release.
-    & (Join-Path $staging 'INSTALLER-V4.7.ps1') -ValidateOnly
+    & (Join-Path $staging 'INSTALLER-V4.8.ps1') -ValidateOnly
     if ($LASTEXITCODE -ne 0) { throw 'Validation de paquet echouee.' }
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
     Compress-Archive -LiteralPath $staging -DestinationPath $archive -CompressionLevel Optimal

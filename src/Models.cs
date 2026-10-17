@@ -62,6 +62,8 @@ namespace ShinoCodexMonitor
         public int? Y { get; set; }
         public bool Top { get; set; }
         public double Opacity { get; set; }
+        public int CircularWidth { get; set; }
+        public bool SnapToEdges { get; set; }
         public string BackgroundColor { get; set; }
         public bool Alerts { get; set; }
         public bool Pinned { get; set; }
@@ -69,6 +71,8 @@ namespace ShinoCodexMonitor
         public bool Alert25 { get; set; }
         public bool Alert10 { get; set; }
         public bool AlertResets { get; set; }
+        public bool AlertFive { get; set; }
+        public bool AlertWeek { get; set; }
         public string Layout { get; set; }
         public string ResetStyle { get; set; }
         public string TrayStyle { get; set; }
@@ -89,8 +93,10 @@ namespace ShinoCodexMonitor
         internal static Preferences Defaults()
         {
             return new Preferences {
-                Top = true, Opacity = .96, BackgroundColor = "#111926", Alerts = true, Pinned = true,
+                Top = true, Opacity = .96, CircularWidth = 540, SnapToEdges = false,
+                BackgroundColor = "#111926", Alerts = true, Pinned = true,
                 Alert50 = false, Alert25 = true, Alert10 = true, AlertResets = false,
+                AlertFive = true, AlertWeek = true,
                 Layout = "Circular", ResetStyle = "both", TrayStyle = "Percent",
                 InTaskbar = false, RefreshSeconds = 60, History = true,
                 ColorHigh = "#51D7AF", ColorMid = "#E5B64D", ColorLow = "#F28C38", ColorCrit = "#EE4B55",
@@ -104,7 +110,8 @@ namespace ShinoCodexMonitor
             if (TrayStyle != "Percent" && TrayStyle != "Ring") TrayStyle = "Percent";
             if (ResetStyle != "both" && ResetStyle != "absolute" && ResetStyle != "relative" && ResetStyle != "hidden") ResetStyle = "both";
             if (RefreshSeconds != 30 && RefreshSeconds != 60 && RefreshSeconds != 120 && RefreshSeconds != 300) RefreshSeconds = 60;
-            if (Opacity < .55 || Opacity > 1.0 || double.IsNaN(Opacity)) Opacity = .96;
+            if (Opacity < .70 || Opacity > 1.0 || double.IsNaN(Opacity)) Opacity = .96;
+            if (CircularWidth < 470 || CircularWidth > 720) CircularWidth = 540;
             if (!IsDarkBackground(BackgroundColor)) BackgroundColor = "#111926";
             if (!IsHex(ColorHigh)) ColorHigh = "#51D7AF";
             if (!IsHex(ColorMid)) ColorMid = "#E5B64D";
