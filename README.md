@@ -105,9 +105,24 @@ La candidate V4.7.2 a passé la CI Windows. Le test de détection de mise à jou
 ## V4.8.0 — Desktop Experience (candidate)
 
 - **Redimensionnement des roues** : taille circulaire de 470 à 720 px de large. Glisser la poignée en bas à droite du widget épinglé, ou utiliser **Apparence → Taille des roues** (480, 540, 620, 700 px). Les autres modes conservent leurs dimensions et leur fonctionnement.
-- **Aimantation multi-écran** facultative : **Apparence → Aimantation aux bords des écrans** ; lors du relâchement après déplacement/redimensionnement, le widget s'aligne à 20 px près des limites utiles de l'écran Windows le plus proche. Désactivée par défaut pour respecter les positions existantes.
+- **Aimantation multi-écran** facultative : **Fenêtre → Aimantation aux bords des écrans** ; lors du relâchement après déplacement/redimensionnement, le widget s'aligne à 20 px près des limites utiles de l'écran Windows le plus proche. Désactivée par défaut pour respecter les positions existantes.
 - **Opacité affinée** : choix de 70, 75, 80, 85, 90, 95, 96, 98 et 100 %. La couleur de fond et les seuils personnalisés restent disponibles.
-- **Notifications par fenêtre** : **Notifications intelligentes → Fenêtre 5 heures / Fenêtre 7 jours**. Les alertes existantes 50/25/10 % et reset ne s'appliquent qu'aux fenêtres cochées et à deux relevés valides ; aucune alerte fondée sur une simple estimation du compte à rebours.
+- **Notifications par fenêtre** : **Notifications → Fenêtre 5 heures / Fenêtre 7 jours**. Les alertes existantes 50/25/10 % et reset ne s'appliquent qu'aux fenêtres cochées et à deux relevés valides ; aucune alerte fondée sur une simple estimation du compte à rebours.
 - **Migration sans perte** : nouvelles clés `CircularWidth`, `SnapToEdges`, `AlertFive` et `AlertWeek` dans `settings.json`, avec valeurs par défaut compatibles. Historique et authentification Codex inchangés.
 
 **Validation :** CI Windows, scénarios DPI 100/150/200 %, passage entre écrans, retour de veille, restauration des positions et rendu en condition réelle à vérifier **avant publication**. La V4.7.2 actuellement publiée et installée reste intacte.
+
+## V4.8 — Menu tray réorganisé après revue vidéo (candidate)
+
+Clic droit sur l'icône de zone de notification : les actions **Afficher / masquer** et **Actualiser maintenant** restent immédiates. Les options sont regroupées par fonction :
+
+| Groupe | Contenu |
+| --- | --- |
+| **Quotas & données** | Tableau officiel Codex, réinitialisations, fréquence d'actualisation |
+| **Apparence** | Disposition, taille des roues, opacité, couleur du fond, couleurs des jauges, **Tray Icon** |
+| **Fenêtre** | Épinglage, aimantation, toujours au-dessus, barre des tâches |
+| **Notifications** | Activation globale, fenêtres 5 h / 7 j, seuils et resets |
+| **Historique** | Consulter, enregistrer, ouvrir le dossier local |
+| **Application** | Mise à jour, Releases GitHub, démarrage avec Windows, diagnostic |
+
+**Quitter complètement** reste au premier niveau. Le libellé « Démarrer V4 avec Windows » devient « Démarrer avec Windows », sans activer l'autostart. « Rétablir l'apparence » est clarifié en **« Réinitialiser fond et opacité »**, afin de ne pas suggérer une remise à zéro des autres réglages. La sélection du fond, de l'opacité, de la disposition et des tailles est recalculée lors de l'ouverture des sous-menus, y compris après un redimensionnement manuel. Les paramètres existants et leurs clés JSON restent inchangés.

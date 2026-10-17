@@ -23,10 +23,10 @@ FONCTIONNALITES V4.8
   Largeur autorisee 470-720 px. Modes Vertical, Compact et Micro inchanges.
 - Clic droit > Apparence > Taille des roues :
   Petit 480 px / Standard 540 px / Grand 620 px / Tres grand 700 px.
-- Apparence > Aimantation aux bords des ecrans : facultative, desactivee
+- Fenetre > Aimantation aux bords des ecrans : facultative, desactivee
   par defaut, active a proximite des bords lors d'un deplacement.
 - Apparence > Opacite : 70, 75, 80, 85, 90, 95, 96, 98 ou 100 %.
-- Notifications intelligentes : activer independamment 5 h et 7 jours,
+- Notifications : activer independamment 5 h et 7 jours,
   puis les seuils et alertes reset deja disponibles.
 - Pourcentage central = quota RESTANT, jamais le pourcentage consomme.
 - Couleurs de quota restant :
@@ -54,3 +54,18 @@ DEPANNAGE
 STATUT
 V4.8 est candidate ; tests CI, affichage DPI, plusieurs ecrans et
 parcours de mise a jour depuis V4.7.2 non encore verifies en condition reelle.
+
+MENU TRAY V4.8 - ORGANISATION
+- Afficher/masquer et Actualiser maintenant : directement accessibles.
+- Quotas & donnees : Tableau officiel, Reinitialisations, Frequence.
+- Apparence : Disposition, Taille des roues, Opacite, Couleur du fond,
+  Couleurs des jauges, Tray Icon (anneau + pourcentage ou anneau seul).
+- Fenetre : Epingler, Aimantation multi-ecran, Toujours au-dessus,
+  Afficher dans la barre des taches.
+- Notifications : marche/arret, fenetres 5 h / 7 jours, seuils et resets.
+- Historique : consulter, activer l'enregistrement, ouvrir le dossier.
+- Application : Mise a jour, Releases GitHub, Demarrer avec Windows,
+  Diagnostic et copier diagnostic.
+- Quitter completement : directement accessible en bas du menu.
+- L'aimantation et les options d'epingle sont disponibles seulement lorsque
+  leur effet est pertinent. Aucun reglage n'est active automatiquement.
