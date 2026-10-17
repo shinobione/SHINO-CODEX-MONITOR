@@ -1,5 +1,14 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V4.9.0 — Reliability (candidate)
+
+- Réparation de la restauration de position après retrait ou déplacement d'écran : widget intégralement repositionné dans la zone visible, coordonnées Windows multi-écran conservées lorsque valides.
+- Icône tray : version initiale calculée depuis l'assembly et non un ancien numéro V4.7.2.
+- 4 nouveaux tests C# et 5 audits Python ; scripts V4.9 dédiés.
+- Aucun changement au collecteur Codex, aux alertes ou aux préférences locales.
+- V5 : milestone à définir, pas de Release annoncée.
+
+
 ## V4.8.0 — Desktop Experience (candidate non publiée)
 
 - Widget circulaire redimensionnable par poignée (470–720 px) et par tailles prédéfinies.

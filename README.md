@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **État : V4.8.0 Desktop Experience — candidate, non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
+> **État : V4.9.0 Reliability — candidate, non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
 
 ## Confidentialité
 
@@ -14,17 +14,17 @@ Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**,
 
 ## Télécharger et installer (Windows)
 
-1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
-2. Décompresser le ZIP, puis lancer `INSTALLER-V4.8.bat` dans le dossier extrait **sans droits administrateur**.
-3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**88 prévus pour la candidate V4.8.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
+1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V4_9_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
+2. Décompresser le ZIP, puis lancer `INSTALLER-V4.9.bat` dans le dossier extrait **sans droits administrateur**.
+3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**92 prévus pour la candidate V4.9.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
 4. Codex CLI doit être installé et déjà authentifié sur le compte ChatGPT concerné ; pas de clé API ni de mot de passe à saisir dans le widget.
 
 Le binaire **n'est pas signé**. Windows/Chrome peuvent afficher des avertissements ; ne désactivez pas Defender, SmartScreen ou Safe Browsing. En cas de blocage de téléchargement, ne forcez pas son exécution : privilégiez l'inspection et une compilation locale depuis les sources officielles. Un scan antivirus négatif ne constitue pas une garantie d'innocuité.
 
 ## Compiler / tester depuis les sources
 
-- Compiler sans installer : `BUILD-RELEASE-V4.8.bat` (Windows, compilateur C# .NET Framework disponible).
-- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V4.8.bat`.
+- Compiler sans installer : `BUILD-RELEASE-V4.9.bat` (Windows, compilateur C# .NET Framework disponible).
+- Compiler et demander l'installation : `PREPARER-ET-INSTALLER-V4.9.bat`.
 - Autotests du binaire : `SHINO-CODEX-MONITOR.exe --self-test`.
 - Audit statique : `python -m unittest discover -s tests -p "test_*.py"`.
 - Build Windows officiel : `.github/workflows/build-windows.yml`. La publication doit porter sur un commit testé.
@@ -126,3 +126,14 @@ Clic droit sur l'icône de zone de notification : les actions **Afficher / masqu
 | **Application** | Mise à jour, Releases GitHub, démarrage avec Windows, diagnostic |
 
 **Quitter complètement** reste au premier niveau. Le libellé « Démarrer V4 avec Windows » devient « Démarrer avec Windows », sans activer l'autostart. « Rétablir l'apparence » est clarifié en **« Réinitialiser fond et opacité »**, afin de ne pas suggérer une remise à zéro des autres réglages. La sélection du fond, de l'opacité, de la disposition et des tailles est recalculée lors de l'ouverture des sous-menus, y compris après un redimensionnement manuel. Les paramètres existants et leurs clés JSON restent inchangés.
+
+## V4.9.0 — Recovery & Version Identity (candidate)
+
+- Restaurer un widget enregistré **entièrement sur un écran connecté** : si un moniteur externe a été débranché ou déplacé, les coordonnées sauvegardées sont bornées à la zone utilisable de l'écran Windows le plus proche. Les dispositions du widget et les autres préférences restent inchangées.
+- Corriger le libellé initial de la **Tray Icon**, qui indiquait encore V4.7.2 en dur dans le code V4.8. La version initiale vient désormais de l'assembly.
+- Quatre autotests C# supplémentaires sur récupération hors écran, deuxième écran à coordonnées négatives, disposition verticale et dimensions ; cinq audits Python ciblés.
+- Scripts distincts **V4.9** pour compilation, installation et désinstallation. Test Windows requis avant toute Release. **V4.8 restant en PR** ; V4.9 est basée dessus, jamais sur un projet extérieur.
+
+## V5 — périmètre à valider avant implémentation majeure
+
+V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans mélange avec l'API OpenAI, l'utilisation du chat classique ni un tableau de bord hébergé. Objectifs proposés : (1) robustesse du monitoring et indicateurs de source/fraîcheur par fenêtre ; (2) parcours Windows stable, accessibilité/DPI/multi-écran ; (3) mise à jour vérifiée et réversible sans créer de service ou abonnement. Aucune nouvelle source de données non documentée sans audit spécifique et accord. Le MVP V5 sera défini après validation Windows de V4.9 et choix du changement réellement utile.

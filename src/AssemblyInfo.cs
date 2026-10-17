@@ -3,5 +3,5 @@ using System.Reflection;
 [assembly: AssemblyProduct("SHINO // CODEX MONITOR")]
 [assembly: AssemblyDescription("Local Codex ChatGPT usage quota monitor")]
 [assembly: AssemblyCompany("SHINO")]
-[assembly: AssemblyVersion("4.8.0.0")]
-[assembly: AssemblyFileVersion("4.8.0.0")]
+[assembly: AssemblyVersion("4.9.0.0")]
+[assembly: AssemblyFileVersion("4.9.0.0")]

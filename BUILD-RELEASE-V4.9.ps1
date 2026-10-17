@@ -3,8 +3,8 @@ $ProgressPreference = 'SilentlyContinue'
 $root = $PSScriptRoot
 $output = Join-Path $root 'dist'
 $bin = Join-Path $root 'bin'
-$staging = Join-Path $output 'SHINO_CODEX_MONITOR_V4_8_WINDOWS'
-$archive = Join-Path $output 'SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip'
+$staging = Join-Path $output 'SHINO_CODEX_MONITOR_V4_9_WINDOWS'
+$archive = Join-Path $output 'SHINO_CODEX_MONITOR_V4_9_WINDOWS.zip'
 $report = Join-Path $bin 'V4_TEST_REPORT.txt'
 $exe = Join-Path $bin 'SHINO-CODEX-MONITOR.exe'
 try {
@@ -31,17 +31,17 @@ try {
     if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Autotests C# non executes ou en echec.' }
     $result = [IO.File]::ReadAllText($report)
     Write-Host $result
-    if (!$result.Contains('88/88') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
+    if (!$result.Contains('92/92') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
-    foreach ($file in @('INSTALLER-V4.8.bat','INSTALLER-V4.8.ps1','DESINSTALLER-V4.8.ps1','SHINO-CODEX.ico','README-FR.txt')) {
+    foreach ($file in @('INSTALLER-V4.9.bat','INSTALLER-V4.9.ps1','DESINSTALLER-V4.9.ps1','SHINO-CODEX.ico','README-FR.txt')) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $staging
     }
     Copy-Item -LiteralPath $exe -Destination $staging
     $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToUpperInvariant()
     [IO.File]::WriteAllText((Join-Path $staging 'SHA256SUMS.txt'), ($hash + '  SHINO-CODEX-MONITOR.exe' + "`n"), (New-Object System.Text.UTF8Encoding($false)))
     # Validate installer without touching the currently installed release.
-    & (Join-Path $staging 'INSTALLER-V4.8.ps1') -ValidateOnly
+    & (Join-Path $staging 'INSTALLER-V4.9.ps1') -ValidateOnly
     if ($LASTEXITCODE -ne 0) { throw 'Validation de paquet echouee.' }
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
     Compress-Archive -LiteralPath $staging -DestinationPath $archive -CompressionLevel Optimal

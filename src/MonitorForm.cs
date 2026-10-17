@@ -80,7 +80,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.8.0";
+            Text = "SHINO // CODEX MONITOR V4.9.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -91,7 +91,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.8.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.9.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -111,7 +111,7 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(resizeGrip, "Glisser pour redimensionner les roues");
             Controls.Add(resizeGrip);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.7.2", Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -124,8 +124,10 @@ namespace ShinoCodexMonitor
             if (settings.X.HasValue && settings.Y.HasValue)
             {
                 Rectangle proposed = new Rectangle(settings.X.Value, settings.Y.Value, Width, Height);
-                foreach (Screen screen in Screen.AllScreens)
-                    if (screen.WorkingArea.IntersectsWith(proposed)) { Location = proposed.Location; break; }
+                // Restore into the closest connected monitor's usable area, including
+                // after a satellite display was disconnected or its DPI/layout changed.
+                Location = DesktopGeometry.ClampToScreen(proposed,
+                    Screen.FromRectangle(proposed).WorkingArea).Location;
             }
             AttachDrag(this); AttachDrag(header); AttachDrag(version);
             AttachCircularResize();
