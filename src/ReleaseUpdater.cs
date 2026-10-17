@@ -68,7 +68,7 @@ namespace ShinoCodexMonitor
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(ApiUrl);
                 request.Method = "GET";
                 request.Accept = "application/vnd.github+json";
-                request.UserAgent = "SHINO-CODEX-MONITOR/4.6 (public-release-check)";
+                request.UserAgent = "SHINO-CODEX-MONITOR/" + typeof(ReleaseUpdater).Assembly.GetName().Version.ToString(3) + " (public-release-check)";
                 request.Timeout = 8000;
                 request.ReadWriteTimeout = 8000;
                 request.AllowAutoRedirect = false;

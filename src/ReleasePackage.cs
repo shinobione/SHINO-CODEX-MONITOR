@@ -191,7 +191,7 @@ namespace ShinoCodexMonitor
                             if (++hops > 5) throw new WebException("Trop de redirections GitHub.");
                             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
                             request.Method = "GET";
-                            request.UserAgent = "SHINO-CODEX-MONITOR/4.6 (verified-release-download)";
+                            request.UserAgent = "SHINO-CODEX-MONITOR/" + typeof(ReleasePackage).Assembly.GetName().Version.ToString(3) + " (verified-release-download)";
                             request.Timeout = 12000; request.ReadWriteTimeout = 12000;
                             request.AllowAutoRedirect = false;
                             using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
