@@ -232,7 +232,7 @@ namespace ShinoCodexMonitor
                 catch (InvalidDataException) { failed = true; }
                 Assert(failed);
             });
-            report.Insert(0, "SHINO // CODEX V4.5.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            report.Insert(0, "SHINO // CODEX V4.5.1 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }
