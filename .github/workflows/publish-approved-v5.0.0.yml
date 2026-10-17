@@ -1,0 +1,146 @@
+name: Publish approved SHINO Codex Monitor v5.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-approved-v5.0.0.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-approved-v5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_SHA: 815f408516fd040f23264f0e53e768aef2a84d71
+      TESTED_RUN: "39056427263"
+      TAG: v5.0.0
+      ARTIFACT_NAME: SHINO-CODEX-MONITOR-v5.0-Windows
+      ARCHIVE: SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip
+    steps:
+      - name: Verify repository, tested main SHA and publication absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GH_REPO" = "shinobione/SHINO-CODEX-MONITOR"
+          test "$(gh api "repos/$GH_REPO/actions/runs/$TESTED_RUN" --jq '.head_sha')" = "$SOURCE_SHA"
+          test "$(gh api "repos/$GH_REPO/actions/runs/$TESTED_RUN" --jq '.head_branch')" = "main"
+          test "$(gh api "repos/$GH_REPO/actions/runs/$TESTED_RUN" --jq '.conclusion')" = "success"
+          if gh api "repos/$GH_REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "REFUS : le tag existe deja"; exit 1
+          fi
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "REFUS : la Release existe deja"; exit 1
+          fi
+
+      - name: Retrieve Windows ZIP exclusively from approved CI run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh run download "$TESTED_RUN" --repo "$GH_REPO" \
+            --name "$ARTIFACT_NAME" --dir release
+          test -s "release/$ARCHIVE"
+
+      - name: Verify archive layout, executable hash and installer test count
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, pathlib, re, zipfile
+          archive = pathlib.Path('release/SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip')
+          expected = {
+              'SHINO-CODEX-MONITOR.exe', 'SHINO-CODEX.ico',
+              'INSTALLER-V5.0.bat', 'INSTALLER-V5.0.ps1',
+              'DESINSTALLER-V5.0.ps1', 'SHA256SUMS.txt', 'README-FR.txt'
+          }
+          with zipfile.ZipFile(archive) as z:
+              if z.testzip() is not None:
+                  raise SystemExit('Archive ZIP invalide')
+              names = {}
+              for item in z.infolist():
+                  if item.is_dir():
+                      continue
+                  parts = item.filename.replace('\\', '/').split('/')
+                  if len(parts) == 1:
+                      name = parts[0]
+                  elif len(parts) == 2 and parts[0] == 'SHINO_CODEX_MONITOR_V5_0_WINDOWS':
+                      name = parts[1]
+                  else:
+                      raise SystemExit('Chemin non autorise : ' + item.filename)
+                  if (item.external_attr >> 16) & 0xF000 == 0xA000:
+                      raise SystemExit('Lien symbolique refuse')
+                  if name not in expected or name in names:
+                      raise SystemExit('Fichier inattendu ou duplique : ' + name)
+                  names[name] = item.filename
+              if set(names) != expected:
+                  raise SystemExit('Paquet incomplet : ' + str(expected-set(names)))
+              manifest = z.read(names['SHA256SUMS.txt']).decode('utf-8-sig')
+              hashes = re.findall(r'(?im)^([a-f0-9]{64})\s+SHINO-CODEX-MONITOR\.exe\s*$', manifest)
+              if len(hashes) != 1:
+                  raise SystemExit('Empreinte EXE absente ou dupliquee')
+              exe = z.read(names['SHINO-CODEX-MONITOR.exe'])
+              if not exe.startswith(b'MZ'):
+                  raise SystemExit('Format Windows EXE non valide')
+              if hashlib.sha256(exe).hexdigest().lower() != hashes[0].lower():
+                  raise SystemExit('Empreinte EXE non concordante')
+              installer = z.read(names['INSTALLER-V5.0.ps1'])
+              if b'98/98' not in installer:
+                  raise SystemExit('Installateur non synchronise avec 98 autotests')
+              readme = z.read(names['README-FR.txt'])
+              if b'V5.0.0' not in readme or b'candidate n' in readme.lower():
+                  raise SystemExit('Documentation publique pas a jour')
+              print('PASS: ZIP / EXE / SHA-256 / installateur; EXE bytes =', len(exe))
+          print('Archive sha256:', hashlib.sha256(archive.read_bytes()).hexdigest())
+          PY
+
+      - name: Create GitHub Release v5.0.0 at tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release/NOTES.md <<'EOF'
+          ## SHINO // CODEX MONITOR v5.0.0 — Data Trust & Health
+
+          Nouvelle version publique du widget **Codex ChatGPT sur Windows**. Inclut V4.8 (Desktop Experience), V4.9 (fiabilisation multi-écran) et la premiere tranche V5.
+
+          ### Inclus
+          - **Tableau circulaire** redimensionnable, tailles predefinies, opacite plus fine et fonds personnalisables.
+          - **Menu tray logique** : Quotas & donnees, Apparence, Fenetre, Notifications, Historique, Application.
+          - **Aimantation multi-ecran** facultative et restauration de la fenetre depuis des coordonnees devenues hors ecran.
+          - **Alertes 5 heures / 7 jours** independantes selon les fenetres reellement exposees.
+          - **Quotas & donnees → Etat des donnees Codex** : rapport local de source, fraicheur, dernier releve valide, erreurs, prochain essai, fenetres et resets existants uniquement.
+          - Preservation des preferences, de l'historique et du flux de mises a jour GitHub avec verification d'integrite.
+
+          ### Verification
+          [CI Windows du commit 815f408](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39056427263) : **92/92 tests Python et 98/98 autotests C# PASS**, compilation Windows, ZIP/SHA-256 et telechargement GitHub de controle sans installation. L'utilisateur a confirme le fonctionnement de la candidate V5 sur Windows.
+
+          ### Installer
+          Telecharger `SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip` ci-dessous, decompresser, fermer completement le widget existant puis lancer `INSTALLER-V5.0.bat`. Sans privileges administrateur. Les donnees locales sont conservees par defaut.
+
+          ### Points encore a verifier
+          Le rapport V5 est pour le moment une boite de dialogue WinForms (pas une page dediee). Les DPI multiples, le cas reel d'un quota bloque a 0 %, le reveil du PC et le parcours One-Click Update V4.7.2 → V5.0.0 restent a valider specifiquement.
+
+          **Binaire non signe** : Chrome et Windows peuvent le signaler ou bloquer. Ne desactivez pas Defender, SmartScreen ou Safe Browsing pour forcer l'installation. Le SHA-256 donne une garantie d'integrite par rapport au paquet publie, pas une authentification de l'editeur.
+
+          Logiciel communautaire non officiel, non affilie a OpenAI. Aucune API payante, aucun cookie/jeton de session consulte par le widget.
+          EOF
+          gh release create "$TAG" "release/$ARCHIVE" \
+            --repo "$GH_REPO" --target "$SOURCE_SHA" \
+            --title "SHINO // CODEX MONITOR v5.0.0" \
+            --notes-file release/NOTES.md
+
+      - name: Confirm tag and public Windows archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
+          test "$(gh release view "$TAG" --repo "$GH_REPO" --json isDraft --jq '.isDraft')" = "false"
+          test "$(gh release view "$TAG" --repo "$GH_REPO" --json isPrerelease --jq '.isPrerelease')" = "false"
+          gh release view "$TAG" --repo "$GH_REPO" --json assets \
+            --jq '.assets[] | select(.name == "SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip") | .name' \
+            | grep -Fx 'SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip'
