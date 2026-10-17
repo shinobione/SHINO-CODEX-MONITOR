@@ -1,5 +1,14 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V5.0.0 — Data Trust & Health (préversion expérimentale)
+
+- Rapport d'état local accessible sous Quotas & données : source, statut, âge, horodatage local avec décalage horaire, échecs, dernier problème, prochain essai et statut des fenêtres.
+- Quota présent/absent, reset futur/échu/non communiqué, blocage et relevés périmés explicitement différenciés, sans simulation.
+- Nouveau module pur `SourceHealth.cs`, sans lecture de secrets ni nouveau réseau ; six autotests C# et six audits Python ajoutés (98 autotests C# attendus).
+- Compatible données et préférences V4.9. Présentation dialoguée provisoire ; validation Windows et travail restant suivis dans issue #9.
+- **Préversion non publiée**, pas une V5 finale.
+
+
 ## V4.9.0 — Reliability (candidate)
 
 - Réparation de la restauration de position après retrait ou déplacement d'écran : widget intégralement repositionné dans la zone visible, coordonnées Windows multi-écran conservées lorsque valides.

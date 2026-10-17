@@ -80,7 +80,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.9.0";
+            Text = "SHINO // CODEX MONITOR V5.0.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -91,7 +91,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.9.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V5.0.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -351,6 +351,7 @@ namespace ShinoCodexMonitor
             Menu(quotas, "Tableau officiel Codex", delegate {
                 OpenUrl("https://chatgpt.com/codex/cloud/settings/analytics#usage");
             });
+            Menu(quotas, "État des données Codex", delegate { ShowSourceHealth(); });
             quotas.DropDownItems.Add(new ToolStripSeparator());
             ToolStripMenuItem resets = Menu(quotas, "Réinitialisations", null);
             AddOption(resets, "Date/heure + décompte", "both", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
@@ -851,6 +852,13 @@ namespace ShinoCodexMonitor
                 "Erreur : " + (lastError.Length == 0 ? "Aucune" : lastError) + "\n" +
                 "Données locales : " + store.DirectoryPath + "\n" +
                 "Aucun cookie, jeton ou mot de passe n'est consulté par le widget.";
+        }
+        private void ShowSourceHealth()
+        {
+            string report = SourceHealth.Build(snapshot, State(), lastSuccess, failures,
+                lastError, nextRefresh, DateTimeOffset.UtcNow);
+            MessageBox.Show(this, report, "SHINO // CODEX — État des données",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         private void ShowDiagnostic()
         {

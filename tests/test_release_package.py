@@ -48,7 +48,7 @@ class ReleasePackageAudit(unittest.TestCase):
         self.assertIn('if (Get-Process -Id $ParentPid', HANDOFF)
 
     def test_preserve_previous_install_safeguards(self):
-        install=(ROOT/'INSTALLER-V4.9.ps1').read_text(encoding='utf-8-sig')
+        install=(ROOT/'INSTALLER-V5.0.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('[System.IO.File]::Replace(', install)
         self.assertIn('$backupExe',install)
         self.assertIn('Get-FileHash', install)
