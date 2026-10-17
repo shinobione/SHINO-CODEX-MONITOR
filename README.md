@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **État : V5.0.0 Data Trust & Health — préversion expérimentale non publiée.** Dernière Release stable : [v4.7.2](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v4.7.2). Cette candidate conserve le collecteur et les quotas Codex ; tests Windows et validation visuelle V4.8 en attente. Binaire non signé.
+> **Version publique : V5.0.0 — Data Trust & Health (première étape fonctionnelle).** Les nouveautés V4.8 et V4.9 sont incluses. 92/92 audits Python et 98/98 autotests C# ont réussi dans GitHub Actions ; l'utilisateur a confirmé le fonctionnement sur Windows. Les validations multi-DPI, reprise après veille, 0 % bloqué et les protections de téléchargement restent partielles/non testées. Exécutable non signé. Voir [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases).
 
 ## Confidentialité
 
@@ -16,7 +16,7 @@ Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**,
 
 1. Télécharger le fichier officiel `SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip` depuis la [Release GitHub](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) correspondante.
 2. Décompresser le ZIP, puis lancer `INSTALLER-V5.0.bat` dans le dossier extrait **sans droits administrateur**.
-3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**98 prévus pour la préversion V5.0.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
+3. L'installateur contrôle l'intégrité SHA-256 de l'exécutable, lance les autotests embarqués (**98 pour V5.0.0**), puis installe sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`.
 4. Codex CLI doit être installé et déjà authentifié sur le compte ChatGPT concerné ; pas de clé API ni de mot de passe à saisir dans le widget.
 
 Le binaire **n'est pas signé**. Windows/Chrome peuvent afficher des avertissements ; ne désactivez pas Defender, SmartScreen ou Safe Browsing. En cas de blocage de téléchargement, ne forcez pas son exécution : privilégiez l'inspection et une compilation locale depuis les sources officielles. Un scan antivirus négatif ne constitue pas une garantie d'innocuité.
@@ -41,7 +41,7 @@ Voir [README-FR.txt](README-FR.txt) pour la procédure complète.
 
 **Licence :** source visible publiquement pour l'instant ; aucune licence de réutilisation n'a encore été choisie par le propriétaire. Public ne signifie pas automatiquement « open source sous licence ».
 
-## Vérifier les mises à jour (V4.5)
+## Vérifier les mises à jour
 
 Clic droit sur l'icône `%` → **Vérifier les mises à jour**. L'application effectue
 un appel HTTPS en lecture seule vers l'API publique GitHub Releases du dépôt.
@@ -102,7 +102,7 @@ Les User-Agent des requêtes GitHub utilisent désormais automatiquement la vers
 
 La candidate V4.7.2 a passé la CI Windows. Le test de détection de mise à jour sur le PC utilisateur reste à faire avant publication. Une nouvelle Release n'est **pas** créée automatiquement.
 
-## V4.8.0 — Desktop Experience (candidate)
+## V4.8.0 — Desktop Experience (intégré à V5)
 
 - **Redimensionnement des roues** : taille circulaire de 470 à 720 px de large. Glisser la poignée en bas à droite du widget épinglé, ou utiliser **Apparence → Taille des roues** (480, 540, 620, 700 px). Les autres modes conservent leurs dimensions et leur fonctionnement.
 - **Aimantation multi-écran** facultative : **Fenêtre → Aimantation aux bords des écrans** ; lors du relâchement après déplacement/redimensionnement, le widget s'aligne à 20 px près des limites utiles de l'écran Windows le plus proche. Désactivée par défaut pour respecter les positions existantes.
@@ -110,9 +110,9 @@ La candidate V4.7.2 a passé la CI Windows. Le test de détection de mise à jou
 - **Notifications par fenêtre** : **Notifications → Fenêtre 5 heures / Fenêtre 7 jours**. Les alertes existantes 50/25/10 % et reset ne s'appliquent qu'aux fenêtres cochées et à deux relevés valides ; aucune alerte fondée sur une simple estimation du compte à rebours.
 - **Migration sans perte** : nouvelles clés `CircularWidth`, `SnapToEdges`, `AlertFive` et `AlertWeek` dans `settings.json`, avec valeurs par défaut compatibles. Historique et authentification Codex inchangés.
 
-**Validation :** CI Windows, scénarios DPI 100/150/200 %, passage entre écrans, retour de veille, restauration des positions et rendu en condition réelle à vérifier **avant publication**. La V4.7.2 actuellement publiée et installée reste intacte.
+**Validation :** tests automatisés et validation utilisateur du fonctionnement général. Les scénarios DPI 100/150/200 %, bascule d'écran et reprise après veille doivent encore être vérifiés systématiquement.
 
-## V4.8 — Menu tray réorganisé après revue vidéo (candidate)
+## V4.8 — Menu tray réorganisé après revue vidéo
 
 Clic droit sur l'icône de zone de notification : les actions **Afficher / masquer** et **Actualiser maintenant** restent immédiates. Les options sont regroupées par fonction :
 
@@ -127,19 +127,19 @@ Clic droit sur l'icône de zone de notification : les actions **Afficher / masqu
 
 **Quitter complètement** reste au premier niveau. Le libellé « Démarrer V4 avec Windows » devient « Démarrer avec Windows », sans activer l'autostart. « Rétablir l'apparence » est clarifié en **« Réinitialiser fond et opacité »**, afin de ne pas suggérer une remise à zéro des autres réglages. La sélection du fond, de l'opacité, de la disposition et des tailles est recalculée lors de l'ouverture des sous-menus, y compris après un redimensionnement manuel. Les paramètres existants et leurs clés JSON restent inchangés.
 
-## V4.9.0 — Recovery & Version Identity (candidate)
+## V4.9.0 — Recovery & Version Identity (intégré à V5)
 
 - Restaurer un widget enregistré **entièrement sur un écran connecté** : si un moniteur externe a été débranché ou déplacé, les coordonnées sauvegardées sont bornées à la zone utilisable de l'écran Windows le plus proche. Les dispositions du widget et les autres préférences restent inchangées.
 - Corriger le libellé initial de la **Tray Icon**, qui indiquait encore V4.7.2 en dur dans le code V4.8. La version initiale vient désormais de l'assembly.
 - Quatre autotests C# supplémentaires sur récupération hors écran, deuxième écran à coordonnées négatives, disposition verticale et dimensions ; cinq audits Python ciblés.
-- Scripts distincts **V4.9** pour compilation, installation et désinstallation. Test Windows requis avant toute Release. **V4.8 restant en PR** ; V4.9 est basée dessus, jamais sur un projet extérieur.
+- Historique V4.9 conservé dans Git. Les scripts de distribution publique sont ceux de **V5.0**.
 
-## V5 — périmètre à valider avant implémentation majeure
+## V5 — principes de périmètre
 
-V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans mélange avec l'API OpenAI, l'utilisation du chat classique ni un tableau de bord hébergé. Objectifs proposés : (1) robustesse du monitoring et indicateurs de source/fraîcheur par fenêtre ; (2) parcours Windows stable, accessibilité/DPI/multi-écran ; (3) mise à jour vérifiée et réversible sans créer de service ou abonnement. Aucune nouvelle source de données non documentée sans audit spécifique et accord. Le MVP V5 sera défini après validation Windows de V4.9 et choix du changement réellement utile.
+V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans mélange avec l'API OpenAI, l'utilisation du chat classique ni un tableau de bord hébergé. Objectifs proposés : (1) robustesse du monitoring et indicateurs de source/fraîcheur par fenêtre ; (2) parcours Windows stable, accessibilité/DPI/multi-écran ; (3) mise à jour vérifiée et réversible sans créer de service ou abonnement. Aucune nouvelle source de données non documentée sans audit spécifique et accord. La première tranche V5 livre déjà le rapport local de santé des données ; les suites du MVP sont suivies dans l'issue GitHub #9.
 
-## V5.0.0 — Première tranche « Data Trust & Health » (expérimentale)
+## V5.0.0 — Première tranche « Data Trust & Health »
 
 **Quotas & données → État des données Codex** ouvre un rapport local en lecture seule : origine réelle Codex CLI, état de fraîcheur, âge/heure locale du dernier relevé, échecs, dernier message d'erreur et prochaine tentative. Il décrit séparément les fenêtres 5 h / 7 jours seulement si leurs valeurs ont réellement été communiquées ; ne fabrique ni pourcentage ni reset. Une donnée ancienne est explicitement étiquetée comme ancienne ; l'alerte `Usage bloqué` demeure distincte des resets. Aucune requête payante, aucun accès à auth.json, cookie ou mot de passe n'est ajouté.
 
-**Ce n'est pas une V5 finalisée** : le rapport est pour le moment une boîte de dialogue WinForms plutôt qu'un panneau de monitoring dédié. Le rendu à plusieurs DPI, le comportement réel après veille, la comparaison au tableau Codex et le flux de mise à jour depuis V4.7.2 restent à valider. Le jalon produit est suivi dans [GitHub #9](https://github.com/shinobione/SHINO-CODEX-MONITOR/issues/9). Aucune Release V5 avant validation du MVP sur Windows.
+**Limites résiduelles de V5.0.0** : le rapport est une boîte de dialogue WinForms, pas encore un panneau dédié. Les DPI multiples, la veille, le reset réel en usage bloqué, la comparaison simultanée avec le tableau officiel Codex et le parcours One-Click Update de V4.7.2 vers V5 demandent encore des essais spécifiques. La suite du produit est suivie dans [GitHub #9](https://github.com/shinobione/SHINO-CODEX-MONITOR/issues/9).

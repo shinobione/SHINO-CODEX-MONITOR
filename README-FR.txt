@@ -1,7 +1,7 @@
-SHINO // CODEX MONITOR V5.0.0 — DATA TRUST (PREVERSION)
+SHINO // CODEX MONITOR V5.0.0 — DATA TRUST & HEALTH
 ===================================================================
-Version publique stable precedente : v4.7.2
-Cette candidate n'est PAS encore une Release officielle.
+Release publique V5.0.0 ; versions V4.8 et V4.9 integrees.
+92/92 tests Python et 98/98 autotests Windows C# PASS en CI.
 
 OBJECTIF
 Widget Windows local pour les quotas Codex ChatGPT, et non les quotas
@@ -52,8 +52,9 @@ DEPANNAGE
 - Le binaire est non signe. Le SHA-256 verifie l'integrite, pas l'editeur.
 
 STATUT
-V5.0 est candidate ; tests CI, affichage DPI, plusieurs ecrans et
-parcours de mise a jour depuis V4.7.2 non encore verifies en condition reelle.
+V5.0.0 publiee. Fonctionnement general confirme par utilisateur Windows.
+DPI multiples, reprise veille, cas quota bloque a 0 %, update depuis V4.7.2
+et avertissements SmartScreen/Chrome restent a verifier specifiquement.
 
 MENU TRAY V5.0 - ORGANISATION
 - Afficher/masquer et Actualiser maintenant : directement accessibles.
@@ -76,10 +77,10 @@ NOUVEAUTE V5.0
 - Version initiale Tray Icon synchronisee avec la version de l'executable.
 - Quatre autotests C# nouveaux (92 attendus) et cinq tests Python nouveaux.
 - Les fonctions V4.8 (roues, aimantation, menu trie) restent incluses.
-- Release publique V5.0 non publiee tant que les tests Windows/CI ne sont pas valides.
-V5 : prochaine etape majeure de fiabilite/ergonomie a cadrer sans nouvelle source non documentee.
+- Corrections V4.9 integrees a la Release publique V5.0.0.
+Evolutions suivantes suivies dans issue GitHub #9.
 
-V5.0 - ETAT DES DONNEES CODEX (EXPERIMENTAL)
+V5.0 - ETAT DES DONNEES CODEX
 - Menu : Quotas & donnees > Etat des donnees Codex.
 - Rapport local : provenance, fraicheur, dernier releve, erreurs, prochain essai,
   5 heures, 7 jours, resets reels et statut d'usage bloque.
@@ -87,4 +88,4 @@ V5.0 - ETAT DES DONNEES CODEX (EXPERIMENTAL)
 - Interface pour le moment : boite de dialogue WinForms, non une page dediee.
 - Sources Codex CLI et compte ChatGPT inchanges. Aucun secret lu.
 - Tester le rendu Windows, l'horodatage, la veille et le parcours d'update.
-- Candidat non publie. Jalons : GitHub issue #9.
+- Fonction disponible dans V5.0.0 ; suite suivie dans issue GitHub #9.

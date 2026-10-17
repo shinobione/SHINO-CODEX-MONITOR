@@ -1,15 +1,15 @@
 # SHINO // CODEX MONITOR — Change log
 
-## V5.0.0 — Data Trust & Health (préversion expérimentale)
+## V5.0.0 — Data Trust & Health (Release publique)
 
 - Rapport d'état local accessible sous Quotas & données : source, statut, âge, horodatage local avec décalage horaire, échecs, dernier problème, prochain essai et statut des fenêtres.
 - Quota présent/absent, reset futur/échu/non communiqué, blocage et relevés périmés explicitement différenciés, sans simulation.
-- Nouveau module pur `SourceHealth.cs`, sans lecture de secrets ni nouveau réseau ; six autotests C# et six audits Python ajoutés (98 autotests C# attendus).
-- Compatible données et préférences V4.9. Présentation dialoguée provisoire ; validation Windows et travail restant suivis dans issue #9.
-- **Préversion non publiée**, pas une V5 finale.
+- Nouveau module pur `SourceHealth.cs`, sans lecture de secrets ni nouveau réseau ; six autotests C# et six audits Python ajoutés (98/98 autotests C# PASS).
+- Compatible données et préférences V4.9. Présentation dialoguée ; tests Windows fonctionnels confirmés par utilisateur, cas particuliers suivis dans issue #9.
+- **Release V5.0.0** : première étape Data Trust, fonctionnalités restantes et validations spécifiques suivies dans issue #9.
 
 
-## V4.9.0 — Reliability (candidate)
+## V4.9.0 — Reliability (intégré à V5)
 
 - Réparation de la restauration de position après retrait ou déplacement d'écran : widget intégralement repositionné dans la zone visible, coordonnées Windows multi-écran conservées lorsque valides.
 - Icône tray : version initiale calculée depuis l'assembly et non un ancien numéro V4.7.2.
@@ -18,7 +18,7 @@
 - V5 : milestone à définir, pas de Release annoncée.
 
 
-## V4.8.0 — Desktop Experience (candidate non publiée)
+## V4.8.0 — Desktop Experience (intégré à V5)
 
 - Widget circulaire redimensionnable par poignée (470–720 px) et par tailles prédéfinies.
 - Aimantation facultative aux bords utiles des écrans, calcul multi-moniteur en coordonnées Windows.
