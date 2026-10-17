@@ -48,7 +48,7 @@ jobs:
           finally {
             Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
           }
-      - name: Build .exe and run 68 C# self-tests
+      - name: Build .exe and run 76 C# self-tests
         shell: powershell
         run: |
           & .\BUILD-RELEASE-V4.7.ps1

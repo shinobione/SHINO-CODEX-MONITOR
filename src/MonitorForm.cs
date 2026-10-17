@@ -923,12 +923,15 @@ namespace ShinoCodexMonitor
             meter.Ring.SetReading(percent, live, color);
             meter.Fill.Width = (int)Math.Round(meter.Track.Width * data.Remaining / 100.0);
             meter.Fill.BackColor = color;
-            meter.Reset.Text = blocked ? "Usage Codex bloqué" : live ? ResetText(data.ResetUtc, kind) : "Ancienne mesure · reset non vérifié";
+            // Blocked ordinary usage does not make a fresh reset timestamp stale.
+            // The block remains clearly visible in the status/footer and tooltips.
+            meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
+                settings.Layout, live || blocked, DateTimeOffset.UtcNow);
             tooltip.SetToolTip(meter.Ring, blocked ? "Usage Codex bloqué" :
                 live ? "Quota restant · source Codex CLI" : "Ancienne mesure non actuelle");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex indique que l'usage ordinaire est bloqué" :
                 live ? "Quota restant · source Codex CLI" : "Dernier relevé NON ACTUEL");
-            tooltip.SetToolTip(meter.Reset, live && data.ResetUtc.HasValue ?
+            tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
                 "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (heure Windows)" : "Réinitialisation indisponible ou non vérifiée");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
@@ -944,10 +947,15 @@ namespace ShinoCodexMonitor
         {
             return QuotaPalette.ColorFor(p, settings);
         }
-        private string ResetText(DateTimeOffset? utc, string kind)
+        // This is deliberately independent of ordinaryUsageAllowed: an explicit
+        // reset from a fresh rate-limit window remains valid when usage is blocked.
+        internal static string ResetLabel(DateTimeOffset? utc, string kind, string style,
+            string layout, bool sourceCurrent, DateTimeOffset nowUtc)
         {
+            if (style == "hidden") return "";
+            if (!sourceCurrent) return "Ancienne mesure · reset non vérifié";
             if (!utc.HasValue) return "Reset non communiqué";
-            TimeSpan left = utc.Value - DateTimeOffset.UtcNow;
+            TimeSpan left = utc.Value - nowUtc;
             if (left <= TimeSpan.Zero) return "Reset attendu · vérification...";
             DateTimeOffset local = utc.Value.ToLocalTime();
             string absolute;
@@ -962,12 +970,11 @@ namespace ShinoCodexMonitor
             string relative = left.TotalDays >= 1 ?
                 "dans " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
                 "dans " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
-            if (settings.Layout == "Circular" && settings.ResetStyle == "both")
+            if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
-            if (settings.ResetStyle == "absolute") return "Reset " + absolute;
-            if (settings.ResetStyle == "relative") return "Reset " + relative;
-            if (settings.ResetStyle == "hidden") return "";
-            return settings.Layout == "Micro" ? "Reset " + absolute : "Reset " + absolute + " · " + relative;
+            if (style == "absolute") return "Reset " + absolute;
+            if (style == "relative") return "Reset " + relative;
+            return layout == "Micro" ? "Reset " + absolute : "Reset " + absolute + " · " + relative;
         }
         private void OnFormClosing(object sender, FormClosingEventArgs e)
         {

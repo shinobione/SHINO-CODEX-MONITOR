@@ -40,8 +40,8 @@ try {
     $testReport = Join-Path $stage 'V4_TEST_REPORT.txt'
     if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $testReport)) { throw 'Autotests Windows : echec (aucune installation).'}
     $result = [IO.File]::ReadAllText($testReport)
-    if (!$result.Contains('68/68') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
-    Write-Host 'Autotests Windows : 68/68 PASS.' -ForegroundColor Green
+    if (!$result.Contains('76/76') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
+    Write-Host 'Autotests Windows : 76/76 PASS.' -ForegroundColor Green
     if ($ValidateOnly) { Write-Host 'Verification seulement : rien installe.' -ForegroundColor Green; exit 0 }
 
     New-Item -ItemType Directory -Path $destination -Force | Out-Null

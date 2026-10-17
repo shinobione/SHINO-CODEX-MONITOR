@@ -23,11 +23,11 @@ class ReleaseStaticTests(unittest.TestCase):
         s=(ROOT/'BUILD-RELEASE-V4.7.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('/target:winexe',s)
         self.assertIn('Autotests Windows incomplets',s)
-        self.assertIn("'68/68'",s)
+        self.assertIn("'76/76'",s)
     def test_integrity_before_install(self):
         s=(ROOT/'INSTALLER-V4.7.ps1').read_text(encoding='utf-8-sig')
         self.assertLess(s.index('Get-FileHash'), s.index('New-Item -ItemType Directory -Path $destination'))
-        self.assertLess(s.index('68/68'), s.index('New-Item -ItemType Directory -Path $destination'))
+        self.assertLess(s.index('76/76'), s.index('New-Item -ItemType Directory -Path $destination'))
         self.assertIn('File]::Replace',s)
         self.assertIn('$ValidateOnly',s)
     def test_no_auto_run_creation(self):
