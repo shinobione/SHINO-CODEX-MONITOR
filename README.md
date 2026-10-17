@@ -2,7 +2,7 @@
 
 Widget Windows local pour afficher les **quotas Codex de l'abonnement ChatGPT**, et non les limites du chat classique ni les quotas de facturation API. Application C# WinForms discrète, quatre dispositions, jauges circulaires et colorées, resets, historique local et alertes.
 
-> **État : V4.7.2 candidate (non publiée)**. Dernière Release publique : **v4.7.1**. V4.7.2 incrémente la version interne afin que le widget déjà installé en 4.7.1 puisse détecter une future Release plus récente. Compilation et essais V4.7.2 en attente ; les binaires restent non signés. Consulter [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) pour les versions réellement publiées.
+> **État : V4.7.2 candidate (non publiée)**. Dernière Release publique : **v4.7.1**. V4.7.2 incrémente la version interne afin que le widget déjà installé en 4.7.1 puisse détecter une future Release plus récente. CI Windows V4.7.2 réussie (66 tests Python, 80 autotests C#), essai sur PC utilisateur encore attendu ; les binaires restent non signés. Consulter [Releases](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases) pour les versions réellement publiées.
 
 ## Confidentialité
 
@@ -100,4 +100,4 @@ La V4.7.1 avait reçu un correctif après qu'un premier exécutable 4.7.1 eut d�
 
 Les User-Agent des requêtes GitHub utilisent désormais automatiquement la version de l'exécutable ; aucune collecte Codex, préférence ou historique local n'est modifié.
 
-La candidate V4.7.2 nécessite la CI Windows et un test de détection de mise à jour sur le PC utilisateur avant publication. Une nouvelle Release n'est **pas** créée automatiquement.
+La candidate V4.7.2 a passé la CI Windows. Le test de détection de mise à jour sur le PC utilisateur reste à faire avant publication. Une nouvelle Release n'est **pas** créée automatiquement.

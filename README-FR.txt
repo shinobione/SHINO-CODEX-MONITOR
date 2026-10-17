@@ -67,7 +67,8 @@ Projet communautaire non officiel. Aucun secret Codex ne doit etre partage.
      validee plutot que desactiver les protections de Windows.
 
 Derniere Release publique : v4.7.1 (60 tests Python, 76 autotests C# PASS).
-Candidate V4.7.2 : pas encore validee ni publiee au moment de la preparation.
+Candidate V4.7.2 : CI Windows PASS (66/66 Python, 80/80 C#),
+non publiee ; test de detection de version sur PC utilisateur en attente.
 Les heures de reset en etat bloque restent a verifier en situation reelle.
 
 7) POURQUOI V4.7.2 ?

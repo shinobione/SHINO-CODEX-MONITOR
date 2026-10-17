@@ -8,7 +8,7 @@
 - Quatre autotests C# dédiés au passage V4.7.1 → V4.7.2, à la non-régression et au nom du ZIP.
 - Scripts d'installation et d'audit attendent **80/80** autotests C#.
 - Code Codex CLI, fenêtres de quota, resets et données personnelles inchangés.
-- **Non publiée** : CI Windows et test de mise à jour sur PC utilisateur encore nécessaires.
+- **Candidate non publiée** : CI Windows 66/66 Python, 80/80 autotests C# PASS ; essai de mise à jour sur PC utilisateur encore nécessaire.
 
 **Validation V4.7.1 :** CI Windows 60/60 tests Python, 76/76 autotests C#, compilation et test de téléchargement réel sans installation. Interface vérifiée sur PC utilisateur avant le dernier correctif ; reset en état bloqué encore à revalider en conditions réelles. Exécutable non signé.
 
