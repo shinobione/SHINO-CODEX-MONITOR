@@ -351,7 +351,74 @@ namespace ShinoCodexMonitor
                 Assert(MonitorForm.FreshnessLabel(null, now) == "Aucun relevé");
                 Assert(MonitorForm.FreshnessLabel(now.AddMinutes(-2), now).Contains("2 min"));
             });
-            report.Insert(0, "SHINO // CODEX V4.7.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("Apparence : fonds sombres acceptés", delegate {
+                Assert(Preferences.IsDarkBackground("#111926") && Preferences.IsDarkBackground("#090C13") &&
+                    Preferences.IsDarkBackground("#22272E") && Preferences.IsDarkBackground("#102C36"));
+            });
+            Check("Apparence : fonds clairs rejetés", delegate {
+                Assert(!Preferences.IsDarkBackground("#FFFFFF") && !Preferences.IsDarkBackground("#FFCC88") &&
+                    !Preferences.IsDarkBackground("#invalid"));
+            });
+            Check("Apparence : migration du fond par défaut", delegate {
+                Preferences p = Preferences.Defaults();
+                p.BackgroundColor = null; p.Sanitize();
+                Assert(p.BackgroundColor == "#111926");
+            });
+            Check("Apparence : couleur sombre personnalisée persistable", delegate {
+                Preferences p = Preferences.Defaults();
+                p.BackgroundColor = "#152B35"; p.Sanitize();
+                Assert(p.BackgroundColor == "#152B35");
+            });
+            Check("Apparence : opacité valide ou rétablie", delegate {
+                Preferences p = Preferences.Defaults();
+                p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
+                p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.7.1");
+            });
+            Check("Blocage et reset communiqué conservés ensemble", delegate {
+                Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
+                Assert(snap.UsageAllowed == false && snap.Five.Remaining == 0 &&
+                    snap.Week.Remaining == 38 && snap.Five.ResetUtc.HasValue && snap.Week.ResetUtc.HasValue);
+            });
+            Check("Reset bloqué 5 h : décompte conservé", delegate {
+                DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+                Assert(MonitorForm.ResetLabel(now.AddMinutes(94), "five", "relative", "Circular", true, now) ==
+                    "Reset dans 1h 34min");
+            });
+            Check("Reset bloqué hebdo : date conservée", delegate {
+                DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+                string label = MonitorForm.ResetLabel(now.AddDays(5), "week", "absolute", "Circular", true, now);
+                Assert(label.StartsWith("Reset le 22 ") && !label.Contains("bloqué"));
+            });
+            Check("Reset circulaire : mode mixte 5 h et semaine", delegate {
+                DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+                Assert(MonitorForm.ResetLabel(now.AddMinutes(90), "five", "both", "Circular", true, now).StartsWith("Reset dans "));
+                Assert(MonitorForm.ResetLabel(now.AddDays(5), "week", "both", "Circular", true, now).StartsWith("Reset le "));
+            });
+            Check("Reset modes absolu et relatif distincts à 0%", delegate {
+                DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+                DateTimeOffset reset = now.AddMinutes(75);
+                Assert(MonitorForm.ResetLabel(reset, "five", "absolute", "Micro", true, now).StartsWith("Reset à "));
+                Assert(MonitorForm.ResetLabel(reset, "five", "relative", "Micro", true, now) == "Reset dans 1h 15min");
+            });
+            Check("Reset masqué partout sur demande", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                Assert(MonitorForm.ResetLabel(now.AddHours(4), "five", "hidden", "Circular", true, now) == "");
+                Assert(MonitorForm.ResetLabel(null, "week", "hidden", "Micro", false, now) == "");
+            });
+            Check("Reset absent ou échu explicitement marqué", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                Assert(MonitorForm.ResetLabel(null, "five", "relative", "Circular", true, now) == "Reset non communiqué");
+                Assert(MonitorForm.ResetLabel(now.AddSeconds(-1), "five", "relative", "Circular", true, now) ==
+                    "Reset attendu · vérification...");
+            });
+            Check("Reset ancien non affiché comme actuel", delegate {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                Assert(MonitorForm.ResetLabel(now.AddHours(2), "five", "absolute", "Circular", false, now) ==
+                    "Ancienne mesure · reset non vérifié");
+                Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
+            });
+            report.Insert(0, "SHINO // CODEX V4.7.1 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

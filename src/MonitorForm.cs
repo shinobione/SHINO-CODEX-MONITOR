@@ -77,7 +77,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V4.7.0";
+            Text = "SHINO // CODEX MONITOR V4.7.1";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -88,7 +88,7 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V4.7.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V4.7.1", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
@@ -103,7 +103,7 @@ namespace ShinoCodexMonitor
             statusDivider = new Panel { BackColor = UiColors.Track };
             Controls.Add(statusDivider);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.7.0", Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR V4.7.1", Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -111,6 +111,7 @@ namespace ShinoCodexMonitor
             // In transient-panel mode, never start with a permanently visible widget.
             Shown += delegate { if (!settings.Pinned) BeginInvoke((Action)delegate { Hide(); }); };
             MakeMenu();
+            ApplyAppearance();
             ApplyLayout();
             if (settings.X.HasValue && settings.Y.HasValue)
             {
@@ -161,8 +162,8 @@ namespace ShinoCodexMonitor
             m.Name.SetBounds(x, 52, width, 25);
             m.Name.TextAlign = ContentAlignment.MiddleCenter;
             m.Name.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            m.Ring.SetBounds(x + (width - 116) / 2, 81, 116, 116);
-            m.Reset.SetBounds(x, 207, width, 23);
+            m.Ring.SetBounds(x + (width - 130) / 2, 78, 130, 130);
+            m.Reset.SetBounds(x, 209, width, 23);
             m.Reset.TextAlign = ContentAlignment.MiddleCenter;
             m.Number.Visible = false;
             m.Track.Visible = false;
@@ -187,17 +188,17 @@ namespace ShinoCodexMonitor
             statusDivider.Visible = circular;
             if (circular)
             {
-                ClientSize = new Size(768, 292);
-                header.SetBounds(17, 12, 400, 30);
+                ClientSize = new Size(540, 278);
+                header.SetBounds(17, 12, 340, 30);
                 header.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
                 version.Visible = true;
-                version.SetBounds(548, 13, 175, 20);
+                version.SetBounds(348, 13, 146, 20);
                 version.TextAlign = ContentAlignment.MiddleRight;
-                PlaceCircular(five, 15, 345);
-                PlaceCircular(week, 405, 345);
-                statusDivider.SetBounds(14, 245, 740, 1);
-                status.SetBounds(17, 259, 505, 22);
-                statusAge.SetBounds(538, 259, 214, 22);
+                PlaceCircular(five, 24, 236);
+                PlaceCircular(week, 280, 236);
+                statusDivider.SetBounds(14, 239, 512, 1);
+                status.SetBounds(17, 247, 337, 22);
+                statusAge.SetBounds(355, 247, 169, 22);
             }
             else if (micro)
             {
@@ -206,8 +207,9 @@ namespace ShinoCodexMonitor
                 header.SetBounds(12, 5, 320, 22);
                 header.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 version.Visible = false;
-                PlaceMeter(five, 12, 33, 222, true);
-                PlaceMeter(week, 252, 33, 220, true);
+                PlaceMeter(five, 12, 33, 212, true);
+                // Reserve 44px on the right for the close button at every DPI.
+                PlaceMeter(week, 240, 33, 188, true);
                 status.SetBounds(12, 99, 458, 18);
             }
             else if (settings.Layout == "Compact")
@@ -232,7 +234,7 @@ namespace ShinoCodexMonitor
                 PlaceMeter(week, 18, 155, 317, false);
                 status.SetBounds(17, 238, 322, 18);
             }
-            close.SetBounds(Width - 38, 10, 25, 28);
+            close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10, 25, micro ? 24 : 28);
             Location = new Point(Math.Max(work.Left, Math.Min(Left, work.Right - Width)),
                 Math.Max(work.Top, Math.Min(Top, work.Bottom - Height)));
             PaintSnapshot();
@@ -324,6 +326,42 @@ namespace ShinoCodexMonitor
                 };
                 refresh.DropDownItems.Add(item);
             }
+            ToolStripMenuItem appearance = Menu(context, "Apparence", null);
+            ToolStripMenuItem opacity = new ToolStripMenuItem("Opacité");
+            appearance.DropDownItems.Add(opacity);
+            foreach (int value in new int[] { 70, 80, 90, 96, 100 })
+            {
+                int percent = value;
+                ToolStripMenuItem option = new ToolStripMenuItem(value + " %") {
+                    Checked = Math.Abs(settings.Opacity * 100.0 - value) < 0.1
+                };
+                option.Click += delegate {
+                    settings.Opacity = percent / 100.0;
+                    Opacity = settings.Opacity;
+                    foreach (ToolStripItem it in opacity.DropDownItems)
+                        ((ToolStripMenuItem)it).Checked = (it == option);
+                    Save();
+                };
+                opacity.DropDownItems.Add(option);
+            }
+            ToolStripMenuItem backgrounds = new ToolStripMenuItem("Couleur du fond");
+            appearance.DropDownItems.Add(backgrounds);
+            AddBackgroundPreset(backgrounds, "Bleu nuit", "#111926");
+            AddBackgroundPreset(backgrounds, "Noir profond", "#090C13");
+            AddBackgroundPreset(backgrounds, "Gris anthracite", "#22272E");
+            AddBackgroundPreset(backgrounds, "Bleu pétrole", "#102C36");
+            ToolStripMenuItem customBackground = new ToolStripMenuItem("Personnalisée (fond sombre)...");
+            customBackground.Click += delegate { ChooseCustomBackground(); };
+            backgrounds.DropDownItems.Add(customBackground);
+            ToolStripMenuItem restoreAppearance = new ToolStripMenuItem("Rétablir l'apparence");
+            restoreAppearance.Click += delegate {
+                settings.Opacity = Preferences.Defaults().Opacity;
+                settings.BackgroundColor = Preferences.Defaults().BackgroundColor;
+                foreach (ToolStripItem it in opacity.DropDownItems)
+                    ((ToolStripMenuItem)it).Checked = it.Text == "96 %";
+                ApplyAppearance(); Save();
+            };
+            appearance.DropDownItems.Add(restoreAppearance);
             ToolStripMenuItem colors = Menu(context, "Couleurs des jauges", null);
             AddColor(colors, "76–100 % · Violet", "76");
             AddColor(colors, "51–75 % · Bleu / turquoise", "51");
@@ -396,6 +434,55 @@ namespace ShinoCodexMonitor
                 foreach (ToolStripItem sub in parent.DropDownItems) ((ToolStripMenuItem)sub).Checked = sub == item;
             };
             parent.DropDownItems.Add(item);
+        }
+        private void ApplyAppearance()
+        {
+            settings.Sanitize();
+            BackColor = ColorTranslator.FromHtml(settings.BackgroundColor);
+            Opacity = settings.Opacity;
+            five.Ring.BackColor = BackColor;
+            week.Ring.BackColor = BackColor;
+            five.Ring.Invalidate();
+            week.Ring.Invalidate();
+            Invalidate();
+        }
+        private void SetBackground(string hex)
+        {
+            if (!Preferences.IsDarkBackground(hex)) return;
+            settings.BackgroundColor = hex;
+            ApplyAppearance();
+            Save();
+        }
+        private void AddBackgroundPreset(ToolStripMenuItem parent, string label, string hex)
+        {
+            ToolStripMenuItem item = new ToolStripMenuItem(label) {
+                Checked = settings.BackgroundColor.Equals(hex, StringComparison.OrdinalIgnoreCase)
+            };
+            item.Click += delegate {
+                SetBackground(hex);
+                foreach (ToolStripItem it in parent.DropDownItems)
+                    if (it is ToolStripMenuItem && it != parent.DropDownItems[parent.DropDownItems.Count - 1])
+                        ((ToolStripMenuItem)it).Checked = it == item;
+            };
+            parent.DropDownItems.Add(item);
+        }
+        private void ChooseCustomBackground()
+        {
+            using (ColorDialog dialog = new ColorDialog())
+            {
+                dialog.Color = ColorTranslator.FromHtml(settings.BackgroundColor);
+                dialog.FullOpen = true;
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                string hex = string.Format(CultureInfo.InvariantCulture, "#{0:X2}{1:X2}{2:X2}",
+                    dialog.Color.R, dialog.Color.G, dialog.Color.B);
+                if (!Preferences.IsDarkBackground(hex))
+                {
+                    MessageBox.Show(this, "Choisis une couleur de fond sombre pour conserver la lisibilité des quotas et des états.",
+                        "SHINO // CODEX — Contraste", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                SetBackground(hex);
+            }
         }
         private void AddColor(ToolStripMenuItem parent, string label, string key)
         {
@@ -571,7 +658,8 @@ namespace ShinoCodexMonitor
         private string DiagnosticText()
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
-            return "Version : 4.6.0 (C# / Windows Forms)\n" +
+            Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "Binaire CLI : " + binaryPath + "\n" +
@@ -835,12 +923,15 @@ namespace ShinoCodexMonitor
             meter.Ring.SetReading(percent, live, color);
             meter.Fill.Width = (int)Math.Round(meter.Track.Width * data.Remaining / 100.0);
             meter.Fill.BackColor = color;
-            meter.Reset.Text = blocked ? "Usage Codex bloqué" : live ? ResetText(data.ResetUtc, kind) : "Ancienne mesure · reset non vérifié";
+            // Blocked ordinary usage does not make a fresh reset timestamp stale.
+            // The block remains clearly visible in the status/footer and tooltips.
+            meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
+                settings.Layout, live || blocked, DateTimeOffset.UtcNow);
             tooltip.SetToolTip(meter.Ring, blocked ? "Usage Codex bloqué" :
                 live ? "Quota restant · source Codex CLI" : "Ancienne mesure non actuelle");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex indique que l'usage ordinaire est bloqué" :
                 live ? "Quota restant · source Codex CLI" : "Dernier relevé NON ACTUEL");
-            tooltip.SetToolTip(meter.Reset, live && data.ResetUtc.HasValue ?
+            tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
                 "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (heure Windows)" : "Réinitialisation indisponible ou non vérifiée");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
@@ -856,10 +947,15 @@ namespace ShinoCodexMonitor
         {
             return QuotaPalette.ColorFor(p, settings);
         }
-        private string ResetText(DateTimeOffset? utc, string kind)
+        // This is deliberately independent of ordinaryUsageAllowed: an explicit
+        // reset from a fresh rate-limit window remains valid when usage is blocked.
+        internal static string ResetLabel(DateTimeOffset? utc, string kind, string style,
+            string layout, bool sourceCurrent, DateTimeOffset nowUtc)
         {
+            if (style == "hidden") return "";
+            if (!sourceCurrent) return "Ancienne mesure · reset non vérifié";
             if (!utc.HasValue) return "Reset non communiqué";
-            TimeSpan left = utc.Value - DateTimeOffset.UtcNow;
+            TimeSpan left = utc.Value - nowUtc;
             if (left <= TimeSpan.Zero) return "Reset attendu · vérification...";
             DateTimeOffset local = utc.Value.ToLocalTime();
             string absolute;
@@ -874,12 +970,11 @@ namespace ShinoCodexMonitor
             string relative = left.TotalDays >= 1 ?
                 "dans " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
                 "dans " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
-            if (settings.Layout == "Circular" && settings.ResetStyle == "both")
+            if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
-            if (settings.ResetStyle == "absolute") return "Reset " + absolute;
-            if (settings.ResetStyle == "relative") return "Reset " + relative;
-            if (settings.ResetStyle == "hidden") return "";
-            return settings.Layout == "Micro" ? "Reset " + absolute : "Reset " + absolute + " · " + relative;
+            if (style == "absolute") return "Reset " + absolute;
+            if (style == "relative") return "Reset " + relative;
+            return layout == "Micro" ? "Reset " + absolute : "Reset " + absolute + " · " + relative;
         }
         private void OnFormClosing(object sender, FormClosingEventArgs e)
         {

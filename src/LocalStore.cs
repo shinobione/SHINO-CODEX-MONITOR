@@ -38,6 +38,7 @@ namespace ShinoCodexMonitor
                         preferences.Y = Json.Int(Json.Get(dict, "Y"));
                         preferences.Top = Json.Bool(Json.Get(dict, "Top")) ?? preferences.Top;
                         preferences.Opacity = Json.Double(Json.Get(dict, "Opacity")) ?? preferences.Opacity;
+                        preferences.BackgroundColor = Json.String(Json.Get(dict, "BackgroundColor")) ?? preferences.BackgroundColor;
                         preferences.Alerts = Json.Bool(Json.Get(dict, "Alerts")) ?? preferences.Alerts;
                         preferences.Pinned = Json.Bool(Json.Get(dict, "Pinned")) ?? preferences.Pinned;
                         preferences.Alert50 = Json.Bool(Json.Get(dict, "Alert50")) ?? preferences.Alert50;

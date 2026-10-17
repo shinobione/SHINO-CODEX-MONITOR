@@ -90,3 +90,11 @@ V4.7 - CIRCULAR DASHBOARD
 - Pourcentages restants au centre ; 5h reset relatif, 7 jours date locale.
 - La fraicheur, l'etat et la source restent visibles ; donnees anciennes en gris.
 - Les anciens modes et reglages sont conserves. Aucun identifiant dans les sources.
+
+V4.7.1 - APPARENCE
+- Clic droit sur l'icone Windows : Apparence > Opacite (70 a 100 pour cent).
+- Apparence > Couleur du fond : bleu nuit, noir, anthracite, bleu petrole, personnalisee.
+- Une couleur trop claire est refusee pour garantir la lisibilite.
+- Changement immediat et conserve dans settings.json ; aucun droit admin.
+- Mode Micro : pourcentage de droite eloigne de la croix.
+- Mode Circulaire : fenetre plus etroite, roues rapprochees.

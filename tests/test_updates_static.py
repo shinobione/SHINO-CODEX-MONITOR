@@ -22,7 +22,7 @@ class UpdateChecks(unittest.TestCase):
     def test_windows_compiles_updater(self):
         s=(ROOT/'BUILD-RELEASE-V4.7.ps1').read_text(encoding='utf-8-sig')
         self.assertIn("'ReleaseUpdater.cs'", s)
-        self.assertIn('63/63', s)
+        self.assertIn('76/76', s)
     def test_assembly_version(self):
         s=(ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8')
-        self.assertIn('4.7.0.0', s)
+        self.assertIn('4.7.1.0', s)

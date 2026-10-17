@@ -16,7 +16,7 @@ $stage = Join-Path $env:TEMP ('SHINO-CODEX-VERIFY-' + [guid]::NewGuid().ToString
 $exeChanged = $false
 $hadOld = $false
 try {
-    Write-Host 'SHINO // CODEX MONITOR 4.7.0 - paquet precompile' -ForegroundColor Cyan
+    Write-Host 'SHINO // CODEX MONITOR 4.7.1 - paquet precompile' -ForegroundColor Cyan
     foreach ($relative in @($exeName,'SHINO-CODEX.ico','DESINSTALLER-V4.7.ps1','README-FR.txt','SHA256SUMS.txt')) {
         if (!(Test-Path -LiteralPath (Join-Path $package $relative))) { throw ('Fichier absent : ' + $relative) }
     }
@@ -40,8 +40,8 @@ try {
     $testReport = Join-Path $stage 'V4_TEST_REPORT.txt'
     if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $testReport)) { throw 'Autotests Windows : echec (aucune installation).'}
     $result = [IO.File]::ReadAllText($testReport)
-    if (!$result.Contains('63/63') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
-    Write-Host 'Autotests Windows : 63/63 PASS.' -ForegroundColor Green
+    if (!$result.Contains('76/76') -or $result.Contains('FAIL ')) { throw 'Autotests Windows : resultat incomplet. Installation annulee.' }
+    Write-Host 'Autotests Windows : 76/76 PASS.' -ForegroundColor Green
     if ($ValidateOnly) { Write-Host 'Verification seulement : rien installe.' -ForegroundColor Green; exit 0 }
 
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -95,7 +95,7 @@ try {
 
     if (!(Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
     New-ItemProperty -Path $uninstallKey -Name DisplayName -Value 'SHINO // CODEX MONITOR' -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.7.0' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.7.1' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name Publisher -Value 'SHINO (local)' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value ($installedExe + ',0') -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $destination -PropertyType String -Force | Out-Null

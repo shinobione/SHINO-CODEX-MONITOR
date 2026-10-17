@@ -1,5 +1,14 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V4.7.1 — Appearance & Layout Polish (candidate)
+
+- Micro-widget : zone de fermeture réservée ; nombre hebdomadaire non recouvert.
+- Tableau circulaire : 540 px de large au lieu de 768, roues de 130 px et colonnes rapprochées.
+- Sous-menu Apparence : opacité 70/80/90/96/100 %, quatre fonds sombres, fond personnalisé avec validation de contraste.
+- Préférences enregistrées dans settings.json, application immédiate, maintien des autres dispositions.
+- Diagnostic : version exacte lue depuis l'assembly, sans numéro de version obsolète.
+- Collecteur Codex inchangé, aucune nouvelle fonctionnalité réseau.
+
 ## V4.7.0 — Circular Dashboard (candidate)
 
 - Nouveau mode Circulaire (deux roues), pourcentages restants, reset et fraîcheur.
@@ -41,3 +50,10 @@
 - Tests hors réseau pour les cas nouvelle version / identique / ancienne / brouillon / prerelease / tag invalide.
 - Pas de mise à jour automatique, ni de collecte de secrets.
 - V4.5.0 a passé 23 tests Python et 45 autotests Windows et a été publiée.
+
+### V4.7.1 — Correctif du menu Réinitialisations en état bloqué
+
+- Ne remplace plus les heures de reset réellement exposées par « Usage Codex bloqué » ; cet avertissement reste visible en bas du widget.
+- Les quatre options du menu s'appliquent aussi à 0 % et en blocage global lorsque les mesures sont Direct.
+- Reset absent : « Reset non communiqué » ; reset échu : « Reset attendu · vérification... » ; ancienne donnée : « Ancienne mesure · reset non vérifié ».
+- 8 autotests C# et 6 contrôles Python ajoutés.

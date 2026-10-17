@@ -31,7 +31,7 @@ try {
     if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Autotests C# non executes ou en echec.' }
     $result = [IO.File]::ReadAllText($report)
     Write-Host $result
-    if (!$result.Contains('63/63') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
+    if (!$result.Contains('76/76') -or $result.Contains('FAIL ')) { throw 'Autotests Windows incomplets.' }
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
     foreach ($file in @('INSTALLER-V4.7.bat','INSTALLER-V4.7.ps1','DESINSTALLER-V4.7.ps1','SHINO-CODEX.ico','README-FR.txt')) {
