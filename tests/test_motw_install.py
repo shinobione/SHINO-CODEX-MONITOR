@@ -32,7 +32,7 @@ class TargetedMotwTests(unittest.TestCase):
             self.assertNotIn(forbidden, SCRIPT)
 
     def test_version_display(self):
-        self.assertIn("-Name DisplayVersion -Value '4.7.0'", SCRIPT)
+        self.assertIn("-Name DisplayVersion -Value '4.7.1'", SCRIPT)
 
 if __name__ == '__main__':
     unittest.main()
