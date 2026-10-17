@@ -20,9 +20,9 @@ class UpdateChecks(unittest.TestCase):
         s=(ROOT/'src'/'CodexReader.cs').read_text(encoding='utf-8')
         self.assertIn('account/rateLimits/read', s)
     def test_windows_compiles_updater(self):
-        s=(ROOT/'BUILD-RELEASE-V4.8.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'BUILD-RELEASE-V4.9.ps1').read_text(encoding='utf-8-sig')
         self.assertIn("'ReleaseUpdater.cs'", s)
-        self.assertIn('88/88', s)
+        self.assertIn('92/92', s)
     def test_assembly_version(self):
         s=(ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8')
-        self.assertIn('4.8.0.0', s)
+        self.assertIn('4.9.0.0', s)

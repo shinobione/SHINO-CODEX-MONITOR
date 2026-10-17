@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.8.0");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.9.0");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -418,21 +418,21 @@ namespace ShinoCodexMonitor
                     "Ancienne mesure · reset non vérifié");
                 Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
             });
-            Check("V4.8.0 : proposée à un utilisateur V4.7.2", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.8.0\"}");
+            Check("V4.9.0 : proposée à un utilisateur V4.7.2", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.9.0\"}");
                 Assert(ReleaseUpdater.IsNewer(latest, new Version(4, 7, 2, 0)));
             });
-            Check("V4.7.2 : non proposée à l'utilisateur V4.8.0", delegate {
+            Check("V4.7.2 : non proposée à l'utilisateur V4.9.0", delegate {
                 PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.7.2\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 8, 0, 0)));
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 9, 0, 0)));
             });
-            Check("V4.8.0 : version identique non reproposée", delegate {
-                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.8.0\"}");
-                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 8, 0, 0)));
+            Check("V4.9.0 : version identique non reproposée", delegate {
+                PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.9.0\"}");
+                Assert(!ReleaseUpdater.IsNewer(latest, new Version(4, 9, 0, 0)));
             });
-            Check("V4.8.0 : nom ZIP et installateur conformes", delegate {
-                Assert(ReleasePackage.AssetFile(new Version(4, 8, 0)) == "SHINO_CODEX_MONITOR_V4_8_WINDOWS.zip");
-                Assert(ReleasePackage.InstallerFile(new Version(4, 8, 0)) == "INSTALLER-V4.8.ps1");
+            Check("V4.9.0 : nom ZIP et installateur conformes", delegate {
+                Assert(ReleasePackage.AssetFile(new Version(4, 9, 0)) == "SHINO_CODEX_MONITOR_V4_9_WINDOWS.zip");
+                Assert(ReleasePackage.InstallerFile(new Version(4, 9, 0)) == "INSTALLER-V4.9.ps1");
             });
             Check("V4.8 : largeur circulaire bornée", delegate {
                 Assert(DesktopGeometry.ClampWidth(200) == 470 &&
@@ -480,7 +480,30 @@ namespace ShinoCodexMonitor
                 p.Sanitize();
                 Assert(p.CircularWidth == 700 && !p.AlertWeek && p.SnapToEdges);
             });
-            report.Insert(0, "SHINO // CODEX V4.8.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("V4.9 : ancienne position hors écran récupérée", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(0, 0, 1920, 1040);
+                System.Drawing.Rectangle old = new System.Drawing.Rectangle(3100, 400, 540, 278);
+                System.Drawing.Rectangle result = DesktopGeometry.ClampToScreen(old, work);
+                Assert(result.Right == work.Right && result.Top == 400);
+            });
+            Check("V4.9 : secondaire négatif reste sur son écran", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(-1920, 0, 1920, 1040);
+                System.Drawing.Rectangle old = new System.Drawing.Rectangle(-1800, 80, 540, 278);
+                Assert(DesktopGeometry.ClampToScreen(old, work).Location == old.Location);
+            });
+            Check("V4.9 : widget vertical trop bas ramené à l'écran", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(1920, -200, 1200, 930);
+                System.Drawing.Rectangle old = new System.Drawing.Rectangle(2200, 900, 355, 257);
+                System.Drawing.Rectangle result = DesktopGeometry.ClampToScreen(old, work);
+                Assert(result.Bottom == work.Bottom && result.Left == 2200);
+            });
+            Check("V4.9 : géométrie récupérée sans modifier le quota", delegate {
+                System.Drawing.Rectangle work = new System.Drawing.Rectangle(0, 0, 900, 600);
+                System.Drawing.Rectangle old = new System.Drawing.Rectangle(-5000, -3000, 540, 278);
+                System.Drawing.Rectangle result = DesktopGeometry.ClampToScreen(old, work);
+                Assert(work.Contains(result) && result.Width == 540 && result.Height == 278);
+            });
+            report.Insert(0, "SHINO // CODEX V4.9.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }
