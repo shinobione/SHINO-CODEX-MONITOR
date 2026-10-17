@@ -351,7 +351,31 @@ namespace ShinoCodexMonitor
                 Assert(MonitorForm.FreshnessLabel(null, now) == "Aucun relevé");
                 Assert(MonitorForm.FreshnessLabel(now.AddMinutes(-2), now).Contains("2 min"));
             });
-            report.Insert(0, "SHINO // CODEX V4.7.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            Check("Apparence : fonds sombres acceptés", delegate {
+                Assert(Preferences.IsDarkBackground("#111926") && Preferences.IsDarkBackground("#090C13") &&
+                    Preferences.IsDarkBackground("#22272E") && Preferences.IsDarkBackground("#102C36"));
+            });
+            Check("Apparence : fonds clairs rejetés", delegate {
+                Assert(!Preferences.IsDarkBackground("#FFFFFF") && !Preferences.IsDarkBackground("#FFCC88") &&
+                    !Preferences.IsDarkBackground("#invalid"));
+            });
+            Check("Apparence : migration du fond par défaut", delegate {
+                Preferences p = Preferences.Defaults();
+                p.BackgroundColor = null; p.Sanitize();
+                Assert(p.BackgroundColor == "#111926");
+            });
+            Check("Apparence : couleur sombre personnalisée persistable", delegate {
+                Preferences p = Preferences.Defaults();
+                p.BackgroundColor = "#152B35"; p.Sanitize();
+                Assert(p.BackgroundColor == "#152B35");
+            });
+            Check("Apparence : opacité valide ou rétablie", delegate {
+                Preferences p = Preferences.Defaults();
+                p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
+                p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "4.7.1");
+            });
+            report.Insert(0, "SHINO // CODEX V4.7.1 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

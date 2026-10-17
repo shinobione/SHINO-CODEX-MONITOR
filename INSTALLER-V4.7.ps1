@@ -16,7 +16,7 @@ $stage = Join-Path $env:TEMP ('SHINO-CODEX-VERIFY-' + [guid]::NewGuid().ToString
 $exeChanged = $false
 $hadOld = $false
 try {
-    Write-Host 'SHINO // CODEX MONITOR 4.7.0 - paquet precompile' -ForegroundColor Cyan
+    Write-Host 'SHINO // CODEX MONITOR 4.7.1 - paquet precompile' -ForegroundColor Cyan
     foreach ($relative in @($exeName,'SHINO-CODEX.ico','DESINSTALLER-V4.7.ps1','README-FR.txt','SHA256SUMS.txt')) {
         if (!(Test-Path -LiteralPath (Join-Path $package $relative))) { throw ('Fichier absent : ' + $relative) }
     }
@@ -95,7 +95,7 @@ try {
 
     if (!(Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
     New-ItemProperty -Path $uninstallKey -Name DisplayName -Value 'SHINO // CODEX MONITOR' -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.7.0' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value '4.7.1' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name Publisher -Value 'SHINO (local)' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value ($installedExe + ',0') -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $destination -PropertyType String -Force | Out-Null

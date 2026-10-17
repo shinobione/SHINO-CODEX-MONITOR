@@ -1,5 +1,14 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V4.7.1 — Appearance & Layout Polish (candidate)
+
+- Micro-widget : zone de fermeture réservée ; nombre hebdomadaire non recouvert.
+- Tableau circulaire : 540 px de large au lieu de 768, roues de 130 px et colonnes rapprochées.
+- Sous-menu Apparence : opacité 70/80/90/96/100 %, quatre fonds sombres, fond personnalisé avec validation de contraste.
+- Préférences enregistrées dans settings.json, application immédiate, maintien des autres dispositions.
+- Diagnostic : version exacte lue depuis l'assembly, sans numéro de version obsolète.
+- Collecteur Codex inchangé, aucune nouvelle fonctionnalité réseau.
+
 ## V4.7.0 — Circular Dashboard (candidate)
 
 - Nouveau mode Circulaire (deux roues), pourcentages restants, reset et fraîcheur.

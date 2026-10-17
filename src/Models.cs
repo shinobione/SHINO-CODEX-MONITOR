@@ -62,6 +62,7 @@ namespace ShinoCodexMonitor
         public int? Y { get; set; }
         public bool Top { get; set; }
         public double Opacity { get; set; }
+        public string BackgroundColor { get; set; }
         public bool Alerts { get; set; }
         public bool Pinned { get; set; }
         public bool Alert50 { get; set; }
@@ -88,7 +89,7 @@ namespace ShinoCodexMonitor
         internal static Preferences Defaults()
         {
             return new Preferences {
-                Top = true, Opacity = .96, Alerts = true, Pinned = true,
+                Top = true, Opacity = .96, BackgroundColor = "#111926", Alerts = true, Pinned = true,
                 Alert50 = false, Alert25 = true, Alert10 = true, AlertResets = false,
                 Layout = "Circular", ResetStyle = "both", TrayStyle = "Percent",
                 InTaskbar = false, RefreshSeconds = 60, History = true,
@@ -104,6 +105,7 @@ namespace ShinoCodexMonitor
             if (ResetStyle != "both" && ResetStyle != "absolute" && ResetStyle != "relative" && ResetStyle != "hidden") ResetStyle = "both";
             if (RefreshSeconds != 30 && RefreshSeconds != 60 && RefreshSeconds != 120 && RefreshSeconds != 300) RefreshSeconds = 60;
             if (Opacity < .55 || Opacity > 1.0 || double.IsNaN(Opacity)) Opacity = .96;
+            if (!IsDarkBackground(BackgroundColor)) BackgroundColor = "#111926";
             if (!IsHex(ColorHigh)) ColorHigh = "#51D7AF";
             if (!IsHex(ColorMid)) ColorMid = "#E5B64D";
             if (!IsHex(ColorLow)) ColorLow = "#F28C38";
@@ -113,6 +115,15 @@ namespace ShinoCodexMonitor
             if (!IsHex(Color26)) Color26 = "#E5B64D";
             if (!IsHex(Color11)) Color11 = "#F28C38";
             if (!IsHex(Color0)) Color0 = "#EE4B55";
+        }
+        // Reject light backgrounds to preserve contrast of source/stale/reset text.
+        internal static bool IsDarkBackground(string color)
+        {
+            if (!IsHex(color)) return false;
+            int r = int.Parse(color.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            int g = int.Parse(color.Substring(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            int b = int.Parse(color.Substring(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            return (r * 299 + g * 587 + b * 114) / 1000 <= 70;
         }
         private static bool IsHex(string s)
         {

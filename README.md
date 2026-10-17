@@ -86,3 +86,9 @@ Une installation neuve propose le mode circulaire par défaut ; les dispositions
 
 V4.7 reste une **candidate**, basée sur la branche V4.6. Pas de Release publique avant la compilation
 Windows, les tests de rendu (DPI, écrans) et la validation de l'utilisateur.
+
+## V4.7.1 — Apparence & disposition (candidate)
+
+Clic droit sur le tray → **Apparence** : opacité 70/80/90/96/100 %, choix de quatre fonds sombres ou couleur personnalisée via `ColorDialog`. Les fonds trop clairs sont refusés afin de conserver le contraste des états et des resets. Les préférences sont persistées dans le `settings.json` local ; les anciennes dispositions et données ne sont pas modifiées.
+
+Le mode **Micro** réserve une marge au bouton de fermeture ; le mode **Circulaire** réduit la fenêtre à 540 × 278 et agrandit les anneaux. Version affichée dans le diagnostic : version réelle du binaire. Cette version n'est pas encore publiée : tests de rendu sous Windows nécessaires.
