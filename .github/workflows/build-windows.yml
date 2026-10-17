@@ -53,6 +53,24 @@ jobs:
         run: |
           & .\BUILD-RELEASE-V4.6.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test actual GitHub Release download (NO INSTALL)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin\\SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin\\V4_UPDATE_DOWNLOAD_REPORT.txt'
+          if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--update-download-smoke' -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) {
+            if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report }
+            throw 'Live download smoke test failed. No installation was performed.'
+          }
+          $content = [IO.File]::ReadAllText($report)
+          Write-Host $content
+          if (!$content.Contains('PASS: real GitHub Release download and SHA-256/ZIP validation') -or
+              !$content.Contains('Installer: NOT EXECUTED')) {
+            throw 'Live download smoke report invalid.'
+          }
       - name: Upload precompiled Windows artifact
         uses: actions/upload-artifact@v4
         with:
