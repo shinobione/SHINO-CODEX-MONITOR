@@ -1,0 +1,64 @@
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+READER = (ROOT / "src" / "LiveTaskMonitor.cs").read_text(encoding="utf-8")
+VIEW = (ROOT / "src" / "LiveTaskWindow.cs").read_text(encoding="utf-8")
+FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
+TESTS = (ROOT / "src" / "LiveTaskTests.cs").read_text(encoding="utf-8")
+BUILD = (ROOT / "BUILD-RELEASE-V5.0.ps1").read_text(encoding="utf-8-sig")
+CI = (ROOT / ".github/workflows/build-windows.yml").read_text(encoding="utf-8")
+PREFS = (ROOT / "src" / "Models.cs").read_text(encoding="utf-8")
+
+
+class LiveTaskV51Audit(unittest.TestCase):
+    def test_bounded_readonly_session_observer(self):
+        self.assertIn("CODEX_HOME", READER)
+        self.assertIn('"sessions"', READER)
+        self.assertIn("FileAccess.Read", READER)
+        self.assertIn("TailBytes = 524288", READER)
+        self.assertIn("MaxFiles = 12", READER)
+        self.assertNotIn("auth.json", READER)
+        self.assertNotIn("HttpClient", READER)
+        self.assertNotIn("File.WriteAll", READER)
+        self.assertNotIn("Process.Start", READER)
+
+    def test_freshness_and_explicit_terminal_states(self):
+        for value in ("task_started", "task_complete", "turn_aborted",
+                      "LiveTaskPhase.Unconfirmed", "ActivityMaxAgeSeconds"):
+            self.assertIn(value, READER)
+        self.assertIn("task.Phase == LiveTaskPhase.Active", FORM)
+        self.assertIn('t.Phase == LiveTaskPhase.Active', FORM)
+
+    def test_graphics_lightweight_and_only_visible_animation(self):
+        self.assertIn("Graphics", VIEW)
+        self.assertIn("g.DrawArc", VIEW)
+        self.assertIn("animation.Enabled = Visible", VIEW)
+        self.assertIn("EnableMotion", VIEW)
+        self.assertNotIn("WebView2", VIEW)
+        self.assertNotIn("Electron", VIEW)
+        self.assertIn("taskMotion.Enabled = Visible", FORM)
+
+    def test_notification_requires_observed_transition(self):
+        self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)
+        self.assertIn("t.Id == current.Id && t.Phase == LiveTaskPhase.Active", FORM)
+        self.assertIn("tray.ShowBalloonTip(4000)", FORM)
+
+    def test_options_and_preserved_quota_collector(self):
+        for value in ("TaskAnimations", "TaskAlerts"):
+            self.assertIn(value, PREFS)
+            self.assertIn(value, FORM)
+        self.assertIn("CodexReader.Read(detected, 20000)", FORM)
+        self.assertIn("UpdateQuotaTrayIcon", FORM)
+
+    def test_executable_tests_include_source_and_are_ci_gated(self):
+        for value in ("'LiveTaskMonitor.cs'", "'LiveTaskWindow.cs'",
+                      "'LiveTaskTests.cs'"):
+            self.assertIn(value, BUILD)
+        self.assertEqual(TESTS.count('Check("'), 13)
+        self.assertIn("--live-task-self-test", CI)
+        self.assertIn("13/13", CI)
+
+
+if __name__ == "__main__":
+    unittest.main()
