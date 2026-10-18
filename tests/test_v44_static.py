@@ -8,8 +8,8 @@ HASHES = __import__('json').loads((ROOT/'tests'/'core-sha256.json').read_text(en
 
 class ReleaseStaticTests(unittest.TestCase):
     def test_core_unchanged(self):
-        # Release packaging only; collector and core application logic remain identical.
-        for name in ('WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs'):
+        # Core quota collector remains identical; task-state accent intentionally updates QuotaTrayIcon in V5.1.
+        for name in ('WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','HistoryWindow.cs','AlertRules.cs'):
             a = (ROOT/'src'/name).read_bytes()
             self.assertEqual(hashlib.sha256(a).hexdigest(), HASHES[name], name)
     def test_version(self):
