@@ -149,8 +149,7 @@ namespace ShinoCodexMonitor
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        if (line.Length <= 1048576 && (line.Contains("\"event_msg\"") ||
-                            line.Contains("\"turn_context\"") || line.Contains("\"session_meta\"")))
+                        if (line.Length <= 1048576 && Relevant(line))
                             records.Add(line);
                     }
                 }
@@ -161,14 +160,15 @@ namespace ShinoCodexMonitor
         internal static LiveTask ParseLines(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now)
         {
             LiveTask last = null;
+            System.Web.Script.Serialization.JavaScriptSerializer serializer =
+                new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
             string workspace = "Projet non communiqué";
             foreach (string line in lines)
             {
                 if (string.IsNullOrEmpty(line) || line.Length > 1048576) continue;
-                if (!line.Contains("\"event_msg\"") && !line.Contains("\"turn_context\"") &&
-                    !line.Contains("\"session_meta\"")) continue;
+                if (!Relevant(line)) continue;
                 Dictionary<string, object> root;
-                try { root = Json.Object(Json.Serializer.DeserializeObject(line)); }
+                try { root = Json.Object(serializer.DeserializeObject(line)); }
                 catch (ArgumentException) { continue; }
                 if (root == null) continue;
                 string type = Json.String(Json.Get(root, "type"));
@@ -248,6 +248,18 @@ namespace ShinoCodexMonitor
                 last.FinishedUtc = null;
             }
             return last;
+        }
+
+        private static bool Relevant(string line)
+        {
+            // Exclude user messages, reasoning, tool arguments, output, token records.
+            if (line.Contains("\"turn_context\"") || line.Contains("\"session_meta\""))
+                return true;
+            if (!line.Contains("\"event_msg\"")) return false;
+            return line.Contains("\"task_started\"") || line.Contains("\"turn_started\"") ||
+                line.Contains("\"task_complete\"") || line.Contains("\"turn_complete\"") ||
+                line.Contains("\"turn_completed\"") || line.Contains("\"turn_aborted\"") ||
+                line.Contains("\"task_aborted\"");
         }
 
         private static DateTimeOffset Timestamp(Dictionary<string, object> root, DateTimeOffset now)
