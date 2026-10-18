@@ -53,6 +53,22 @@ jobs:
         run: |
           & .\BUILD-RELEASE-V5.0.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test live task observer with synthetic Windows fixtures
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin\\SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin\\V5_TASK_TEST_REPORT.txt'
+          if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--live-task-self-test' -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) {
+            throw 'Task observer tests did not run or failed.'
+          }
+          $content = [IO.File]::ReadAllText($report)
+          Write-Host $content
+          if (!$content.Contains('13/13') -or $content.Contains('FAIL ')) {
+            throw 'Live task lifecycle validation failed.'
+          }
       - name: Smoke test actual GitHub Release download (NO INSTALL)
         shell: powershell
         run: |
