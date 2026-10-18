@@ -13,13 +13,13 @@ class ContextMenuRefactorTests(unittest.TestCase):
     def test_main_menu_is_short_and_ordered(self):
         expected = [
             "Afficher / masquer", "Actualiser maintenant",
-            "Quotas & données", "Apparence", "Fenêtre",
+            "Tâches Codex · LIVE", "Quotas & données", "Apparence", "Fenêtre",
             "Notifications", "Historique", "Application",
             "Quitter complètement"
         ]
         items = re.findall(r'Menu\(context, "([^"]+)"', MENU)
         self.assertEqual(items, expected)
-        self.assertEqual(MENU.count("context.Items.Add(new ToolStripSeparator())"), 2)
+        self.assertEqual(MENU.count("context.Items.Add(new ToolStripSeparator())"), 3)
 
     def test_appearance_contains_layout_palette_and_tray(self):
         for label in ("Disposition", "Taille des roues", "Opacité",
