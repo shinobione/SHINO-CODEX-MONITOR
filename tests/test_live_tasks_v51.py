@@ -59,7 +59,7 @@ class LiveTaskV51Audit(unittest.TestCase):
             self.assertIn(value, BUILD)
         self.assertEqual(TESTS.count('Check("'), 16)
         self.assertIn("--live-task-self-test", CI)
-        self.assertIn("13/13", CI)
+        self.assertIn("16/16", CI)
 
 
 if __name__ == "__main__":
