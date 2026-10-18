@@ -3,7 +3,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 READER = (ROOT / "src" / "LiveTaskMonitor.cs").read_text(encoding="utf-8")
-VIEW = (ROOT / "src" / "LiveTaskWindow.cs").read_text(encoding="utf-8")
+VIEW = (ROOT / "src" / "ActivityGlyph.cs").read_text(encoding="utf-8")
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
 TESTS = (ROOT / "src" / "LiveTaskTests.cs").read_text(encoding="utf-8")
 BUILD = (ROOT / "BUILD-RELEASE-V5.0.ps1").read_text(encoding="utf-8-sig")
@@ -33,11 +33,13 @@ class LiveTaskV51Audit(unittest.TestCase):
     def test_graphics_lightweight_and_only_visible_animation(self):
         self.assertIn("Graphics", VIEW)
         self.assertIn("g.DrawArc", VIEW)
-        self.assertIn("animation.Enabled = Visible", VIEW)
-        self.assertIn("EnableMotion", VIEW)
+        self.assertIn("taskMotion.Enabled = Visible", FORM)
+        self.assertIn("taskDock.Bounds = activity", FORM)
         self.assertNotIn("WebView2", VIEW)
         self.assertNotIn("Electron", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
+        self.assertNotIn("LiveTaskWindow", FORM)
+        self.assertIn("taskDock.Controls.Add(taskGlyph);", FORM)
 
     def test_notification_requires_observed_transition(self):
         self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)
@@ -52,10 +54,10 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("UpdateQuotaTrayIcon", FORM)
 
     def test_executable_tests_include_source_and_are_ci_gated(self):
-        for value in ("'LiveTaskMonitor.cs'", "'LiveTaskWindow.cs'",
+        for value in ("'LiveTaskMonitor.cs'", "'ActivityGlyph.cs'",
                       "'LiveTaskTests.cs'"):
             self.assertIn(value, BUILD)
-        self.assertEqual(TESTS.count('Check("'), 13)
+        self.assertEqual(TESTS.count('Check("'), 16)
         self.assertIn("--live-task-self-test", CI)
         self.assertIn("13/13", CI)
 
