@@ -49,6 +49,8 @@ namespace ShinoCodexMonitor
                         preferences.AlertResets = Json.Bool(Json.Get(dict, "AlertResets")) ?? preferences.AlertResets;
                         preferences.AlertFive = Json.Bool(Json.Get(dict, "AlertFive")) ?? preferences.AlertFive;
                         preferences.AlertWeek = Json.Bool(Json.Get(dict, "AlertWeek")) ?? preferences.AlertWeek;
+                        preferences.TaskAlerts = Json.Bool(Json.Get(dict, "TaskAlerts")) ?? preferences.TaskAlerts;
+                        preferences.TaskAnimations = Json.Bool(Json.Get(dict, "TaskAnimations")) ?? preferences.TaskAnimations;
                         preferences.Layout = Json.String(Json.Get(dict, "Layout")) ?? preferences.Layout;
                         preferences.ResetStyle = Json.String(Json.Get(dict, "ResetStyle")) ?? preferences.ResetStyle;
                         preferences.TrayStyle = Json.String(Json.Get(dict, "TrayStyle")) ?? preferences.TrayStyle;
