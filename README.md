@@ -143,3 +143,46 @@ V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans méla
 **Quotas & données → État des données Codex** ouvre un rapport local en lecture seule : origine réelle Codex CLI, état de fraîcheur, âge/heure locale du dernier relevé, échecs, dernier message d'erreur et prochaine tentative. Il décrit séparément les fenêtres 5 h / 7 jours seulement si leurs valeurs ont réellement été communiquées ; ne fabrique ni pourcentage ni reset. Une donnée ancienne est explicitement étiquetée comme ancienne ; l'alerte `Usage bloqué` demeure distincte des resets. Aucune requête payante, aucun accès à auth.json, cookie ou mot de passe n'est ajouté.
 
 **Limites résiduelles de V5.0.0** : le rapport est une boîte de dialogue WinForms, pas encore un panneau dédié. Les DPI multiples, la veille, le reset réel en usage bloqué, la comparaison simultanée avec le tableau officiel Codex et le parcours One-Click Update de V4.7.2 vers V5 demandent encore des essais spécifiques. La suite du produit est suivie dans [GitHub #9](https://github.com/shinobione/SHINO-CODEX-MONITOR/issues/9).
+
+## V5.1 — Live Task Monitor (branche de développement, NON publiée)
+
+**Statut : candidate à valider.** Cette fonction est séparée des quotas officiels et ne
+change pas `account/rateLimits/read`. Elle exploite **en lecture seule** les événements
+persistés par les sessions Codex locales, sous `%USERPROFILE%\.codex\sessions`
+(ou `%CODEX_HOME%\sessions` si défini). Il ne s'agit **pas** d'une API live
+officielle documentée : la compatibilité dépend de la version du CLI et de Codex Desktop.
+
+- Clic sur l'indicateur **TASKS** dans le widget ou clic droit tray → **Tâches Codex · LIVE**
+  → **Ouvrir le moniteur d'activité** : jusqu'à trois tâches locales récentes, durée,
+  projet (nom du dernier dossier seulement), modèle et effort **quand réellement enregistrés**.
+- Une roue violette vectorielle indique une activité **observée** ; coche verte après
+  `task_complete`, croix rouge si le même événement signale explicitement une erreur,
+  orange si `turn_aborted`. Une absence de fin n'est jamais convertie en succès.
+  Si le fichier ne reçoit plus d'événement depuis **90 secondes**, l'état devient
+  **À vérifier** : cela ne prouve pas que le travail est arrêté.
+- Les changements confirmés vers un état terminal peuvent afficher une notification
+  Windows, uniquement si un tour était vu comme actif lors du sondage précédent.
+  Aucune notification n'est envoyée pour un ancien succès découvert au démarrage.
+- Les deux options **Notifier les tâches terminées** et **Animations** sont
+  indépendantes des seuils de quota ; les notifications restent soumises à la
+  préférence générale. L'animation est arrêtée lorsque le panneau est masqué ;
+  la tray conserve une icône statique (jauge quota + petit point de statut).
+- Polling local toutes les 5 secondes, lecture bornée à 12 sessions récentes et
+  512 Kio par fichier. Aucune écriture des logs Codex, de leur contenu de conversation,
+  de jetons ni de cookies. Pas d'appel réseau ni de modèle supplémentaire.
+- **Limites** : seules les sessions locales avec fichiers JSONL lisibles sont
+  observables ; tâches Cloud et sessions dont les événements sont absents,
+  tronqués ou non persistés sont **indisponibles**. Le statut reste indicatif :
+  la fraîcheur d'un fichier n'est pas une confirmation indépendante du processus.
+  Le temps d'attente d'une validation humaine et l'avancement en pourcentage ne sont
+  pas exposés fiablement ici. Aucun 100 % artificiel ni décompte inventé.
+- **Tests hors ligne** : `SHINO-CODEX-MONITOR.exe --live-task-self-test` produit
+  `V5_TASK_TEST_REPORT.txt` dans le dossier de l'exécutable (13 fixtures synthétiques).
+  Compilation Windows : `BUILD-RELEASE-V5.0.ps1` dans cette branche ; le nom du script
+  historique n'est **pas** une publication V5.1. Exiger la CI et un essai utilisateur
+  sur Windows avant tout packaging/installateur/versionnage V5.1 public.
+- **Dépannage** : si « Aucune session » apparaît, vérifier que Codex est lancé
+  localement, qu'il a persisté une session JSONL, et la variable `CODEX_HOME`.
+  Ne jamais copier `auth.json` ni partager les journaux bruts. Pour revenir à la
+  version stable, continuer à utiliser la Release officielle V5.0.0 sans installer
+  cette candidate ; elle ne modifie aucune session Codex ni historique de quotas.
