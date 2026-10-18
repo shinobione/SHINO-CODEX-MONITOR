@@ -144,45 +144,38 @@ V5 doit rester un moniteur de quotas **Codex ChatGPT local Windows**, sans méla
 
 **Limites résiduelles de V5.0.0** : le rapport est une boîte de dialogue WinForms, pas encore un panneau dédié. Les DPI multiples, la veille, le reset réel en usage bloqué, la comparaison simultanée avec le tableau officiel Codex et le parcours One-Click Update de V4.7.2 vers V5 demandent encore des essais spécifiques. La suite du produit est suivie dans [GitHub #9](https://github.com/shinobione/SHINO-CODEX-MONITOR/issues/9).
 
-## V5.1 — Live Task Monitor (branche de développement, NON publiée)
+## V5.1 — Widget tout-en-un (branche de développement, NON publiée)
 
-**Statut : candidate à valider.** Cette fonction est séparée des quotas officiels et ne
-change pas `account/rateLimits/read`. Elle exploite **en lecture seule** les événements
-persistés par les sessions Codex locales, sous `%USERPROFILE%\.codex\sessions`
-(ou `%CODEX_HOME%\sessions` si défini). Il ne s'agit **pas** d'une API live
-officielle documentée : la compatibilité dépend de la version du CLI et de Codex Desktop.
+**Quotas et activité Codex dans la même fenêtre.** L'ancien panneau distinct
+LiveTaskWindow a été retiré après retour utilisateur. Sous les deux jauges 5 h et
+7 jours (ou les barres selon la disposition), une zone d'activité est visible
+immédiatement : icône vectorielle, projet, modèle, effort, durée, état, fraîcheur.
+Les modes Circulaire / Vertical / Compact / Micro conservent tous les quotas et
+ajoutent ce bandeau, sans ouvrir de second panneau. Une autre tâche active est
+signalée par un compteur. Pas de faux pourcentage d'avancement.
 
-- Clic sur l'indicateur **TASKS** dans le widget ou clic droit tray → **Tâches Codex · LIVE**
-  → **Ouvrir le moniteur d'activité** : jusqu'à trois tâches locales récentes, durée,
-  projet (nom du dernier dossier seulement), modèle et effort **quand réellement enregistrés**.
-- Une roue violette vectorielle indique une activité **observée** ; coche verte après
-  `task_complete`, croix rouge si le même événement signale explicitement une erreur,
-  orange si `turn_aborted`. Une absence de fin n'est jamais convertie en succès.
-  Si le fichier ne reçoit plus d'événement depuis **90 secondes**, l'état devient
-  **À vérifier** : cela ne prouve pas que le travail est arrêté.
-- Les changements confirmés vers un état terminal peuvent afficher une notification
-  Windows, uniquement si un tour était vu comme actif lors du sondage précédent.
-  Aucune notification n'est envoyée pour un ancien succès découvert au démarrage.
-- Les deux options **Notifier les tâches terminées** et **Animations** sont
-  indépendantes des seuils de quota ; les notifications restent soumises à la
-  préférence générale. L'animation est arrêtée lorsque le panneau est masqué ;
-  la tray conserve une icône statique (jauge quota + petit point de statut).
-- Polling local toutes les 5 secondes, lecture bornée à 12 sessions récentes et
-  512 Kio par fichier. Aucune écriture des logs Codex, de leur contenu de conversation,
-  de jetons ni de cookies. Pas d'appel réseau ni de modèle supplémentaire.
-- **Limites** : seules les sessions locales avec fichiers JSONL lisibles sont
-  observables ; tâches Cloud et sessions dont les événements sont absents,
-  tronqués ou non persistés sont **indisponibles**. Le statut reste indicatif :
-  la fraîcheur d'un fichier n'est pas une confirmation indépendante du processus.
-  Le temps d'attente d'une validation humaine et l'avancement en pourcentage ne sont
-  pas exposés fiablement ici. Aucun 100 % artificiel ni décompte inventé.
-- **Tests hors ligne** : `SHINO-CODEX-MONITOR.exe --live-task-self-test` produit
-  `V5_TASK_TEST_REPORT.txt` dans le dossier de l'exécutable (13 fixtures synthétiques).
-  Compilation Windows : `BUILD-RELEASE-V5.0.ps1` dans cette branche ; le nom du script
-  historique n'est **pas** une publication V5.1. Exiger la CI et un essai utilisateur
-  sur Windows avant tout packaging/installateur/versionnage V5.1 public.
-- **Dépannage** : si « Aucune session » apparaît, vérifier que Codex est lancé
-  localement, qu'il a persisté une session JSONL, et la variable `CODEX_HOME`.
-  Ne jamais copier `auth.json` ni partager les journaux bruts. Pour revenir à la
-  version stable, continuer à utiliser la Release officielle V5.0.0 sans installer
-  cette candidate ; elle ne modifie aucune session Codex ni historique de quotas.
+- **États :** roue violette pour activité locale récente, coche verte pour
+  fin confirmée, croix rouge pour erreur explicite, arrêt orange pour interruption,
+  gris « À vérifier » pour un événement sans fin après 90 secondes de silence.
+  L'absence de nouvel événement n'est pas une preuve d'arrêt.
+- **Source indicative :** sessions Codex JSONL locales, sous
+  \`%USERPROFILE%\.codex\sessions\` (ou \`%CODEX_HOME%\sessions\`),
+  lecture seule et filtrée. Source non documentée, distincte de la lecture
+  officielle des quotas. Les tâches Cloud ne sont pas garanties observables.
+  Modèle et effort restent « Non communiqué » quand absents.
+- **Animation et alertes :** deux options de menu; roue animée seulement quand
+  visible, sans animation permanente de l'icône Tray. Notification Windows
+  uniquement lorsqu'une transition active -> fin est observée.
+- **Sobriété :** polling 5 s, au maximum 12 fichiers récents et 512 Kio par
+  fichier, aucun appel payant au modèle, pas de cloud/serveur, aucun cookie,
+  jeton, mot de passe ou contenu des échanges conservé.
+- **Tests :** lancer la CI Windows (audits Python, compilation C#,
+  autotests historiques, tests synthétiques tâche/géométrie). Avant installation,
+  tester avec de vraies sessions sur Windows et vérifier DPI, écrans multiples,
+  veille, notification, mémoire et statut après période d'inactivité.
+- **Lancement preview :** depuis cette branche, compiler avec
+  \`BUILD-RELEASE-V5.0.bat\`, puis exécuter
+  \`bin\SHINO-CODEX-MONITOR.exe\`. Quitter la V5.0 stable avant pour éviter
+  le mutex commun. Ne pas utiliser l'installateur V5.0 de la candidate :
+  aucun numéro de Release V5.1 ni test en conditions réelles n'est encore validé.
+  Pour revenir à la version stable, quitter le test et relancer la V5.0 installée.
