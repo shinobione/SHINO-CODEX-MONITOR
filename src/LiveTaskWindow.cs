@@ -99,6 +99,13 @@ namespace ShinoCodexMonitor
         private readonly Label[] timings = new Label[3];
         private readonly System.Windows.Forms.Timer animation = new System.Windows.Forms.Timer();
         private LiveTaskReport report;
+        private bool allowMotion = true;
+
+        internal void EnableMotion(bool enabled)
+        {
+            allowMotion = enabled;
+            UpdateAnimation();
+        }
 
         internal LiveTaskWindow()
         {
@@ -193,7 +200,7 @@ namespace ShinoCodexMonitor
         }
         private void UpdateAnimation()
         {
-            animation.Enabled = Visible && glyphs.Any(g => g.Phase == LiveTaskPhase.Active);
+            animation.Enabled = Visible && allowMotion && glyphs.Any(g => g.Phase == LiveTaskPhase.Active);
         }
         protected override void Dispose(bool disposing)
         {
