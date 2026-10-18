@@ -27,7 +27,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("task_started", "task_complete", "turn_aborted",
                       "LiveTaskPhase.Unconfirmed", "ActivityMaxAgeSeconds"):
             self.assertIn(value, READER)
-        self.assertIn("task.Phase == LiveTaskPhase.Active", FORM)
+        self.assertIn("phase == LiveTaskPhase.Active", FORM)
         self.assertIn('t.Phase == LiveTaskPhase.Active', FORM)
 
     def test_graphics_lightweight_and_only_visible_animation(self):
