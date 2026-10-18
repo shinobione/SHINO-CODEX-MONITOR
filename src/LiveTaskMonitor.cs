@@ -94,7 +94,7 @@ namespace ShinoCodexMonitor
             try
             {
                 List<FileInfo> candidates = new List<FileInfo>();
-                for (int day = -3; day <= 0; day++)
+                for (int day = -3; day <= 1; day++)
                 {
                     DateTime date = now.UtcDateTime.Date.AddDays(day);
                     string folder = Path.Combine(root, date.ToString("yyyy", CultureInfo.InvariantCulture),
