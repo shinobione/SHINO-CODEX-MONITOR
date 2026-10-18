@@ -120,9 +120,9 @@ namespace ShinoCodexMonitor
             Font = new Font("Segoe UI", 9f);
             FormBorderStyle = FormBorderStyle.FixedToolWindow;
             ShowInTaskbar = false;
-            Label heading = Label("LIVE TASK MONITOR", 18, 10, 450, 28, 12, true, ForeColor);
+            Label heading = MakeLabel("LIVE TASK MONITOR", 18, 10, 450, 28, 12, true, ForeColor);
             Controls.Add(heading);
-            summary = Label("Lecture des sessions locales…", 18, 39, 470, 22, 9, false,
+            summary = MakeLabel("Lecture des sessions locales…", 18, 39, 470, 22, 9, false,
                 Color.FromArgb(139, 160, 177));
             Controls.Add(summary);
             for (int i = 0; i < glyphs.Length; i++)
@@ -132,14 +132,14 @@ namespace ShinoCodexMonitor
                     Location = new Point(16, y), Size = new Size(472, 77) };
                 ActivityGlyph glyph = new ActivityGlyph { Location = new Point(12, 13), Size = new Size(46, 46) };
                 card.Controls.Add(glyph);
-                Label main = Label("—", 68, 7, 387, 21, 10, true, ForeColor);
-                Label detail = Label("Aucune tâche", 68, 29, 390, 18, 8, false, Color.FromArgb(164, 177, 195));
-                Label duration = Label("—", 68, 49, 390, 18, 8, false, Color.FromArgb(146, 166, 194));
+                Label main = MakeLabel("—", 68, 7, 387, 21, 10, true, ForeColor);
+                Label detail = MakeLabel("Aucune tâche", 68, 29, 390, 18, 8, false, Color.FromArgb(164, 177, 195));
+                Label duration = MakeLabel("—", 68, 49, 390, 18, 8, false, Color.FromArgb(146, 166, 194));
                 card.Controls.Add(main); card.Controls.Add(detail); card.Controls.Add(duration);
                 glyphs[i] = glyph; titles[i] = main; subtitles[i] = detail; timings[i] = duration;
                 Controls.Add(card);
             }
-            foot = Label("Source : Codex local / sessions JSONL (format non documenté)", 18, 324,
+            foot = MakeLabel("Source : Codex local / sessions JSONL (format non documenté)", 18, 324,
                 470, 33, 8, false, Color.FromArgb(139, 160, 177));
             Controls.Add(foot);
             animation.Interval = 85;
@@ -154,7 +154,7 @@ namespace ShinoCodexMonitor
             };
         }
 
-        private static Label Label(string text, int x, int y, int w, int h, int font,
+        private static Label MakeLabel(string text, int x, int y, int w, int h, int font,
             bool bold, Color color)
         {
             return new Label { Text = text, Location = new Point(x, y), Size = new Size(w, h),
