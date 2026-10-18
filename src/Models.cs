@@ -73,6 +73,8 @@ namespace ShinoCodexMonitor
         public bool AlertResets { get; set; }
         public bool AlertFive { get; set; }
         public bool AlertWeek { get; set; }
+        public bool TaskAlerts { get; set; }
+        public bool TaskAnimations { get; set; }
         public string Layout { get; set; }
         public string ResetStyle { get; set; }
         public string TrayStyle { get; set; }
@@ -96,7 +98,7 @@ namespace ShinoCodexMonitor
                 Top = true, Opacity = .96, CircularWidth = 540, SnapToEdges = false,
                 BackgroundColor = "#111926", Alerts = true, Pinned = true,
                 Alert50 = false, Alert25 = true, Alert10 = true, AlertResets = false,
-                AlertFive = true, AlertWeek = true,
+                AlertFive = true, AlertWeek = true, TaskAlerts = true, TaskAnimations = true,
                 Layout = "Circular", ResetStyle = "both", TrayStyle = "Percent",
                 InTaskbar = false, RefreshSeconds = 60, History = true,
                 ColorHigh = "#51D7AF", ColorMid = "#E5B64D", ColorLow = "#F28C38", ColorCrit = "#EE4B55",
