@@ -990,6 +990,8 @@ namespace ShinoCodexMonitor
                 InvalidateForWake("Interruption de l'horloge d'interface (> 15 s)");
             lastHeartbeatUtc = nowUtc;
             runtime.Sample(nowUtc);
+            if (taskReport != null && taskReport.ActiveCount > 0 && taskReport.Featured != null)
+                taskBadge.Text = "LIVE " + taskReport.Featured.Duration(nowUtc);
             PollTasks(nowUtc);
             // The reset countdown is displayed in whole minutes. Avoid repainting every second.
             if (nowUtc >= lastUiPaintUtc.AddSeconds(10) || lastUiPaintUtc == DateTimeOffset.MinValue)
