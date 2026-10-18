@@ -30,6 +30,23 @@ namespace ShinoCodexMonitor
             return new Rectangle(Scale(x, widgetWidth), Scale(y, widgetWidth),
                 Math.Max(1, Scale(width, widgetWidth)), Math.Max(1, Scale(height, widgetWidth)));
         }
+        // Compute an integrated activity strip underneath the existing quota footer.
+        // This is geometry only: no session access or WinForms side effects.
+        internal static Rectangle ActivityBounds(int width, int baseHeight, string layout)
+        {
+            bool circular = layout == "Circular";
+            int margin = circular ? Scale(14, width) : layout == "Micro" ? 8 : 14;
+            int gap = circular ? Scale(8, width) : 8;
+            int activityHeight = circular ? Scale(100, width) :
+                layout == "Micro" ? 92 : layout == "Compact" ? 96 : 110;
+            return new Rectangle(margin, baseHeight + gap,
+                Math.Max(1, width - 2 * margin), activityHeight);
+        }
+        internal static int CombinedHeight(int width, int baseHeight, string layout)
+        {
+            Rectangle dock = ActivityBounds(width, baseHeight, layout);
+            return dock.Bottom + (layout == "Circular" ? Scale(12, width) : 8);
+        }
         internal static Rectangle ClampToScreen(Rectangle proposed, Rectangle work)
         {
             int x = Math.Max(work.Left, Math.Min(proposed.Left, work.Right - proposed.Width));
