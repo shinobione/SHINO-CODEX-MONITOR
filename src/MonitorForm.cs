@@ -319,8 +319,10 @@ namespace ShinoCodexMonitor
             int side = unit(14);
             int rightWidth = Math.Max(unit(108), width / 4);
             taskRule.SetBounds(side, unit(25), width - side * 2, Math.Max(1, unit(1)));
-            taskHeading.SetBounds(side, unit(4), width / 2, unit(20));
-            taskSource.SetBounds(width - side - unit(170), unit(4), unit(170), unit(20));
+            int sourceWidth = width < 400 ? unit(133) : unit(170);
+            int sourceLeft = width - side - sourceWidth;
+            taskHeading.SetBounds(side, unit(4), Math.Max(70, sourceLeft - side - unit(8)), unit(20));
+            taskSource.SetBounds(sourceLeft, unit(4), sourceWidth, unit(20));
             taskGlyph.SetBounds(side, unit(34), unit(30), unit(30));
             int start = side + unit(40);
             taskName.SetBounds(start, unit(29), Math.Max(40, width - start - rightWidth - side), unit(23));
@@ -1114,12 +1116,12 @@ namespace ShinoCodexMonitor
             {
                 taskName.Text = task.Workspace == "Projet non communiqué" ?
                     "Session Codex" : task.Workspace;
-                taskBadge.Text = phase == LiveTaskPhase.Active ? "● EN COURS" :
-                    phase == LiveTaskPhase.Completed ? "✓ TERMINÉ" :
-                    phase == LiveTaskPhase.Failed ? "× ÉCHEC" :
-                    phase == LiveTaskPhase.Interrupted ? "■ ARRÊTÉ" : "? À VÉRIFIER";
-                taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " +
-                    task.Effort + "   ·   Durée : " + task.Duration(now);
+                string duration = task.Duration(now);
+                taskBadge.Text = phase == LiveTaskPhase.Active ? "● LIVE " + duration :
+                    phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
+                    phase == LiveTaskPhase.Failed ? "× ÉCHEC " + duration :
+                    phase == LiveTaskPhase.Interrupted ? "■ STOP " + duration : "? À VÉRIFIER";
+                taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " + task.Effort;
                 int otherActive = taskReport.ActiveCount - (phase == LiveTaskPhase.Active ? 1 : 0);
                 if (otherActive > 0)
                     taskExtra.Text = "+" + otherActive + " autre(s) tâche(s) active(s) · " +
