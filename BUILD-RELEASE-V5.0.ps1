@@ -13,7 +13,7 @@ try {
     if (!(Test-Path -LiteralPath $csc)) { throw 'Compilateur C# .NET Framework Windows indisponible.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
-    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','LiveTaskWindow.cs','LiveTaskTests.cs','LocalStore.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
+    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
     $sources = @($files | ForEach-Object { Join-Path $root ('src\' + $_) })
     foreach ($source in $sources) { if (!(Test-Path -LiteralPath $source)) { throw ('Source manquante : ' + $source) } }
     $argsCSC = @('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimize+',
