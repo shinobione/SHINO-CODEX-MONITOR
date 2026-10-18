@@ -45,10 +45,10 @@ namespace ShinoCodexMonitor
             DateTimeOffset end = FinishedUtc ?? (Phase == LiveTaskPhase.Active ? now : LastWriteUtc);
             if (end < StartedUtc) return "—";
             TimeSpan span = end - StartedUtc;
-            if (span.TotalDays >= 1) return ((int)span.TotalDays) + " j " + span.Hours + " h";
-            if (span.TotalHours >= 1) return ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
-            return (Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "") +
-                ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
+            string prefix = Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "";
+            if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " j " + span.Hours + " h";
+            if (span.TotalHours >= 1) return prefix + ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
+            return prefix + ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
         }
     }
 
@@ -117,7 +117,8 @@ namespace ShinoCodexMonitor
                         LiveTask task = ParseLines(ReadTail(info.FullName),
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
                         if (task != null && (task.Phase == LiveTaskPhase.Active ||
-                            task.Phase == LiveTaskPhase.Unconfirmed ||
+                            (task.Phase == LiveTaskPhase.Unconfirmed &&
+                            now - task.LastWriteUtc < TimeSpan.FromMinutes(30)) ||
                             now - (task.FinishedUtc ?? task.StartedUtc) < TimeSpan.FromHours(2)))
                             report.Tasks.Add(task);
                     }
