@@ -17,6 +17,16 @@ namespace ShinoCodexMonitor
                 Environment.ExitCode = UpdateDownloadSmoke.Run();
                 return;
             }
+            if (Environment.GetCommandLineArgs().Length > 1 &&
+                Environment.GetCommandLineArgs()[1] == "--live-task-self-test")
+            {
+                string report = LiveTaskTests.Run();
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, "V5_TASK_TEST_REPORT.txt"), report); }
+                catch { }
+                Environment.ExitCode = report.IndexOf("FAIL ", StringComparison.Ordinal) >= 0 ? 1 : 0;
+                return;
+            }
             bool isNew = false;
             using (Mutex mutex = new Mutex(true, @"Local\SHINO_CODEX_MONITOR_NATIVE_V4", out isNew))
             {
