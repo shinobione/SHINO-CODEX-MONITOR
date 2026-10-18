@@ -42,12 +42,13 @@ namespace ShinoCodexMonitor
 
         internal string Duration(DateTimeOffset now)
         {
-            DateTimeOffset end = FinishedUtc ?? now;
+            DateTimeOffset end = FinishedUtc ?? (Phase == LiveTaskPhase.Active ? now : LastWriteUtc);
             if (end < StartedUtc) return "—";
             TimeSpan span = end - StartedUtc;
             if (span.TotalDays >= 1) return ((int)span.TotalDays) + " j " + span.Hours + " h";
             if (span.TotalHours >= 1) return ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
-            return ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
+            return (Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "") +
+                ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
         }
     }
 
