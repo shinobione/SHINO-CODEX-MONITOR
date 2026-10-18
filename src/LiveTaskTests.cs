@@ -100,6 +100,31 @@ namespace ShinoCodexMonitor
                 LiveTask x = Parse(Now.AddMinutes(4), Event("task_started", "a1", 20));
                 Assert(x.Phase == LiveTaskPhase.Unconfirmed);
             });
+            Check("Widget circulaire tout-en-un 470 à 720 px", delegate {
+                foreach (int width in new int[] { 470, 540, 620, 720 })
+                {
+                    int quotasHeight = DesktopGeometry.HeightForWidth(width);
+                    System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(width, quotasHeight, "Circular");
+                    int fullHeight = DesktopGeometry.CombinedHeight(width, quotasHeight, "Circular");
+                    Assert(box.Left >= 0 && box.Top > quotasHeight && box.Right < width &&
+                        box.Bottom < fullHeight && box.Height > 60);
+                }
+            });
+            Check("Widget vertical et compact conservent les quotas", delegate {
+                foreach (string layout in new string[] { "Vertical", "Compact" })
+                {
+                    int width = layout == "Vertical" ? 355 : 670;
+                    int baseHeight = layout == "Vertical" ? 257 : 177;
+                    System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(width, baseHeight, layout);
+                    Assert(box.Top > baseHeight && box.Width > width - 40 &&
+                        box.Bottom < DesktopGeometry.CombinedHeight(width, baseHeight, layout));
+                }
+            });
+            Check("Micro : indicateur intégré sans recouvrir les resets", delegate {
+                System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(484, 122, "Micro");
+                Assert(box.Top >= 129 && box.Height >= 92 &&
+                    box.Bottom < DesktopGeometry.CombinedHeight(484, 122, "Micro"));
+            });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
