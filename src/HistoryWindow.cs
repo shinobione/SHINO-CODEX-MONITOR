@@ -14,7 +14,7 @@ namespace ShinoCodexMonitor
         internal HistoryWindow(LocalStore store)
         {
             Text = "CODEX PERISCOPE — Local quota history";
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(700, 420);
             MinimumSize = new Size(520, 320);
