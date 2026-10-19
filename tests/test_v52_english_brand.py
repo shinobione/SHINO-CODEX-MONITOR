@@ -23,7 +23,10 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         for text in ("Taille circulaire", "Binaire CLI", "Aimantation",
                      "Collecte suspendue", "Reprises / invalidations",
                      "% semaine", "Connexion interrompue",
-                     "INDISPONIBLE", "min agoute"):
+                     "INDISPONIBLE", "min agoute", "Historique local",
+                     "Session Codex locale", "Mise en veille Windows",
+                     "Interruption de l'horloge", " autres", "INTERROMPU",
+                     "✓ FIN ", " · source : local JSONL"):
             self.assertNotIn(text, combined)
 
     def test_public_brand_and_disclaimer(self):
@@ -45,6 +48,28 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertIn('g.DrawEllipse(track, inner)', glyph)
         self.assertIn('g.DrawLine(stroke, cx, cy', glyph)
         self.assertNotIn('Electron', glyph)
+
+    def test_radar_pixel_validation_is_part_of_release_build(self):
+        build = (ROOT / 'BUILD-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
+        icon_qa = (ROOT / 'TEST-PERISCOPE-RADAR.ps1').read_text(encoding='utf-8')
+        self.assertIn("TEST-PERISCOPE-RADAR.ps1", build)
+        self.assertIn("Bitmap", icon_qa)
+        self.assertIn("GetPixel", icon_qa)
+        self.assertIn("@(16, 32, 48, 256)", icon_qa)
+        self.assertIn("visible", icon_qa)
+        self.assertIn("teal", icon_qa)
+
+    def test_notification_gates_ignore_old_terminal_timestamps(self):
+        reader = (ROOT / 'src/LiveTaskMonitor.cs').read_text(encoding='utf-8')
+        tests = (ROOT / 'src/LiveTaskTests.cs').read_text(encoding='utf-8')
+        form = (ROOT / 'src/MonitorForm.cs').read_text(encoding='utf-8')
+        self.assertIn("task.FinishedUtc.Value < previous.CheckedUtc.AddSeconds(-5)", reader)
+        self.assertIn("task.FinishedUtc.Value > current.CheckedUtc.AddSeconds(5)", reader)
+        self.assertIn('rollout-stale.jsonl', tests)
+        self.assertIn('rollout-future.jsonl', tests)
+        self.assertIn("settings.Alerts && settings.TaskAlerts", form)
+        self.assertIn('Test Windows notification', form)
+        self.assertIn('Color.FromArgb(41, 216, 195)', form)
 
     def test_installer_batch_uses_process_only_execution_policy(self):
         launcher = (ROOT / 'INSTALL-PERISCOPE-V5.2.bat').read_text(encoding='utf-8')
