@@ -10,7 +10,12 @@ Use only the artifact created by the verified Windows GitHub Actions run.
 INSTALL / UPGRADE FROM V5.1
 1. Exit the running monitor completely from the system tray.
 2. Extract the archive to a separate directory.
-3. Run INSTALL-PERISCOPE-V5.2.bat. The launcher starts a temporary\n   PowerShell process with -ExecutionPolicy Bypass because this preview\n   installer is not digitally signed. This does NOT change the persistent\n   user/machine execution policy and does NOT disable Defender or SmartScreen.\n   If your organization enforces Group Policy, stop and ask your administrator.\n   Do not bypass organization-managed restrictions.
+3. Run INSTALL-PERISCOPE-V5.2.bat. The launcher starts a temporary
+   PowerShell process with -ExecutionPolicy Bypass because this preview
+   installer is not digitally signed. This does NOT change the persistent
+   user/machine execution policy and does NOT disable Defender or SmartScreen.
+   If your organization enforces Group Policy, stop and ask your administrator.
+   Do not bypass organization-managed restrictions.
 4. The installer checks SHA-256, executable version 5.2.0, and 98 + 46
    embedded C# tests BEFORE touching the installed application.
 5. Your existing settings, history and install location are preserved.
