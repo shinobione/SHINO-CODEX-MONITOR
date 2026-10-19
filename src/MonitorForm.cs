@@ -1072,7 +1072,7 @@ namespace ShinoCodexMonitor
         private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs args)
         {
             if (args.Mode == PowerModes.Suspend)
-                DispatchSystemEvent(delegate { suspended = true; InvalidateForWake("Mise en veille Windows"); });
+                DispatchSystemEvent(delegate { suspended = true; InvalidateForWake("Windows entering sleep"); });
             else if (args.Mode == PowerModes.Resume)
                 DispatchSystemEvent(delegate { suspended = false; InvalidateForWake("Resuming from sleep"); Heartbeat(); });
         }
@@ -1105,7 +1105,7 @@ namespace ShinoCodexMonitor
             if (exiting) return;
             DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
             if (lastHeartbeatUtc != DateTimeOffset.MinValue && !suspended && WakeGuard.Gap(lastHeartbeatUtc, nowUtc))
-                InvalidateForWake("Interruption de l'horloge d'interface (> 15 s)");
+                InvalidateForWake("UI clock gap (> 15 s)");
             lastHeartbeatUtc = nowUtc;
             runtime.Sample(nowUtc);
             // Also expire green terminal glyphs and stale scans while Codex is idle.
@@ -1246,18 +1246,18 @@ namespace ShinoCodexMonitor
             else
             {
                 taskName.Text = task.Workspace == "Project not provided" ?
-                    "Session Codex locale" : task.Workspace;
+                    "Local Codex session" : task.Workspace;
                 string duration = task.Duration(now);
                 taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVED " + duration :
                     display.Kind == TaskDisplayKind.Uncertain ? "? UNVERIFIED" :
-                    task.Phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
+                    task.Phase == LiveTaskPhase.Completed ? "✓ DONE " + duration :
                     task.Phase == LiveTaskPhase.Failed ? "× FAILED " + duration : "■ STOP " + duration;
                 taskMeta.Text = "Model: " + task.Model + "   ·   Effort: " + task.Effort;
                 int otherActive = taskReport.ActiveCount -
                     (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
                 if (display.Kind == TaskDisplayKind.ObservedActive)
                     taskExtra.Text = "Elapsed: " + duration + " · activity observed in local log; tab unknown" +
-                        (otherActive > 0 ? " · +" + otherActive + " autres" : "");
+                        (otherActive > 0 ? " · +" + otherActive + " more" : "");
                 else if (display.Kind == TaskDisplayKind.Uncertain)
                     taskExtra.Text = "Last log activity: " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
                         " · current status unverified";
@@ -1266,12 +1266,12 @@ namespace ShinoCodexMonitor
                         task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
                         " · " + duration;
             }
-            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(41, 216, 195) :
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
             string description = taskReport == null ? "Local reading incomplete" :
-                display.Detail + " · source : local JSONL files; may not match the active tab";
+                display.Detail + " · source: local JSONL files; may not match the active tab";
             tooltip.SetToolTip(taskDock, description);
             tooltip.SetToolTip(taskGlyph, description);
             tooltip.SetToolTip(taskBadge, description);
@@ -1337,7 +1337,7 @@ namespace ShinoCodexMonitor
                 settings.Alert50, settings.Alert25, settings.Alert10);
             if (crossed.HasValue)
             {
-                string token = label + ":seuil:" + crossed.Value + ":" + newValue.ResetUtc.Value.ToUnixTimeSeconds();
+                string token = label + ":threshold:" + crossed.Value + ":" + newValue.ResetUtc.Value.ToUnixTimeSeconds();
                 if (alerted.Add(token))
                     messages.Add("Quota " + label + " : " + crossed.Value + " % remaining reached");
             }
@@ -1379,11 +1379,11 @@ namespace ShinoCodexMonitor
                 if (live && snapshot != null && snapshot.ResetsAvailable.HasValue)
                     status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
-                tooltip.SetToolTip(statusAge, "Last reading Codex : " +
+                tooltip.SetToolTip(statusAge, "Last Codex reading: " +
                     (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "none") +
-                    " (Windows local time). Status : " + state);
+                    " (Windows local time). Status: " + state);
             }
-            tooltip.SetToolTip(status, live ? "Source : Codex CLI / account/rateLimits/read" : lastError);
+            tooltip.SetToolTip(status, live ? "Source: Codex CLI / account/rateLimits/read" : lastError);
             string caption = live && snapshot != null && snapshot.Week != null ?
                 "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% weekly" : "CODEX PERISCOPE · " + state;
             tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
@@ -1399,12 +1399,12 @@ namespace ShinoCodexMonitor
                 if (snapshot.Five != null)
                 {
                     remaining = snapshot.Five.Remaining;
-                    window = "5 h";
+                    window = "5h";
                 }
                 if (snapshot.Week != null && (!remaining.HasValue || snapshot.Week.Remaining < remaining.Value))
                 {
                     remaining = snapshot.Week.Remaining;
-                    window = "7 j";
+                    window = "7d";
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
