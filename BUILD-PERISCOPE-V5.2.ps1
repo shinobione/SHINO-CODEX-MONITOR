@@ -47,16 +47,22 @@ try {
     if ($taskProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskReport)) { throw 'Task self-tests did not run.' }
     $taskResult = [IO.File]::ReadAllText($taskReport)
     if (!$taskResult.Contains('46/46') -or $taskResult.Contains('FAIL ')) { throw 'Task self-tests incomplete.' }
-    # Portable preview only: do NOT bundle a V5.1 installer.
+    # V5.2 preview installer; never mix with V5.1 files.
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
+    foreach ($file in @('CODEX-PERISCOPE.ico','README-EN.txt',
+        'INSTALL-PERISCOPE-V5.2.bat','INSTALL-PERISCOPE-V5.2.ps1',
+        'UNINSTALL-PERISCOPE-V5.2.ps1')) {
+        Copy-Item -LiteralPath (Join-Path $root $file) -Destination $staging
+    }
     Copy-Item -LiteralPath $exe -Destination $staging
-    Copy-Item -LiteralPath (Join-Path $root 'CODEX-PERISCOPE.ico') -Destination $staging
-    Copy-Item -LiteralPath (Join-Path $root 'BRANDING-V5.2.md') -Destination $staging
     $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToUpperInvariant()
     [IO.File]::WriteAllText((Join-Path $staging 'SHA256SUMS.txt'),
         ($hash + '  SHINO-CODEX-MONITOR.exe' + [Environment]::NewLine),
         (New-Object System.Text.UTF8Encoding($false)))
+    # Exact dry run: never modify an existing V5.1 installation during CI.
+    & (Join-Path $staging 'INSTALL-PERISCOPE-V5.2.ps1') -ValidateOnly
+    if ($LASTEXITCODE -ne 0) { throw 'V5.2 installer validation failed.' }
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
     Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $archive
     if (!(Test-Path -LiteralPath $archive)) { throw 'Preview archive missing.' }
