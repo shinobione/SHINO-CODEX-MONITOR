@@ -39,7 +39,7 @@ namespace ShinoCodexMonitor
                     case LiveTaskPhase.Active: return "RUNNING · observed";
                     case LiveTaskPhase.Completed: return "COMPLETED";
                     case LiveTaskPhase.Failed: return "FAILED";
-                    case LiveTaskPhase.Interrupted: return "INTERROMPU";
+                    case LiveTaskPhase.Interrupted: return "INTERRUPTED";
                     case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
                     default: return "UNAVAILABLE";
                 }
@@ -222,7 +222,10 @@ namespace ShinoCodexMonitor
             {
                 if (!IsTerminal(task) || !task.FinishedUtc.HasValue ||
                     task.FinishedUtc.Value < task.StartedUtc ||
-                    string.IsNullOrEmpty(task.SessionKey)) continue;
+                    string.IsNullOrEmpty(task.SessionKey) ||
+                    // An old terminal event is history, not a new notification.
+                    task.FinishedUtc.Value < previous.CheckedUtc.AddSeconds(-5) ||
+                    task.FinishedUtc.Value > current.CheckedUtc.AddSeconds(5)) continue;
                 bool wasActive = previous.Tasks.Any(old => old.Phase == LiveTaskPhase.Active &&
                     SameTurn(old, task));
                 bool wasAlreadySeen = previous.Tasks.Any(old => SameTurn(old, task));
