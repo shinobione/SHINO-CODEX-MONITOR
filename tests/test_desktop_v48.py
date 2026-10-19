@@ -50,7 +50,7 @@ class DesktopV48Audit(unittest.TestCase):
         self.assertIn('if (settings.AlertFive)', FORM)
         self.assertIn('if (settings.AlertWeek)', FORM)
         self.assertIn('CollectNotification(messages, "5 h"', FORM)
-        self.assertIn('CollectNotification(messages, "7 jours"', FORM)
+        self.assertIn('CollectNotification(messages, "7 days"', FORM)
         self.assertIn('AlertRules.CrossedThreshold(', FORM)
         self.assertIn('SameWindow(previous, latest)', (ROOT / 'src' / 'AlertRules.cs').read_text(encoding='utf-8'))
 
