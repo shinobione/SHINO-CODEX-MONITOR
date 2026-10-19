@@ -122,7 +122,7 @@ namespace ShinoCodexMonitor
             taskName.AutoEllipsis = true;
             taskMeta = TextLabel("Model: —   ·   Effort: —", 8, UiColors.Muted, false);
             taskMeta.AutoEllipsis = true;
-            taskExtra = TextLabel("None activité encore vérifiée", 7, UiColors.Muted, false);
+            taskExtra = TextLabel("No activity verified yet", 7, UiColors.Muted, false);
             taskExtra.AutoEllipsis = true;
             taskDock.Controls.Add(taskRule);
             taskDock.Controls.Add(taskHeading);
@@ -960,7 +960,7 @@ namespace ShinoCodexMonitor
         }
         private string DiagnosticsText()
         {
-            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
+            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "None";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source: Codex CLI / account/rateLimits/read\n" +
@@ -987,7 +987,7 @@ namespace ShinoCodexMonitor
         {
             string report = SourceHealth.Build(snapshot, State(), lastSuccess, failures,
                 lastError, nextRefresh, DateTimeOffset.UtcNow);
-            MessageBox.Show(this, report, "CODEX PERISCOPE — État des données",
+            MessageBox.Show(this, report, "CODEX PERISCOPE — Data status",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         private void ShowDiagnostics()
@@ -1092,7 +1092,7 @@ namespace ShinoCodexMonitor
             try
             {
                 Clipboard.SetText(details);
-                MessageBox.Show(this, "Diagnostics des tours copié (sans prompts, chemins ou identifiants).",
+                MessageBox.Show(this, "Task diagnostics copied (no prompts, paths or IDs).",
                     "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (System.Runtime.InteropServices.ExternalException)
@@ -1124,7 +1124,7 @@ namespace ShinoCodexMonitor
                     LiveTaskReport fresh;
                     if (result.Status == TaskStatus.RanToCompletion) fresh = result.Result;
                     else fresh = new LiveTaskReport { CheckedUtc = DateTimeOffset.UtcNow,
-                        Message = "À vérifier · local read error" };
+                        Message = "Unverified · local read error" };
                     bool canAlert = taskReport != null && settings.Alerts && settings.TaskAlerts;
                     if (canAlert)
                     {
@@ -1170,17 +1170,17 @@ namespace ShinoCodexMonitor
                 taskName.Text = taskReport == null ? "Checking local events…" :
                     "Current Codex state cannot be verified";
                 taskBadge.Text = "UNVERIFIED";
-                taskMeta.Text = "None tâche active confirmée in les journaux";
+                taskMeta.Text = "No active task confirmed in local logs";
                 if (display.LastTerminal != null)
                 {
                     LiveTask last = display.LastTerminal;
                     taskExtra.Text = "Last local turn: " + last.Workspace + " · " +
                         (last.Phase == LiveTaskPhase.Completed ? "finished" :
                             last.Phase == LiveTaskPhase.Failed ? "failed" : "interrupted") +
-                        " à " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
+                        " at " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
                 }
                 else
-                    taskExtra.Text = taskReport == null ? "Waiting du premier relevé" :
+                    taskExtra.Text = taskReport == null ? "Waiting for first sample" :
                         display.Detail + " · partial source";
             }
             else
@@ -1210,7 +1210,7 @@ namespace ShinoCodexMonitor
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
-            string description = taskReport == null ? "Lecture locale non finishede" :
+            string description = taskReport == null ? "Local read incomplete" :
                 display.Detail + " · source: local JSONL; active tab not guaranteed";
             tooltip.SetToolTip(taskDock, description);
             tooltip.SetToolTip(taskGlyph, description);
@@ -1285,7 +1285,7 @@ namespace ShinoCodexMonitor
         }
         private string State()
         {
-            if (forcedStale) return lastSuccess.HasValue ? "À vérifier" : "Unavailable";
+            if (forcedStale) return lastSuccess.HasValue ? "Unverified" : "Unavailable";
             return QuotaHealth.State(lastSuccess, failures, settings.RefreshSeconds, DateTimeOffset.UtcNow);
         }
         private void PaintSnapshot()
@@ -1320,7 +1320,7 @@ namespace ShinoCodexMonitor
                     status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
                 tooltip.SetToolTip(statusAge, "Last Codex sample: " +
-                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "aucun") +
+                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "none") +
                     " (Windows local time). Status: " + state);
             }
             tooltip.SetToolTip(status, live ? "Source: Codex CLI / account/rateLimits/read" : lastError);
@@ -1384,7 +1384,7 @@ namespace ShinoCodexMonitor
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
                 meter.Fill.Width = 0;
                 meter.Ring.SetReading(null, false, UiColors.Muted);
-                meter.Reset.Text = state == "Unavailable" ? "Unavailable" : "Window non communiquée";
+                meter.Reset.Text = state == "Unavailable" ? "Unavailable" : "Window not provided";
                 return;
             }
             int percent = Math.Max(0, Math.Min(100, (int)Math.Round(data.Remaining, MidpointRounding.AwayFromZero)));
@@ -1398,7 +1398,7 @@ namespace ShinoCodexMonitor
             // The block remains clearly visible in the status/footer and tooltips.
             meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
                 settings.Layout, live || blocked, DateTimeOffset.UtcNow);
-            tooltip.SetToolTip(meter.Ring, blocked ? "Usage Codex bloqué" :
+            tooltip.SetToolTip(meter.Ring, blocked ? "Codex usage blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Old sample (not current)");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports normal usage is blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Last sample is STALE");
@@ -1430,7 +1430,7 @@ namespace ShinoCodexMonitor
             if (left <= TimeSpan.Zero) return "Reset expected · verifying...";
             DateTimeOffset local = utc.Value.ToLocalTime();
             string absolute;
-            if (kind == "five") absolute = "à " + local.ToString("HH:mm");
+            if (kind == "five") absolute = "at " + local.ToString("HH:mm");
             else
             {
                 CultureInfo english = CultureInfo.GetCultureInfo("en-US");
