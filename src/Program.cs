@@ -40,7 +40,7 @@ namespace ShinoCodexMonitor
                     try { System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "V4_TEST_REPORT.txt"), report); }
                     catch { }
                     if (Environment.GetCommandLineArgs()[1] != "--self-test-silent")
-                        MessageBox.Show(report, "SHINO // CODEX — Autotests", MessageBoxButtons.OK,
+                        MessageBox.Show(report, "CODEX PERISCOPE — Autotests", MessageBoxButtons.OK,
                             report.IndexOf("FAIL ", StringComparison.Ordinal) >= 0 ? MessageBoxIcon.Error : MessageBoxIcon.Information);
                     Environment.ExitCode = report.IndexOf("FAIL ", StringComparison.Ordinal) >= 0 ? 1 : 0;
                     return;
@@ -48,8 +48,8 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Le programme doit être examiné avant un nouveau démarrage.",
-                        "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Unable to launch CODEX PERISCOPE " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Le programme doit être examiné avant un nouveau démarrage.",
+                        "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
             }
