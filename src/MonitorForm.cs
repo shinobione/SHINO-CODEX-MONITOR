@@ -480,7 +480,7 @@ namespace ShinoCodexMonitor
             {
                 int interval = sec;
                 ToolStripMenuItem option = new ToolStripMenuItem(sec == 30 ? "30 seconds" :
-                    (sec / 60) + " min agoute" + (sec > 60 ? "s" : ""));
+                    (sec / 60) + " minute" + (sec > 60 ? "s" : ""));
                 option.Click += delegate {
                     settings.RefreshSeconds = interval;
                     foreach (ToolStripItem child in refresh.DropDownItems)
