@@ -1285,7 +1285,7 @@ namespace ShinoCodexMonitor
         }
         private string State()
         {
-            if (forcedStale) return lastSuccess.HasValue ? "À vérifier" : "Unavailable";
+            if (forcedStale) return lastSuccess.HasValue ? "Unverified" : "Unavailable";
             return QuotaHealth.State(lastSuccess, failures, settings.RefreshSeconds, DateTimeOffset.UtcNow);
         }
         private void PaintSnapshot()
@@ -1409,7 +1409,7 @@ namespace ShinoCodexMonitor
         {
             if (!last.HasValue) return "No reading";
             TimeSpan age = now - last.Value;
-            if (age.TotalSeconds < -5) return "Horloge at vérifier";
+            if (age.TotalSeconds < -5) return "Check system clock";
             if (age.TotalSeconds < 60) return "Read less than 1 min agoute ago";
             if (age.TotalHours < 1) return "Read " + (int)age.TotalMinutes + " min ago";
             return "Read " + (int)age.TotalHours + " h";
@@ -1430,7 +1430,7 @@ namespace ShinoCodexMonitor
             if (left <= TimeSpan.Zero) return "Reset due · checking…";
             DateTimeOffset local = utc.Value.ToLocalTime();
             string absolute;
-            if (kind == "five") absolute = "à " + local.ToString("HH:mm");
+            if (kind == "five") absolute = "at " + local.ToString("HH:mm");
             else
             {
                 CultureInfo fr = CultureInfo.GetCultureInfo("fr-FR");
