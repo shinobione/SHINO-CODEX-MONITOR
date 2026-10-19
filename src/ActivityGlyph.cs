@@ -41,8 +41,8 @@ namespace ShinoCodexMonitor
             float penSize = Math.Max(2f, side * .105f);
             RectangleF ring = new RectangleF((Width - side) / 2 + penSize,
                 (Height - side) / 2 + penSize, side - penSize * 2, side - penSize * 2);
-            Color accent = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
-                phase == LiveTaskPhase.Completed ? Color.FromArgb(81, 215, 175) :
+            Color accent = phase == LiveTaskPhase.Active ? Color.FromArgb(73, 218, 185) :
+                phase == LiveTaskPhase.Completed ? Color.FromArgb(86, 229, 179) :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? Color.FromArgb(255, 182, 93) :
                 Color.FromArgb(139, 160, 177);
@@ -52,9 +52,25 @@ namespace ShinoCodexMonitor
                 stroke.EndCap = LineCap.Round;
                 if (phase == LiveTaskPhase.Active)
                 {
-                    using (Pen track = new Pen(Color.FromArgb(41, 57, 76), penSize))
+                    // Lightweight radar sweep: two concentric range rings and a
+                    // rotating beam, with no image assets or background thread.
+                    using (Pen track = new Pen(Color.FromArgb(39, 92, 104), Math.Max(1f, penSize * .42f)))
+                    using (Pen line = new Pen(accent, Math.Max(1.5f, penSize * .65f)))
+                    using (SolidBrush ping = new SolidBrush(Color.FromArgb(111, 255, 213)))
+                    {
                         g.DrawEllipse(track, ring);
-                    g.DrawArc(stroke, ring, -90 + angle, 260);
+                        RectangleF inner = new RectangleF(ring.X + ring.Width * .25f,
+                            ring.Y + ring.Height * .25f, ring.Width * .5f, ring.Height * .5f);
+                        g.DrawEllipse(track, inner);
+                        float cx = ring.X + ring.Width / 2f;
+                        float cy = ring.Y + ring.Height / 2f;
+                        double radians = (angle - 90) * Math.PI / 180.0;
+                        g.DrawLine(line, cx, cy,
+                            cx + (float)Math.Cos(radians) * ring.Width * .5f,
+                            cy + (float)Math.Sin(radians) * ring.Height * .5f);
+                        g.FillEllipse(ping, cx + ring.Width * .19f, cy - ring.Height * .29f,
+                            Math.Max(2f, penSize * .58f), Math.Max(2f, penSize * .58f));
+                    }
                 }
                 else
                 {
