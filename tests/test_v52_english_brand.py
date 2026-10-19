@@ -71,6 +71,24 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertIn('Test Windows notification', form)
         self.assertIn('Color.FromArgb(41, 216, 195)', form)
 
+    def test_history_and_update_handoff_use_english_public_brand(self):
+        history = (ROOT / 'src/HistoryWindow.cs').read_text(encoding='utf-8')
+        handoff = (ROOT / 'src/UpdateHandoff.cs').read_text(encoding='utf-8')
+        self.assertIn('CODEX PERISCOPE — Local quota history', history)
+        self.assertIn('"7 days" : "14 days"', history)
+        self.assertNotIn('Historique local', history)
+        self.assertIn('CONFIRM-INSTALLATION.ps1', handoff)
+        self.assertIn('Installing CODEX PERISCOPE', handoff)
+        for old in ('CONFIRMER-INSTALLATION', 'Fichiers de mise a jour',
+                    'Empreinte ZIP differente', 'Installation confirmee de SHINO',
+                    'Chemin de mise a jour invalide'):
+            self.assertNotIn(old, handoff)
+
+    def test_legacy_publisher_no_longer_runs_on_main_push(self):
+        legacy = (ROOT / '.github/workflows/publish-v5.1.yml').read_text(encoding='utf-8')
+        self.assertIn('workflow_dispatch:', legacy)
+        self.assertNotIn('    branches: [main]', legacy)
+
     def test_installer_batch_uses_process_only_execution_policy(self):
         launcher = (ROOT / 'INSTALL-PERISCOPE-V5.2.bat').read_text(encoding='utf-8')
         self.assertIn('-NoProfile -ExecutionPolicy Bypass -File', launcher)
