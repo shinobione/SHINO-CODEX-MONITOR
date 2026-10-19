@@ -47,7 +47,7 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
     foreach ($file in @('INSTALLER-V5.2.bat','INSTALLER-V5.2.ps1',
-        'DESINSTALLER-V5.2.ps1','CODEX-PERISCOPE.ico','README.txt')) {
+        'UNINSTALL-V5.2.ps1','CODEX-PERISCOPE.ico','README.txt')) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $staging
     }
     Copy-Item -LiteralPath $exe -Destination $staging
