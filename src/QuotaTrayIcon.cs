@@ -65,7 +65,7 @@ namespace ShinoCodexMonitor
                 if (task == LiveTaskPhase.Active || task == LiveTaskPhase.Completed ||
                     task == LiveTaskPhase.Failed || task == LiveTaskPhase.Interrupted)
                 {
-                    Color dot = task == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+                    Color dot = task == LiveTaskPhase.Active ? Color.FromArgb(41, 216, 195) :
                         task == LiveTaskPhase.Completed ? Color.FromArgb(81, 215, 175) :
                         task == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                         Color.FromArgb(255, 182, 93);
