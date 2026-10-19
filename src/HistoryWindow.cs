@@ -20,7 +20,7 @@ namespace ShinoCodexMonitor
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             Font = new Font("Segoe UI", 9f);
-            Label header = new Label { Text = "Quota restant (%) · readings réels uniquement · les interruptions ne sont pas interpolées",
+            Label header = new Label { Text = "Remaining quota (%) · real readings only · gaps are not interpolated",
                 Dock = DockStyle.Top, Height = 34, ForeColor = UiColors.Muted, Padding = new Padding(12, 8, 0, 0) };
             FlowLayoutPanel tools = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42,
                 FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(8, 3, 0, 0) };
@@ -94,7 +94,7 @@ namespace ShinoCodexMonitor
                     g.DrawString(tick.ToString(CultureInfo.InvariantCulture), font, muted, 8, y - 7);
                 }
                 if (count == 0)
-                    g.DrawString("Aucun reading pendant cette période.", font, muted, 65, Height / 2f);
+                    g.DrawString("No readings during this period.", font, muted, 65, Height / 2f);
                 else
                 {
                     DrawSeries(g, Rows, min agoTime, maxTime, left, width, height, bottom, true, UiColors.Five);
