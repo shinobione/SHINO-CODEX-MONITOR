@@ -17,6 +17,15 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
             text = text.replace('×', '')
             self.assertNotRegex(text, '[À-ÖØ-öø-ÿ]', filename)
 
+    def test_no_known_legacy_french_ui_literals(self):
+        combined = "\n".join((ROOT / 'src' / f).read_text(encoding='utf-8')
+                             for f in SOURCES)
+        for text in ("Taille circulaire", "Binaire CLI", "Aimantation",
+                     "Collecte suspendue", "Reprises / invalidations",
+                     "% semaine", "Connexion interrompue",
+                     "INDISPONIBLE", "min agoute"):
+            self.assertNotIn(text, combined)
+
     def test_public_brand_and_disclaimer(self):
         form = (ROOT / 'src/MonitorForm.cs').read_text(encoding='utf-8')
         assembly = (ROOT / 'src/AssemblyInfo.cs').read_text(encoding='utf-8')
