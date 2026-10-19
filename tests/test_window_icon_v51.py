@@ -3,7 +3,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
-BUILD = (ROOT / "BUILD-RELEASE-V5.0.ps1").read_text(encoding="utf-8-sig")
+BUILD = (ROOT / "BUILD-PREVIEW-V5.1.ps1").read_text(encoding="utf-8-sig")
 STORE = (ROOT / "src" / "LocalStore.cs").read_text(encoding="utf-8")
 
 class WindowIconV51Audit(unittest.TestCase):
