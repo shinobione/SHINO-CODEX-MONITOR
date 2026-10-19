@@ -104,7 +104,7 @@ namespace ShinoCodexMonitor
             AutoScaleMode = AutoScaleMode.Dpi;
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
-            header = TextLabel("● CODEX PERISCOPE", 12, UiColors.Five, true);
+            header = TextLabel("◉ CODEX PERISCOPE", 12, UiColors.Five, true);
             version = TextLabel("PERISCOPE / V5.2.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
