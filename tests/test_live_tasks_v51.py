@@ -32,7 +32,7 @@ class LiveTaskV51Audit(unittest.TestCase):
 
     def test_graphics_lightweight_and_only_visible_animation(self):
         self.assertIn("Graphics", VIEW)
-        self.assertIn("g.DrawArc", VIEW)
+        self.assertIn("g.DrawLine(stroke, cx, cy", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
         self.assertIn("taskDock.Bounds = activity", FORM)
         self.assertNotIn("WebView2", VIEW)
