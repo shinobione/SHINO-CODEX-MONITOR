@@ -41,7 +41,7 @@ namespace ShinoCodexMonitor
                     case LiveTaskPhase.Failed: return "FAILED";
                     case LiveTaskPhase.Interrupted: return "INTERROMPU";
                     case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
-                    default: return "INDISPONIBLE";
+                    default: return "UNAVAILABLE";
                 }
             }
         }
@@ -305,7 +305,7 @@ namespace ShinoCodexMonitor
                         LiveTask task = ParseLines(
                             new string[] { sessionMeta }.Concat(ReadTail(info.FullName, TailBytes)),
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
-                        // A 10+ min agoute Desktop turn may generate more than 512 KiB
+                        // A 10+ minute Desktop turn may generate more than 512 KiB
                         // of JSONL; the start event then falls outside the tail.
                         // Only expand for the freshest root, never every old file.
                         if (task == null && checkedRoots == 1 &&
@@ -369,7 +369,7 @@ namespace ShinoCodexMonitor
                 using (StreamReader reader = new StreamReader(stream, new UTF8Encoding(false), true, 4096))
                 {
                     // Bounded first-record read, once per source file, regardless of
-                    // the amount of reasoning/tool output appended over 10+ min agoutes.
+                    // the amount of reasoning/tool output appended over 10+ minutes.
                     StringBuilder line = new StringBuilder();
                     int ch;
                     while (line.Length < 1048576 && (ch = reader.Read()) >= 0)
