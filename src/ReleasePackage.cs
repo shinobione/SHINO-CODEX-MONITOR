@@ -167,11 +167,11 @@ namespace ShinoCodexMonitor
             // Compress-Archive may include exactly one staging root directory or files at ZIP root.
             if (parts.Length != 1 && (parts.Length != 2 ||
                 !string.Equals(parts[0], Path.GetFileNameWithoutExtension(AssetFile(version)), StringComparison.Ordinal)))
-                throw new InvalidDataException("Chemin ZIP inattendu.");
+                throw new InvalidDataException("Unexpected ZIP entry path.");
             string name = parts[parts.Length - 1];
             if (name.Length == 0 || name == "." || name == ".." || name.IndexOf(':') >= 0 || name.IndexOf('\\') >= 0 ||
                 name.IndexOf('/') >= 0 || name.IndexOf('\0') >= 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                throw new InvalidDataException("Chemin ZIP dangereux.");
+                throw new InvalidDataException("Unsafe ZIP entry path.");
             // POSIX symlinks must never be extracted, even when ZIP came from a GitHub asset.
             if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
                 throw new InvalidDataException("ZIP contains a symbolic link.");
