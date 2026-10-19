@@ -15,7 +15,7 @@ class ReleaseStaticTests(unittest.TestCase):
     def test_version(self):
         self.assertIn('5.2.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
         self.assertIn('V5.2.0', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
-        self.assertIn('SHINO // CODEX V5.1.0 —', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
+        self.assertIn('CODEX PERISCOPE V5.2.0 —', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
     def test_self_tests_count(self):
         s=(ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8')
         self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,98)
