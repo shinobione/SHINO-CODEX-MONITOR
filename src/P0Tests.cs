@@ -78,6 +78,9 @@ namespace ShinoCodexMonitor
             Check("Reused identifier with a contradictory start is unverified",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","A",40),Event("task_started","A",30),Event("task_complete","A",2));
                 Assert(tasks.Count == 1 && tasks[0].IdentityUncertain && !tasks[0].FinishedUtc.HasValue,"Contradictory identity confirmed"); });
+            Check("Wrongly typed identifiers cannot invent distinct missions",delegate {
+                List<LiveTask> tasks=Parse(Event("task_started","A",40).Replace("\"turn_id\":\"A\"","\"turn_id\":1"),Event("task_started","B",30).Replace("\"turn_id\":\"B\"","\"turn_id\":2"));
+                Assert(tasks.Count == 1 && tasks[0].Phase == LiveTaskPhase.Unconfirmed,"Non-string IDs invented missions"); });
             Check("Terminal without identity cannot finish two open turns",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","A",40),Event("task_started","B",30),Event("task_complete","",2));
                 Assert(tasks.Count == 2 && tasks.All(t => t.Phase == LiveTaskPhase.Unconfirmed && !t.FinishedUtc.HasValue),"Ambiguous terminal attributed"); });

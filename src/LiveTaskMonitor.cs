@@ -501,7 +501,9 @@ namespace ShinoCodexMonitor
                     continue;
                 }
                 string ev = type == "event_msg" ? Json.String(Json.Get(payload,"type")) : "";
-                string rawId = Json.String(Json.Get(payload,"turn_id"));
+                object idValue=Json.Get(payload,"turn_id");
+                bool invalidIdType=idValue != null && !(idValue is string);
+                string rawId = idValue as string;
                 string id = ReliableId(rawId);
                 DateTimeOffset time = Timestamp(root,now);
                 if (ev == "task_started" || ev == "turn_started") {
@@ -528,10 +530,10 @@ namespace ShinoCodexMonitor
                     }
                     turns.Add(new LiveTask { Id=id, Workspace=workspace, Originator=originator, ThreadSource=threadSource,
                         IsSubagent=isSubagent, IsRootConfirmed=isRoot, StartedUtc=time, LastWriteUtc=time,
-                        Phase=LiveTaskPhase.Active, IdentityUncertain=!string.IsNullOrEmpty(rawId) && id.Length == 0 });
+                        Phase=LiveTaskPhase.Active, IdentityUncertain=invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0) });
                     continue;
                 }
-                if (!string.IsNullOrEmpty(rawId) && id.Length == 0) { foreach (LiveTask t in turns.Where(t => !t.FinishedUtc.HasValue)) Uncertain(t); continue; }
+                if (invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0)) { foreach (LiveTask t in turns.Where(t => !t.FinishedUtc.HasValue)) Uncertain(t); continue; }
                 List<LiveTask> matches = id.Length > 0 ? turns.Where(t => t.Id == id).ToList() : turns.Where(t => !t.FinishedUtc.HasValue).ToList();
                 if (matches.Count == 0 && type == "turn_context" && id.Length > 0) {
                     List<LiveTask> open=turns.Where(t => !t.FinishedUtc.HasValue).ToList();
