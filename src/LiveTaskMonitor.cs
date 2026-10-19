@@ -14,6 +14,7 @@ namespace ShinoCodexMonitor
     internal sealed class LiveTask
     {
         internal string Id = "";
+        internal string SessionKey = ""; // rollout filename only; never path, content or credentials
         internal string Workspace = "Projet non communiqué";
         internal string Model = "Non communiqué";
         internal string Effort = "Non communiqué";
@@ -69,6 +70,57 @@ namespace ShinoCodexMonitor
         }
     }
 
+    // Notifications are inferred from CONFIRMED terminal events in one local rollout.
+    // The real Codex task_started event may have no turn_id; identify its session
+    // by the rollover filename plus the persisted start timestamp. Never match by
+    // workspace/model or filesystem modification time alone.
+    internal static class TaskNotificationRules
+    {
+        private static bool IsTerminal(LiveTask task)
+        {
+            return task != null && (task.Phase == LiveTaskPhase.Completed ||
+                task.Phase == LiveTaskPhase.Failed || task.Phase == LiveTaskPhase.Interrupted);
+        }
+
+        private static bool SameTurn(LiveTask a, LiveTask b)
+        {
+            if (a == null || b == null || string.IsNullOrEmpty(a.SessionKey) ||
+                string.IsNullOrEmpty(b.SessionKey) ||
+                !string.Equals(a.SessionKey, b.SessionKey, StringComparison.Ordinal) ||
+                a.StartedUtc != b.StartedUtc) return false;
+            // Prefer turn_id when BOTH snapshots contain one; Codex sometimes omits it.
+            return string.IsNullOrEmpty(a.Id) || string.IsNullOrEmpty(b.Id) ||
+                string.Equals(a.Id, b.Id, StringComparison.Ordinal);
+        }
+
+        internal static List<LiveTask> NewTerminals(LiveTaskReport previous, LiveTaskReport current)
+        {
+            List<LiveTask> found = new List<LiveTask>();
+            if (previous == null || current == null) return found;
+            TimeSpan pollingGap = current.CheckedUtc - previous.CheckedUtc;
+            // No replay after app resume, reader errors, startup or a long polling gap.
+            if (pollingGap < TimeSpan.Zero || pollingGap > TimeSpan.FromSeconds(30)) return found;
+            foreach (LiveTask task in current.Tasks)
+            {
+                if (!IsTerminal(task) || !task.FinishedUtc.HasValue ||
+                    task.FinishedUtc.Value < task.StartedUtc ||
+                    string.IsNullOrEmpty(task.SessionKey)) continue;
+                bool wasActive = previous.Tasks.Any(old => old.Phase == LiveTaskPhase.Active &&
+                    SameTurn(old, task));
+                bool wasAlreadySeen = previous.Tasks.Any(old => SameTurn(old, task));
+                // A short complete turn may start AND finish between 5 s polls.
+                // This path requires a valid completed event with both timestamps,
+                // observed AFTER the previous successful scan (not old history).
+                bool briefTurn = !wasAlreadySeen &&
+                    task.StartedUtc >= previous.CheckedUtc &&
+                    task.FinishedUtc.Value >= previous.CheckedUtc &&
+                    task.FinishedUtc.Value <= current.CheckedUtc.AddSeconds(5);
+                if (wasActive || briefTurn) found.Add(task);
+            }
+            return found;
+        }
+    }
+
     internal static class LiveTaskReader
     {
         internal const int ActivityMaxAgeSeconds = 90;
@@ -116,6 +168,7 @@ namespace ShinoCodexMonitor
                     {
                         LiveTask task = ParseLines(ReadTail(info.FullName),
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
+                        if (task != null) task.SessionKey = info.Name;
                         if (task != null && (task.Phase == LiveTaskPhase.Active ||
                             (task.Phase == LiveTaskPhase.Unconfirmed &&
                             now - task.LastWriteUtc < TimeSpan.FromMinutes(30)) ||
