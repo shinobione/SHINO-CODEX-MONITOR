@@ -1,5 +1,16 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V5.1.0-preview.1 — Live Task Monitor (PR #11, non publiée)
+
+- **Version distincte :** assembly 5.1.0.0, libellé V5.1.0 / PREVIEW ; script `BUILD-PREVIEW-V5.1.ps1` et ZIP portable preview dédiés. Aucun installateur V5.0 utilisé pour cette candidate ; ancien builder bloqué si version inadéquate.
+- **Un widget unique :** quotas 5 h / 7 j, resets, source et fraîcheur en haut ; bandeau « Activité Codex » sous les jauges, quatre dispositions et Tray conservés.
+- **Tour utilisateur complet (dans la mesure observable) :** sources locales JSONL lues en lecture seule, filtrage des sous-agents selon métadonnées disponibles, prise en compte du début/de la fin et de `duration_ms` cohérent ; statut incertain explicite lorsque Codex Desktop ne publie pas les événements.
+- **États graphiques :** roue violette en activité récente, coche verte à la fin enregistrée du même tour, statut non vérifié après péremption ; durée/modèle/effort affichés seulement avec provenance.
+- **Notifications :** test manuel de bulle Windows, corrélation des événements de fin même sans turn_id, protection contre les replays.
+- **Interface :** icône Windows assignée explicitement, menus organisés par action (Activité, Quotas, Apparence, Fenêtre, Notifications, Historique, Application), options explicites et rafraîchissements indépendants.
+- **Vie privée :** diagnostic des tours expurgé ; pas de prompt, chemin complet, mot de passe, jeton, cookie ni API payante ; pas de publication automatique.
+- **Validation :** build Windows et tests synthétiques sur PR ; suivi de l'onglet Codex Desktop, notification Windows, veille et multi-DPI **restent à vérifier en situation réelle**. Voir `ROADMAP.md`.
+
 ## V5.0.0 — Data Trust & Health (Release publique)
 
 - Rapport d'état local accessible sous Quotas & données : source, statut, âge, horodatage local avec décalage horaire, échecs, dernier problème, prochain essai et statut des fenêtres.
