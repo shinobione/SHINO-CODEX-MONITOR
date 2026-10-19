@@ -16,19 +16,19 @@ namespace ShinoCodexMonitor
         internal string Id = "";
         internal string SessionKey = ""; // rollout filename only; never path, content or credentials
         internal string ThreadSource = "Inconnue";
-        internal string Originator = "Non communiqué";
+        internal string Originator = "Not provided";
         internal bool IsSubagent;
         internal bool IsRootConfirmed;
         internal long? RecordedDurationMs;
-        internal string Workspace = "Projet non communiqué";
-        internal string Model = "Non communiqué";
-        internal string Effort = "Non communiqué";
+        internal string Workspace = "Project unknown";
+        internal string Model = "Not provided";
+        internal string Effort = "Not provided";
         internal LiveTaskPhase Phase;
         internal DateTimeOffset StartedUtc;
         internal DateTimeOffset? FinishedUtc;
         internal DateTimeOffset LastWriteUtc;
         internal string Source = "Codex local / sessions JSONL (non documenté)";
-        internal string LastAction = "Activité non détaillée";
+        internal string LastAction = "Activity details unavailable";
 
         internal string PhaseLabel
         {
@@ -40,7 +40,7 @@ namespace ShinoCodexMonitor
                     case LiveTaskPhase.Completed: return "TERMINÉ";
                     case LiveTaskPhase.Failed: return "ÉCHEC";
                     case LiveTaskPhase.Interrupted: return "INTERROMPU";
-                    case LiveTaskPhase.Unconfirmed: return "À VÉRIFIER";
+                    case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
                     default: return "INDISPONIBLE";
                 }
             }
@@ -69,13 +69,13 @@ namespace ShinoCodexMonitor
         internal TaskDisplayKind Kind = TaskDisplayKind.NotVerified;
         internal LiveTask Primary;
         internal LiveTask LastTerminal;
-        internal string Detail = "Aucune activité actuelle vérifiable";
+        internal string Detail = "None activité actuelle vérifiable";
     }
 
     internal sealed class LiveTaskReport
     {
         internal readonly List<LiveTask> Tasks = new List<LiveTask>();
-        internal string Message = "Aucune session Codex locale récente";
+        internal string Message = "None session Codex locale récente";
         internal DateTimeOffset CheckedUtc;
         internal int ExaminedRoots;
         internal int IgnoredSubagents;
@@ -92,10 +92,10 @@ namespace ShinoCodexMonitor
             }
         }
 
-        internal string RedactedDiagnostics(DateTimeOffset now)
+        internal string RedactedDiagnosticss(DateTimeOffset now)
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine("SHINO // CODEX V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
+            text.AppendLine("CODEX PERISCOPE V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
             text.AppendLine("Relevé (UTC) : " +
                 (CheckedUtc == DateTimeOffset.MinValue ? "aucun" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
@@ -111,7 +111,7 @@ namespace ShinoCodexMonitor
                 text.AppendLine("Tour #" + (++i) + " : " +
                     task.Phase + " ; source=" + task.ThreadSource +
                     " ; démarré (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
-                    " ; terminé (UTC)=" +
+                    " ; finished (UTC)=" +
                     (task.FinishedUtc.HasValue ?
                         task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
                     " ; durée=" + task.Duration(now) +
@@ -177,13 +177,13 @@ namespace ShinoCodexMonitor
                 {
                     display.Primary = display.LastTerminal;
                     display.Kind = TaskDisplayKind.RecentTerminal;
-                    display.Detail = "Dernier tour local terminé, pas l'état global de Codex";
+                    display.Detail = "Dernier tour local finished, pas l'état global de Codex";
                     return display;
                 }
-                display.Detail = "Dernier tour enregistré : terminé ; activité actuelle inconnue";
+                display.Detail = "Dernier tour enregistré : finished ; activité actuelle inconnue";
             }
             else
-                display.Detail = "Aucune exécution active confirmée dans les journaux";
+                display.Detail = "None exécution active confirmée in les journaux";
             return display;
         }
     }
@@ -265,7 +265,7 @@ namespace ShinoCodexMonitor
             string root = SessionRoot();
             if (!Directory.Exists(root))
             {
-                report.Message = "Indisponible · aucun dossier de sessions locales Codex";
+                report.Message = "Unavailable · aucun dossier de sessions locales Codex";
                 return report;
             }
             try
@@ -337,8 +337,8 @@ namespace ShinoCodexMonitor
                 if (report.Tasks.Count == 0)
                     report.Message += " · tour actuel non vérifiable";
             }
-            catch (UnauthorizedAccessException) { report.Message = "Indisponible · accès au dossier refusé"; }
-            catch (IOException) { report.Message = "À vérifier · lecture des sessions interrompue"; }
+            catch (UnauthorizedAccessException) { report.Message = "Unavailable · accès au dossier refusé"; }
+            catch (IOException) { report.Message = "À vérifier · lecture des sessions interruptede"; }
             return report;
         }
 
@@ -441,8 +441,8 @@ namespace ShinoCodexMonitor
             LiveTask last = null;
             System.Web.Script.Serialization.JavaScriptSerializer serializer =
                 new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
-            string workspace = "Projet non communiqué";
-            string originator = "Non communiqué";
+            string workspace = "Project unknown";
+            string originator = "Not provided";
             string threadSource = "Inconnue";
             bool isSubagent = false;
             bool isRoot = false;
@@ -464,7 +464,7 @@ namespace ShinoCodexMonitor
                     {
                         string normalized = cwd.Replace('\\', '/').TrimEnd('/');
                         string name = normalized.Substring(normalized.LastIndexOf('/') + 1);
-                        workspace = Clean(name, "Projet non communiqué");
+                        workspace = Clean(name, "Project unknown");
                     }
                     originator = Clean(Json.String(Json.Get(payload, "originator")), originator);
                     object threadSourceRaw = Json.Get(payload, "thread_source");
