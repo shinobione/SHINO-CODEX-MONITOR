@@ -111,7 +111,7 @@ class CodexPeriscopePreview(unittest.TestCase):
                      "src/CodexReader.cs"):
             text = source(path)
             strings = re.findall(r'(?<!@)"(?:\\.|[^"\\])*"', text)
-            bad = [line for line in strings if re.search(r'[À-ÿ]', line)]
+            bad = [line for line in strings if re.search(r'[À-ÿ]', line.replace("×", "").replace("÷", ""))]
             self.assertFalse(bad, f"{path}: {bad[:3]}")
 
     def test_all_new_installation_messages_are_english(self):
