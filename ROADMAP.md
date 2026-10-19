@@ -12,6 +12,8 @@ Last updated: October 19, 2026 (Windows installation and colors/position/history
 
 ## Acceptance checklist for V5.2
 
+Premium continuation: [History V2, radar V2, local validation and remaining field gates](PREMIUM-POLISH-V5.2.md). This supersedes older test totals below: baseline 113 Python audits, candidate 118; original C# suites 98 and 46 preserved, plus 35 premium native checks. Owner confirmations supplied with the premium mission are retained as baseline evidence, not newly performed agent checks.
+
 - [x] Product name selected: **CODEX PERISCOPE**.
 - [x] Scope stays exclusive to Codex ChatGPT quota monitoring and locally observable Codex tasks.
 - [x] Independent community-app disclaimer documented.

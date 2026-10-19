@@ -9,6 +9,23 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--premium-performance")
+            {
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"PREMIUM_PERFORMANCE_REPORT.txt"),PremiumTests.RunPerformance());
+                return;
+            }
+            if (Environment.GetCommandLineArgs().Length > 1 &&
+                Environment.GetCommandLineArgs()[1] == "--premium-self-test")
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                string report = PremiumTests.Run();
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                    "PREMIUM_TEST_REPORT.txt"), report);
+                Environment.ExitCode = report.Contains("FAIL ") ? 1 : 0;
+                return;
+            }
             // Explicit CI-only live download smoke test, without opening the widget
             // or installing anything. Does not depend on an authenticated Codex CLI.
             if (Environment.GetCommandLineArgs().Length > 1 &&

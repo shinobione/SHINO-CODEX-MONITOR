@@ -18,7 +18,7 @@ TOP_LEVEL = {
     'GENERATE-PERISCOPE-ICON.ps1','TEST-PERISCOPE-RADAR.ps1','BUILD-PERISCOPE-V5.2.ps1',
     'INSTALL-PERISCOPE-V5.2.ps1','INSTALL-PERISCOPE-V5.2.bat',
     'UNINSTALL-PERISCOPE-V5.2.ps1','README-EN.txt','BRANDING-V5.2.md',
-    'RELEASE-GATE-V5.2.md'
+    'RELEASE-GATE-V5.2.md','PREMIUM-POLISH-V5.2.md','CODEX-PERISCOPE.ico'
 }
 ALLOW_DIRECTORIES = {'.github/workflows','src','tests'}
 ALLOW_EXT = {'.cs','.py','.yml','.json'}
@@ -34,6 +34,8 @@ SECRET_PATTERNS = [
 def approved_files():
     files = []
     for file in ROOT.rglob('*'):
+        if file.relative_to(ROOT).parts[0] in {'bin', 'dist', 'obj'}:
+            continue  # Explicit build outputs, not outgoing source/package inputs.
         if not file.is_file() or '.git' in file.parts or '__pycache__' in file.parts or file.suffix == '.pyc':
             continue
         files.append(file)

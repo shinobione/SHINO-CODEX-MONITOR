@@ -55,6 +55,9 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset Utc;
         internal double? Five;
         internal double? Week;
+        internal DateTimeOffset? FiveResetUtc, WeekResetUtc;
+        internal string Source = "Not recorded (legacy/local history)";
+        internal bool FiveConflict, WeekConflict;
     }
     internal sealed class Preferences
     {

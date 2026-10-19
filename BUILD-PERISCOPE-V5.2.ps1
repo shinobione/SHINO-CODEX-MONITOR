@@ -13,7 +13,7 @@ try {
     if (!(Test-Path -LiteralPath $csc)) { throw 'Windows .NET Framework C# compiler unavailable.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
-    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
+    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryData.cs','HistoryWindow.cs','PremiumTests.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
     $sources = @($files | ForEach-Object { Join-Path $root ('src\' + $_) })
     foreach ($source in $sources) { if (!(Test-Path -LiteralPath $source)) { throw ('Missing source: ' + $source) } }
     $identity = [IO.File]::ReadAllText((Join-Path $root 'src\AssemblyInfo.cs'))
@@ -49,7 +49,17 @@ try {
     if ($taskProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskReport)) { throw 'Task self-tests did not run.' }
     $taskResult = [IO.File]::ReadAllText($taskReport)
     if (!$taskResult.Contains('46/46') -or $taskResult.Contains('FAIL ')) { throw 'Task self-tests incomplete.' }
+    $premiumReport = Join-Path $bin 'PREMIUM_TEST_REPORT.txt'
+    if (Test-Path -LiteralPath $premiumReport) { Remove-Item -LiteralPath $premiumReport -Force }
+    $premiumProc = Start-Process -FilePath $exe -ArgumentList '--premium-self-test' -WindowStyle Hidden -Wait -PassThru
+    if ($premiumProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $premiumReport)) { throw 'Premium history/radar tests failed.' }
+    $premiumResult = [IO.File]::ReadAllText($premiumReport)
+    Write-Host $premiumResult
+    if (!$premiumResult.Contains('All premium checks passed') -or $premiumResult.Contains('FAIL ')) { throw 'Premium tests incomplete.' }
     # V5.2 preview installer; never mix with V5.1 files.
+    $resolvedOutput = [IO.Path]::GetFullPath($output).TrimEnd('\') + '\'
+    $resolvedStaging = [IO.Path]::GetFullPath($staging)
+    if (!$resolvedStaging.StartsWith($resolvedOutput, [StringComparison]::OrdinalIgnoreCase)) { throw 'Staging path is outside dist.' }
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
     foreach ($file in @('CODEX-PERISCOPE.ico','README-EN.txt',
@@ -68,6 +78,24 @@ try {
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
     Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $archive
     if (!(Test-Path -LiteralPath $archive)) { throw 'Preview archive missing.' }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+    try {
+        $allowed = @('SHINO-CODEX-MONITOR.exe','CODEX-PERISCOPE.ico','README-EN.txt',
+            'INSTALL-PERISCOPE-V5.2.bat','INSTALL-PERISCOPE-V5.2.ps1',
+            'UNINSTALL-PERISCOPE-V5.2.ps1','SHA256SUMS.txt')
+        if ($zip.Entries.Count -ne $allowed.Count) { throw 'Unexpected Preview ZIP entry count.' }
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -cnotin $allowed) { throw ('Unexpected Preview ZIP entry: ' + $entry.FullName) }
+        }
+        $stream = $zip.GetEntry('SHINO-CODEX-MONITOR.exe').Open()
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $zipHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+        finally { $stream.Dispose(); $sha.Dispose() }
+        if ($zipHash -ne $hash) { throw 'Executable bytes in Preview ZIP differ from validated bytes.' }
+        Write-Host 'Preview ZIP verified: seven allowlisted files; executable SHA-256 matches validated image.'
+    }
+    finally { $zip.Dispose() }
     Write-Host ('PREVIEW BUILT: ' + $archive) -ForegroundColor Green
     exit 0
 }

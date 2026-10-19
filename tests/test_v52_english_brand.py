@@ -6,7 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
     'MonitorForm.cs','SourceHealth.cs','HistoryWindow.cs','LiveTaskMonitor.cs',
     'ReleasePackage.cs','ReleaseUpdater.cs','CodexReader.cs','Models.cs',
-    'RuntimeMetrics.cs','Program.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs'
+    'RuntimeMetrics.cs','Program.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs',
+    'HistoryData.cs','ActivityGlyph.cs','PremiumTests.cs'
 )
 
 class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
@@ -74,8 +75,9 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
     def test_history_and_update_handoff_use_english_public_brand(self):
         history = (ROOT / 'src/HistoryWindow.cs').read_text(encoding='utf-8')
         handoff = (ROOT / 'src/UpdateHandoff.cs').read_text(encoding='utf-8')
-        self.assertIn('CODEX PERISCOPE — Local quota history', history)
-        self.assertIn('"7 days" : "14 days"', history)
+        self.assertIn('Quota History — CODEX PERISCOPE', history)
+        for label in ('"24H"', '"3D"', '"7D"', '"30D"', '"ALL"'):
+            self.assertIn(label, history)
         self.assertNotIn('Historique local', history)
         self.assertIn('CONFIRM-INSTALLATION.ps1', handoff)
         self.assertIn('Installing CODEX PERISCOPE', handoff)

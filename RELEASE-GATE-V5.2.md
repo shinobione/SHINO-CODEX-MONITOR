@@ -2,6 +2,8 @@
 
 **Scope:** native Windows app for ChatGPT-account Codex quota monitoring and observable local Codex tasks. No general ChatGPT or API usage meter. Independent software, not affiliated with OpenAI.
 
+**Premium candidate continuation:** see [Premium Polish acceptance, History V2 guide and performance report](PREMIUM-POLISH-V5.2.md). The mission supplies five additional baseline owner field confirmations; these are recorded there separately from candidate synthetic tests. Stable release remains **HOLD** pending candidate field checks and explicit promotion approval.
+
 **Status (October 19, 2026):** V5.2 Preview, PR #14 remains **Draft**; main and published V5.1 are unchanged. No automatic installation, autostart, merge, public tag or Release was performed for this audit.
 
 ## Verified in source and Windows CI

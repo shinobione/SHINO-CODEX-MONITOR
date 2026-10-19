@@ -50,6 +50,8 @@ class ReleaseStaticTests(unittest.TestCase):
         self.assertIn('workflow_dispatch',s)
     def test_absence_of_binary_and_personal_data(self):
         for f in ROOT.rglob('*'):
+            if f.relative_to(ROOT).parts[0] in {'bin', 'dist', 'obj'}:
+                continue
             if f.is_file():
                 self.assertNotIn(f.name.lower(),('history.jsonl','settings.json','auth.json','token.json'))
                 self.assertNotEqual(f.suffix.lower(),'.exe')

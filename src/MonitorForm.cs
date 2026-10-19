@@ -179,8 +179,8 @@ namespace ShinoCodexMonitor
             SystemEvents.TimeChanged += OnTimeChanged;
             tick.Interval = 1000;
             tick.Tick += delegate { Heartbeat(); };
-            taskMotion.Interval = 85;
-            taskMotion.Tick += delegate { taskGlyph.Advance(); };
+            taskMotion.Interval = 34; // At most 29.4 requested frames per second.
+            taskMotion.Tick += delegate { taskGlyph.Advance(); UpdateTaskMotion(); };
             VisibleChanged += delegate { UpdateTaskMotion(); };
             tick.Start();
             Heartbeat();
@@ -200,7 +200,7 @@ namespace ShinoCodexMonitor
             m.Fill = new Panel { BackColor = UiColors.Five, Width = 0, Height = 9 };
             m.Track.Controls.Add(m.Fill);
             m.Ring = new CircularGauge();
-            m.Reset = TextLabel("Waiting de Codex...", 8, UiColors.Muted, false);
+            m.Reset = TextLabel("Waiting for Codex...", 8, UiColors.Muted, false);
             Controls.Add(m.Name); Controls.Add(m.Number); Controls.Add(m.Track); Controls.Add(m.Reset); Controls.Add(m.Ring);
             return m;
         }
@@ -356,8 +356,9 @@ namespace ShinoCodexMonitor
 
         private void UpdateTaskMotion()
         {
-            taskMotion.Enabled = Visible && settings.TaskAnimations &&
-                taskGlyph.Phase == LiveTaskPhase.Active;
+            taskMotion.Enabled = Visible && !suspended && settings.TaskAnimations &&
+                taskGlyph.NeedsFrames;
+            taskGlyph.SetMotion(taskMotion.Enabled);
         }
 
         private void ToggleVisibility()
@@ -565,6 +566,7 @@ namespace ShinoCodexMonitor
             };
             ToolStripMenuItem backgrounds = Menu(appearance, "Background color", null);
             AddBackgroundPreset(backgrounds, "Midnight blue", "#111926");
+            AddBackgroundPreset(backgrounds, "Premium / Deep Instrument", "#080E17");
             AddBackgroundPreset(backgrounds, "Deep black", "#090C13");
             AddBackgroundPreset(backgrounds, "Charcoal gray", "#22272E");
             AddBackgroundPreset(backgrounds, "Petrol blue", "#102C36");
@@ -687,7 +689,7 @@ namespace ShinoCodexMonitor
             };
 
             ToolStripMenuItem historyMenu = Menu(context, "History", null);
-            Menu(historyMenu, "Show history (24h / 7d / 14d)", delegate { OpenHistory(); });
+            Menu(historyMenu, "Show history (24H / 3D / 7D / 30D / ALL)", delegate { OpenHistory(); });
             ToolStripMenuItem record = Menu(historyMenu, "Record local history",
                 delegate(object sender, EventArgs args) {
                     settings.History = ((ToolStripMenuItem)sender).Checked;
@@ -753,6 +755,7 @@ namespace ShinoCodexMonitor
             week.Ring.BackColor = BackColor;
             five.Ring.Invalidate();
             week.Ring.Invalidate();
+            taskGlyph.Invalidate();
             Invalidate();
         }
         private void SetBackground(string hex)
@@ -793,7 +796,7 @@ namespace ShinoCodexMonitor
                 if (!Preferences.IsDarkBackground(hex))
                 {
                     MessageBox.Show(this, "Choose a dark background to keep quotas and status labels readable.",
-                        "CODEX PERISCOPE — Contraste", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "CODEX PERISCOPE — Contrast", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
                 SetBackground(hex);
@@ -1020,7 +1023,7 @@ namespace ShinoCodexMonitor
         }
         private string DiagnosticText()
         {
-            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "No";
+            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss", CultureInfo.GetCultureInfo("en-GB")) : "No";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
@@ -1057,7 +1060,7 @@ namespace ShinoCodexMonitor
         private void CopyDiagnostic()
         {
             try { Clipboard.SetText(DiagnosticText()); }
-            catch (Exception e) { MessageBox.Show(this, "Copie impossible : " + e.Message, "Diagnostic"); }
+            catch (Exception e) { MessageBox.Show(this, "Could not copy: " + e.Message, "Diagnostic"); }
         }
         private void DispatchSystemEvent(Action action)
         {
@@ -1185,6 +1188,7 @@ namespace ShinoCodexMonitor
                     if (result.Status == TaskStatus.RanToCompletion) fresh = result.Result;
                     else fresh = new LiveTaskReport { CheckedUtc = DateTimeOffset.UtcNow,
                         Message = "Unverified · local read error" };
+                    LiveTaskReport previousTasks = taskReport;
                     bool canAlert = taskReport != null && settings.Alerts && settings.TaskAlerts;
                     if (canAlert)
                     {
@@ -1201,6 +1205,13 @@ namespace ShinoCodexMonitor
                     }
                     taskReport = fresh;
                     UpdateTaskBadge();
+                    // Same confirmed-event rules as notifications, independent of alert opt-in.
+                    // No replay on startup, missing logs, stale scans or repeated terminals.
+                    foreach (LiveTask terminal in TaskNotificationRules.NewTerminals(previousTasks, fresh))
+                        if (terminal.Phase == LiveTaskPhase.Completed &&
+                            fresh.DisplayAt(DateTimeOffset.UtcNow).Primary == terminal)
+                            taskGlyph.ConfirmCompletion(terminal.SessionKey + ":" + terminal.StartedUtc.ToUnixTimeMilliseconds());
+                    UpdateTaskMotion();
                 }); }
                 catch (InvalidOperationException) { }
             });
@@ -1224,12 +1235,15 @@ namespace ShinoCodexMonitor
                 display.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
                 display.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
                 task.Phase;
-            taskGlyph.SetPhase(phase);
+            bool readingAvailable = taskReport != null && taskReport.CheckedUtc != DateTimeOffset.MinValue;
+            double readingAge = readingAvailable ? (now - taskReport.CheckedUtc).TotalSeconds : double.MaxValue;
+            bool readingFresh = readingAge >= -5 && readingAge <= 25;
+            taskGlyph.SetObservation(phase, readingFresh, !readingAvailable);
             if (task == null)
             {
                 taskName.Text = taskReport == null ? "Scanning local events…" :
                     "Current Codex status unavailable";
-                taskBadge.Text = "UNVERIFIED";
+                taskBadge.Text = !readingAvailable ? "UNAVAILABLE" : !readingFresh ? "STALE" : "UNVERIFIED";
                 taskMeta.Text = "No active task confirmed in local logs";
                 if (display.LastTerminal != null)
                 {
@@ -1380,7 +1394,7 @@ namespace ShinoCodexMonitor
                     status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
                 tooltip.SetToolTip(statusAge, "Last Codex reading: " +
-                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "none") +
+                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss", CultureInfo.GetCultureInfo("en-GB")) : "none") +
                     " (Windows local time). Status: " + state);
             }
             tooltip.SetToolTip(status, live ? "Source: Codex CLI / account/rateLimits/read" : lastError);
@@ -1463,7 +1477,7 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports usage is blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Stale quota reading");
             tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
-                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (Windows local time)" : "Reset unavailable or unverified");
+                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss", CultureInfo.GetCultureInfo("en-GB")) + " (Windows local time)" : "Reset unavailable or unverified");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
         {

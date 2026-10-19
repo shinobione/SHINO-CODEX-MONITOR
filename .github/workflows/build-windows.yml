@@ -81,6 +81,30 @@ jobs:
           if (!$content.Contains('46/46') -or $content.Contains('FAIL ')) {
             throw 'Live task lifecycle validation failed.'
           }
+      - name: Measure native synthetic radar performance (no live collectors)
+        if: hashFiles('src/PremiumTests.cs') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin/SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin/PREMIUM_PERFORMANCE_REPORT.txt'
+          if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--premium-performance' -WindowStyle Hidden -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Native benchmark did not complete.' }
+          Get-Content -LiteralPath $report
+      - name: Upload synthetic UI evidence and native reports
+        if: always() && hashFiles('src/PremiumTests.cs') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODEX-PERISCOPE-V5.2-SYNTHETIC-QA
+          path: |
+            bin/premium-qa/*.png
+            bin/PREMIUM_TEST_REPORT.txt
+            bin/PREMIUM_PERFORMANCE_REPORT.txt
+            bin/V4_TEST_REPORT.txt
+            bin/V5_TASK_TEST_REPORT.txt
+          if-no-files-found: error
+          retention-days: 30
       - name: Smoke test actual GitHub Release download (NO INSTALL)
         # Legacy live release endpoint returned HTTP 403 on this PR runner.
         # Keep release download gating on main; PR preview is unrelated to updating.

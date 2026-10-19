@@ -54,8 +54,8 @@ namespace ShinoCodexMonitor
                 RecordedDurationMs.Value >= 0 && RecordedDurationMs.Value <= 86400000L ?
                 TimeSpan.FromMilliseconds(RecordedDurationMs.Value) : end - StartedUtc;
             string prefix = Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "";
-            if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " j " + span.Hours + " h";
-            if (span.TotalHours >= 1) return prefix + ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min ago";
+            if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " d " + span.Hours + " h";
+            if (span.TotalHours >= 1) return prefix + ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
             return prefix + ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
         }
     }

@@ -67,7 +67,12 @@ namespace ShinoCodexMonitor
             using (Font center = new Font("Segoe UI", percentage.HasValue ? side * .185f : side * .22f, FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush ink = new SolidBrush(!percentage.HasValue || !current ? ColorTranslator.FromHtml("#8BA0B1") : accent))
             using (StringFormat alignment = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-                g.DrawString(text, center, ink, new RectangleF(0, 0, Width, Height), alignment);
+                g.DrawString(text, center, ink, new RectangleF(0, -side * .04f, Width, Height), alignment);
+            if (side >= 72)
+                using (Font label = new Font("Segoe UI", side * .058f, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush muted = new SolidBrush(ColorTranslator.FromHtml("#96A8BB")))
+                using (StringFormat center = new StringFormat { Alignment = StringAlignment.Center })
+                    g.DrawString("REMAINING", label, muted, new RectangleF(0, Height / 2f + side * .105f, Width, side * .1f), center);
         }
     }
 }
