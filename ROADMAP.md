@@ -1,6 +1,6 @@
 # CODEX PERISCOPE — Product Roadmap
 
-Last updated: October 19, 2026.
+Last updated: October 19, 2026 (Windows Preview installation confirmed by user).
 
 ## Version history
 
@@ -19,7 +19,9 @@ Last updated: October 19, 2026.
 - [x] Initial English translation of UI, menus, diagnostics and startup prompts.
 - [x] Separate V5.2 preview build and installer sources added; no automatic publication.
 - [ ] **English-only audit** across all actually displayed strings, notifications, self-tests and installation/uninstallation.
-- [ ] Green Windows CI on the exact candidate commit: 101+ Python tests, 98 quota tests, 46 task tests, icon, installer `-ValidateOnly`.
+- [x] Windows CI on the last code commit tested before this documentation update: [run #39313221295](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39313221295), 109 Python tests, 98 application tests, 46 task tests, native icon, and installer `-ValidateOnly`.
+- [x] Real Windows installation of the **V5.2 Preview confirmed by the user on October 19, 2026**. Installation succeeded after **four Windows confirmation prompts**. Their types and origins have not yet been identified; installation was not independently observed by CI or this assistant.
+- [ ] Reduce/clarify the **four Windows confirmation prompts** after identifying each one. Keep Windows security protections; do not suppress UAC, Defender or SmartScreen.
 - [ ] Real test of V5.1 → V5.2 preserving settings, quota history, tray, Windows shortcuts and safe startup migration.
 - [ ] Real rollback/uninstall test with no loss of user data.
 - [ ] DPI 100–200 %, multiple monitors, sleep/wake, offline behavior, long Codex turn, duration and status comparison.
