@@ -17,20 +17,20 @@ class SourceHealthV5Audit(unittest.TestCase):
 
     def test_first_party_source_and_states_are_explicit(self):
         self.assertIn('Codex CLI / account/rateLimits/read', HEALTH)
-        self.assertIn('Statut : ', HEALTH)
-        self.assertIn('Dernier relevé valide : ', HEALTH)
-        self.assertIn('Âge du relevé : ', HEALTH)
-        self.assertIn('Échecs consécutifs : ', HEALTH)
-        self.assertIn('Prochain essai : ', HEALTH)
+        self.assertIn('Status: ', HEALTH)
+        self.assertIn('Last valid reading:', HEALTH)
+        self.assertIn('Reading age:', HEALTH)
+        self.assertIn('Consecutive failures:', HEALTH)
+        self.assertIn('Next attempt:', HEALTH)
 
     def test_missing_stale_and_expired_windows(self):
-        self.assertIn('Fenêtre non communiquée', HEALTH)
-        self.assertIn('ancienne donnée · reset non vérifié', HEALTH)
-        self.assertIn('Reset non communiqué', HEALTH)
-        self.assertIn('Reset attendu · vérification...', HEALTH)
+        self.assertIn('Window not available', HEALTH)
+        self.assertIn('stale data · reset unverified', HEALTH)
+        self.assertIn('Reset not provided', HEALTH)
+        self.assertIn('Reset due · checking…', HEALTH)
 
     def test_menu_location_and_no_changes_to_collector(self):
-        self.assertIn('Menu(quotas, "État des données Codex"', FORM)
+        self.assertIn('Menu(quotas, "Codex data status"', FORM)
         self.assertIn('SourceHealth.Build(snapshot, State(), lastSuccess, failures,', FORM)
         self.assertIn('private void ShowSourceHealth()', FORM)
         self.assertNotIn('File.ReadAllText("auth.json")', FORM)
@@ -46,9 +46,9 @@ class SourceHealthV5Audit(unittest.TestCase):
             self.assertIn(label, SELF)
 
     def test_v5_semantics_and_no_simulated_quota(self):
-        self.assertIn('FENÊTRES CODEX — QUOTA RESTANT', HEALTH)
-        self.assertIn('Usage ordinaire signalé bloqué par Codex', HEALTH)
-        self.assertIn('Les valeurs marquées anciennes ne sont pas des quotas actuels.', HEALTH)
+        self.assertIn('CODEX WINDOWS — REMAINING QUOTA', HEALTH)
+        self.assertIn('Codex reports standard usage blocked', HEALTH)
+        self.assertIn('Stale readings are not current quotas.', HEALTH)
         self.assertNotIn('mock', HEALTH.lower())
 
 
