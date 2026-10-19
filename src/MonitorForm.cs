@@ -30,7 +30,9 @@ namespace ShinoCodexMonitor
     internal sealed class MonitorForm : Form
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string RunName = "SHINO_CODEX_MONITOR_V4"; // legacy startup value retained for safe V5.1 migration
+        private const string RunName = "CODEX_PERISCOPE";
+        private const string LegacyRunName = "SHINO_CODEX_MONITOR_V4";
+        private const string OlderRunName = "SHINO_CODEX_MONITOR";
         private readonly LocalStore store;
         private readonly Preferences settings;
         private readonly NotifyIcon tray;
@@ -911,52 +913,100 @@ namespace ShinoCodexMonitor
             history.RefreshFrom(store);
             history.Show(); history.BringToFront();
         }
-        private static string StartupValue()
+        private static string StartupValue(string valueName)
         {
             try
             {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
-                    return key == null ? null : key.GetValue(RunName) as string;
+                    return key == null ? null : key.GetValue(valueName) as string;
             }
-            catch { return null; }
+            catch (System.Security.SecurityException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
         }
+
+        private static string StartupPath(string raw)
+        {
+            // Never invoke or expand arbitrary commands from a Run entry.
+            return string.IsNullOrWhiteSpace(raw) ? null : raw.Trim().Trim('"');
+        }
+
+        private static bool OwnsStartupValue(string raw)
+        {
+            string target = StartupPath(raw);
+            return !string.IsNullOrEmpty(target) &&
+                string.Equals(target, Application.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsKnownLegacyEntry(string raw)
+        {
+            string path = StartupPath(raw);
+            return !string.IsNullOrEmpty(path) &&
+                string.Equals(System.IO.Path.GetFileName(path), "SHINO-CODEX-MONITOR.exe",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool StartupEnabled()
         {
-            string value = StartupValue();
-            if (string.IsNullOrEmpty(value)) return false;
-            return string.Equals(value.Trim().Trim('"'), Application.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+            return OwnsStartupValue(StartupValue(RunName)) ||
+                OwnsStartupValue(StartupValue(LegacyRunName)) ||
+                OwnsStartupValue(StartupValue(OlderRunName));
         }
+
         private void EnableStartup()
         {
             try
             {
-                string current = StartupValue();
-                if (!string.IsNullOrEmpty(current) && !StartupEnabled())
+                string current = StartupValue(RunName);
+                string legacy = StartupValue(LegacyRunName);
+                string older = StartupValue(OlderRunName);
+                if (OwnsStartupValue(current) && string.IsNullOrEmpty(legacy) &&
+                    string.IsNullOrEmpty(older)) return;
+                if ((!string.IsNullOrEmpty(legacy) && !IsKnownLegacyEntry(legacy)) ||
+                    (!string.IsNullOrEmpty(older) && !IsKnownLegacyEntry(older)))
                 {
-                    DialogResult replace = MessageBox.Show(
-                        "A previous startup entry points to a different location.\n\nUpdate it to this installation of Codex Periscope?",
-                        "Windows startup", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (replace != DialogResult.Yes) return;
+                    MessageBox.Show(this, "An unknown startup command was found under a legacy entry. " +
+                        "No registry values were changed. Please review Windows Startup settings.",
+                        "Windows startup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
+                if (!string.IsNullOrEmpty(current) && !OwnsStartupValue(current))
                 {
-                    if (key != null && key.GetValue("SHINO_CODEX_MONITOR") != null)
-                    {
-                        DialogResult decision = MessageBox.Show(
-                            "A separate legacy startup entry exists. Enabling both may start two widgets.\n\nKeep the old entry and enable this one too?",
-                            "Windows startup", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                        if (decision != DialogResult.Yes) return;
-                    }
+                    MessageBox.Show(this, "A different application already uses the Codex Periscope " +
+                        "startup key. No registry values were changed.",
+                        "Windows startup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
+                if ((!string.IsNullOrEmpty(legacy) || !string.IsNullOrEmpty(older)) &&
+                    MessageBox.Show(this,
+                        "Legacy Codex monitor startup entries were found. " +
+                        "Move them to a single Codex Periscope startup entry? " +
+                        "No unrelated application entries will be removed.",
+                        "Migrate Windows startup", MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question) != DialogResult.Yes) return;
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey))
-                    key.SetValue(RunName, "\"" + Application.ExecutablePath + "\"", RegistryValueKind.String);
+                {
+                    key.SetValue(RunName, "\"" + Application.ExecutablePath + "\"",
+                        RegistryValueKind.String);
+                    if (IsKnownLegacyEntry(legacy)) key.DeleteValue(LegacyRunName, false);
+                    if (IsKnownLegacyEntry(older)) key.DeleteValue(OlderRunName, false);
+                }
             }
-            catch (Exception e) { MessageBox.Show(e.Message, "Windows startup"); }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
+
         private void DisableStartup()
         {
-            try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true)) if (key != null) key.DeleteValue(RunName, false); }
-            catch (Exception e) { MessageBox.Show(e.Message, "Windows startup"); }
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                {
+                    if (key == null) return;
+                    foreach (string name in new [] { RunName, LegacyRunName, OlderRunName })
+                        if (OwnsStartupValue(key.GetValue(name) as string))
+                            key.DeleteValue(name, false);
+                }
+            }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
         private string DiagnosticText()
         {
