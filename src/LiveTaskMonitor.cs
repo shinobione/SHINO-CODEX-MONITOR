@@ -177,10 +177,10 @@ namespace ShinoCodexMonitor
                 {
                     display.Primary = display.LastTerminal;
                     display.Kind = TaskDisplayKind.RecentTerminal;
-                    display.Detail = "Dernier tour local completed, pas l'état global de Codex";
+                    display.Detail = "Last local turn completed, not the global Codex status";
                     return display;
                 }
-                display.Detail = "Dernier tour enregistré : completed ; activité actuelle inconnue";
+                display.Detail = "Last recorded turn: completed; current activity unknown";
             }
             else
                 display.Detail = "No running task confirmed in logs";
@@ -338,7 +338,7 @@ namespace ShinoCodexMonitor
                     report.Message += " · current turn unverified";
             }
             catch (UnauthorizedAccessException) { report.Message = "Unavailable · folder access denied"; }
-            catch (IOException) { report.Message = "À vérifier · lecture des sessions interruptede"; }
+            catch (IOException) { report.Message = "Unverified · session read interrupted"; }
             return report;
         }
 
