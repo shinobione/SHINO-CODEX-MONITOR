@@ -36,7 +36,7 @@ namespace ShinoCodexMonitor
                 double seconds = (nowUtc - lastSuccess.Value).TotalSeconds;
                 report.AppendLine("Reading age: " +
                     (seconds < -5 ? "Check system clock" :
-                    seconds < 60 ? "Moins d’une min agoute" :
+                    seconds < 60 ? "Less than one minute ago" :
                     ((int)Math.Floor(seconds / 60)).ToString(CultureInfo.InvariantCulture) + " min ago"));
             }
             report.AppendLine("Consecutive failures: " + failures);
