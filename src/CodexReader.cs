@@ -156,7 +156,7 @@ namespace ShinoCodexMonitor
             for (int i = 0; i < maxLines; i++)
             {
                 string line = stdout.ReadLine();
-                if (line == null) throw new IOException("Connexion interrompue par Codex.");
+                if (line == null) throw new IOException("Codex connection interrupted.");
                 if (line.Length > 1048576) throw new InvalidDataException("Codex response too large.");
                 Dictionary<string, object> obj;
                 try { obj = Json.Object(Json.Serializer.DeserializeObject(line)); }
