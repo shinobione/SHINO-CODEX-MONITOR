@@ -13,7 +13,8 @@ namespace ShinoCodexMonitor
         private readonly Label period;
         internal HistoryWindow(LocalStore store)
         {
-            Text = "SHINO // CODEX — Historique local";
+            Text = "CODEX PERISCOPE — Local quota history";
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(700, 420);
             MinimumSize = new Size(520, 320);
@@ -28,7 +29,7 @@ namespace ShinoCodexMonitor
             foreach (int hours in new int[] { 24, 24 * 7, 24 * 14 })
             {
                 int value = hours;
-                Button button = MakeButton(hours == 24 ? "24 h" : hours == 168 ? "7 j" : "14 j", 60);
+                Button button = MakeButton(hours == 24 ? "24 h" : hours == 168 ? "7 days" : "14 days", 60);
                 button.Click += delegate { SetHours(value); };
                 tools.Controls.Add(button);
             }
@@ -62,7 +63,7 @@ namespace ShinoCodexMonitor
             canvas.VisibleHours = Math.Max(6, Math.Min(336, hours));
             period.Text = "Period: " + (canvas.VisibleHours < 48 ?
                 canvas.VisibleHours.ToString("0.#", CultureInfo.InvariantCulture) + " h" :
-                (canvas.VisibleHours / 24).ToString("0.#", CultureInfo.InvariantCulture) + " j");
+                (canvas.VisibleHours / 24).ToString("0.#", CultureInfo.InvariantCulture) + " days");
             canvas.Invalidate();
         }
         internal void RefreshFrom(LocalStore store) { canvas.Rows = store.GetHistory(); canvas.Invalidate(); }
