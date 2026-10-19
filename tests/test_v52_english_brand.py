@@ -68,6 +68,14 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertIn('Codex Periscope.lnk', installer)
         self.assertNotIn('Set-ItemProperty -Path $runKey', installer)
 
+    def test_uninstaller_removes_english_shortcuts_and_task_report_is_english(self):
+        script = (ROOT / 'UNINSTALL-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
+        tasks = (ROOT / 'src/LiveTaskTests.cs').read_text(encoding='utf-8')
+        self.assertIn("'Uninstall Codex Periscope.lnk'", script)
+        self.assertNotIn("'Desinstaller Codex Periscope.lnk'", script)
+        self.assertIn("simulated tests passed", tasks)
+        self.assertNotIn("tests simulés réussis", tasks)
+
     def test_no_silent_autostart_migration(self):
         form = (ROOT / 'src/MonitorForm.cs').read_text(encoding='utf-8')
         self.assertIn('LegacyRunName', form)
