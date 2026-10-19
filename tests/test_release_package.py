@@ -10,7 +10,7 @@ UI=(ROOT/'src/MonitorForm.cs').read_text(encoding='utf-8')
 class ReleasePackageAudit(unittest.TestCase):
     def test_github_asset_digest_required(self):
         self.assertIn('"^sha256:([0-9a-fA-F]{64})$"', PACKAGE)
-        self.assertIn('SHA-256 GitHub absent', PACKAGE)
+        self.assertIn('GitHub SHA-256 missing', PACKAGE)
         self.assertIn('VerifyAssetFile(asset, zip);', PACKAGE)
 
     def test_no_remote_url_from_json(self):
@@ -48,7 +48,7 @@ class ReleasePackageAudit(unittest.TestCase):
         self.assertIn('if (Get-Process -Id $ParentPid', HANDOFF)
 
     def test_preserve_previous_install_safeguards(self):
-        install=(ROOT/'INSTALLER-V5.1.ps1').read_text(encoding='utf-8-sig')
+        install=(ROOT/'INSTALL-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('[System.IO.File]::Replace(', install)
         self.assertIn('$backupExe',install)
         self.assertIn('Get-FileHash', install)
