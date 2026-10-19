@@ -17,7 +17,7 @@ $stage = Join-Path $env:TEMP ('SHINO-CODEX-VERIFY-' + [guid]::NewGuid().ToString
 $exeChanged = $false
 $hadOld = $false
 try {
-    Write-Host 'CODEX PERISCOPE 5.2.0 - paquet precompile' -ForegroundColor Cyan
+    Write-Host 'CODEX PERISCOPE 5.2.0 - unsigned preview installer' -ForegroundColor Cyan
     foreach ($relative in @($exeName,'CODEX-PERISCOPE.ico','UNINSTALL-PERISCOPE-V5.2.ps1','README-EN.txt','SHA256SUMS.txt')) {
         if (!(Test-Path -LiteralPath (Join-Path $package $relative))) { throw ('Missing package file: ' + $relative) }
     }
