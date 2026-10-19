@@ -704,6 +704,16 @@ namespace ShinoCodexMonitor
             Menu(application, "Releases GitHub", delegate {
                 OpenUrl(ReleaseUpdater.RepoUrl + "/releases");
             });
+            Menu(application, "About Codex Periscope", delegate {
+                MessageBox.Show(this,
+                    "CODEX PERISCOPE · 5.2.0 Preview\n" +
+                    "Quota & Activity Radar for Codex\n\n" +
+                    "Independent application, not affiliated with OpenAI.\n" +
+                    "Local task data is indicative and may not match the active Codex Desktop tab.\n" +
+                    "No paid model calls or cloud service.\n\n" +
+                    "Source: https://github.com/shinobione/SHINO-CODEX-MONITOR",
+                    "About Codex Periscope", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            });
             ToolStripMenuItem autostart = Menu(application, "Start with Windows",
                 delegate(object sender, EventArgs args) {
                     ToolStripMenuItem item = (ToolStripMenuItem)sender;
