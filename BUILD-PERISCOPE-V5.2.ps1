@@ -26,7 +26,7 @@ try {
         throw 'Radar icon generation failed.'
     }
     $argsCSC = @('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimize+',
-        ('/win32icon:' + (Join-Path $root 'SHINO-CODEX.ico')),
+        ('/win32icon:' + (Join-Path $root 'CODEX-PERISCOPE.ico')),
         ('/win32manifest:' + (Join-Path $root 'app.manifest')),
         ('/out:' + $exe),
         '/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll',
