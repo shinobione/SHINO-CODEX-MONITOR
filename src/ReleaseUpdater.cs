@@ -32,7 +32,7 @@ namespace ShinoCodexMonitor
             catch (Exception ex) { throw new InvalidDataException("Invalid GitHub response.", ex); }
             if (item == null || Json.Bool(Json.Get(item, "draft")) == true ||
                 Json.Bool(Json.Get(item, "prerelease")) == true)
-                throw new InvalidDataException("None Release stable vérifiable.");
+                throw new InvalidDataException("No verifiable stable release.");
             string tag = Json.String(Json.Get(item, "tag_name"));
             Version number = ParseTag(tag);
             if (number == null) throw new InvalidDataException("Invalid release version.");
