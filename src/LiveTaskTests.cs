@@ -62,7 +62,7 @@ namespace ShinoCodexMonitor
             });
             Check("Modèle non communiqué distinct de modèle inventé", delegate {
                 LiveTask x = Parse(Now, Event("task_started", "a1", 20));
-                Assert(x.Model == "Non communiqué" && x.Effort == "Non communiqué");
+                Assert(x.Model == "Not provided" && x.Effort == "Not provided");
             });
             Check("Terminal confirmé : succès et durée figée", delegate {
                 LiveTask x = Parse(Now, Event("task_started", "a1", 40),
@@ -287,7 +287,7 @@ namespace ShinoCodexMonitor
             Check("Thread_source absent ne devient jamais racine confirmée", delegate {
                 LiveTask t = Parse(Now, Event("task_started", "unknown", 4));
                 Assert(!t.IsRootConfirmed && !t.IsSubagent &&
-                    t.ThreadSource == "Inconnue");
+                    t.ThreadSource == "Unknown");
             });
             Check("Turn complet 10 min 38 s : duration_ms fiable", delegate {
                 LiveTask t = Parse(Now,
@@ -383,7 +383,7 @@ namespace ShinoCodexMonitor
                 LiveTaskReport r = Report(Now, t);
                 r.ExaminedRoots = 1;
                 string sanitized = r.RedactedDiagnostics(Now);
-                Assert(sanitized.Contains("durée_ms=25000") &&
+                Assert(sanitized.Contains("duration_ms=25000") &&
                     !sanitized.Contains("PRIVATE_TURN_ID") &&
                     !sanitized.Contains("PRIVATE_FILE") &&
                     !sanitized.Contains("C:/secret") &&
@@ -393,9 +393,9 @@ namespace ShinoCodexMonitor
                 LiveTaskReport r = Report(Now);
                 string diagnostic = r.RedactedDiagnostics(Now);
                 Assert(diagnostic.Contains("NotVerified") &&
-                    diagnostic.Contains("Aucun tour principal observable."));
+                    diagnostic.Contains("No primary turn observed."));
             });
-            report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
+            report.Insert(0, "CODEX PERISCOPE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
         }
