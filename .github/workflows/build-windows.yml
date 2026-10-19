@@ -1,4 +1,4 @@
-name: Build Windows - SHINO Codex Monitor
+name: Build Windows - Codex Periscope / Legacy Monitor
 
 on:
   push:
@@ -29,7 +29,12 @@ jobs:
       - name: Verify public package (no personal files / embedded tokens)
         shell: pwsh
         run: |
-          python -m unittest discover -s tests -p "test_*.py" -v
+          if (Test-Path -LiteralPath 'README.txt') {
+            python -m unittest discover -s tests -p 'test_periscope_v52.py' -v
+          } else {
+            python -m unittest discover -s tests -p 'test_*.py' -v
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test Windows MOTW clearing on isolated non-executable fixture
         shell: powershell
         run: |
@@ -53,7 +58,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $assembly = [IO.File]::ReadAllText((Join-Path $PWD 'src\AssemblyInfo.cs'))
-          if ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
+          if ($assembly.Contains('AssemblyVersion("5.2.0.0")') -and
+              $assembly.Contains('AssemblyInformationalVersion("5.2.0-preview.1")')) {
+            & .\BUILD-PREVIEW-V5.2.ps1
+          }
+          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
               $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
             & .\BUILD-RELEASE-V5.1.ps1
           }
@@ -99,8 +108,16 @@ jobs:
               !$content.Contains('Installer: NOT EXECUTED')) {
             throw 'Live download smoke report invalid.'
           }
+      - name: Upload Codex Periscope V5.2 unsigned preview ZIP
+        if: hashFiles('README.txt') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODEX-PERISCOPE-V5.2.0-PREVIEW-WINDOWS-UNSIGNED
+          path: dist/CODEX_PERISCOPE_V5_2_PREVIEW_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 21
       - name: Upload stable V5.1 installer ZIP (validated; no installation)
-        if: hashFiles('INSTALLER-V5.1.ps1') != ''
+        if: hashFiles('README.txt') == '' && hashFiles('INSTALLER-V5.1.ps1') != ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS-PR
