@@ -265,6 +265,54 @@ namespace ShinoCodexMonitor
                 Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null &&
                     d.LastTerminal == newer);
             });
+            Check("Session racine Desktop : thread_source=user", delegate {
+                LiveTask t = Parse(Now,
+                    "{\"timestamp\":\"2026-10-19T09:59:00Z\",\"type\":\"session_meta\",\"payload\":{\"originator\":\"Codex Desktop\",\"thread_source\":\"user\",\"cwd\":\"C:/repo\"}}",
+                    Event("task_started", "root", 35));
+                Assert(t.IsRootConfirmed && !t.IsSubagent &&
+                    t.ThreadSource == "user" && t.Originator == "Codex Desktop");
+            });
+            Check("Sous-agent : thread_source=subagent exclu du statut utilisateur", delegate {
+                LiveTask t = Parse(Now,
+                    "{\"timestamp\":\"2026-10-19T09:59:00Z\",\"type\":\"session_meta\",\"payload\":{\"originator\":\"Codex Desktop\",\"thread_source\":\"subagent\"}}",
+                    Event("task_started", "child", 4), Event("task_complete", "child", 2));
+                Assert(t.IsSubagent && !t.IsRootConfirmed && t.Phase == LiveTaskPhase.Completed);
+            });
+            Check("Sous-agent : parent_thread_id implique un thread enfant", delegate {
+                LiveTask t = Parse(Now,
+                    "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\",\"parent_thread_id\":\"root-private\"}}",
+                    Event("task_started", "child", 4));
+                Assert(t.IsSubagent && !t.IsRootConfirmed);
+            });
+            Check("Thread_source absent ne devient jamais racine confirmée", delegate {
+                LiveTask t = Parse(Now, Event("task_started", "unknown", 4));
+                Assert(!t.IsRootConfirmed && !t.IsSubagent &&
+                    t.ThreadSource == "Inconnue");
+            });
+            Check("Turn complet 10 min 38 s : duration_ms fiable", delegate {
+                LiveTask t = Parse(Now,
+                    "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\"}}",
+                    Event("task_started", "root", 650),
+                    Event("task_complete", "root", 12, ",\"duration_ms\":638000"));
+                Assert(t.IsRootConfirmed && t.RecordedDurationMs == 638000L &&
+                    t.Duration(Now) == "10:38");
+            });
+            Check("duration_ms contradictoire : conserver les horodatages", delegate {
+                LiveTask t = Parse(Now,
+                    Event("task_started", "root", 60),
+                    Event("task_complete", "root", 0, ",\"duration_ms\":638000"));
+                Assert(!t.RecordedDurationMs.HasValue && t.Duration(Now) == "01:00");
+            });
+            Check("duration_ms absent : utiliser les timestamps du tour", delegate {
+                LiveTask t = Parse(Now, Event("task_started", "a", 70),
+                    Event("task_complete", "a", 15));
+                Assert(t.Duration(Now) == "00:55");
+            });
+            Check("Session_META après début conserve son statut racine", delegate {
+                LiveTask t = Parse(Now, Event("task_started", "root", 40),
+                    "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\"}}");
+                Assert(t.IsRootConfirmed && !t.IsSubagent);
+            });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
