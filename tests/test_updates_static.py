@@ -25,4 +25,4 @@ class UpdateChecks(unittest.TestCase):
         self.assertIn('98/98', s)
     def test_assembly_version(self):
         s=(ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8')
-        self.assertIn('5.0.0.0', s)
+        self.assertIn('5.1.0.0', s)
