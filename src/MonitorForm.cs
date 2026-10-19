@@ -148,6 +148,10 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(resizeGrip, "Glisser pour redimensionner les roues");
             Controls.Add(resizeGrip);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            // WinForms Form.Icon is independent of NotifyIcon.Icon. When omitted,
+            // Windows may show the generic multicolour WinForms squares in the taskbar.
+            // Reuse the exact executable icon embedded by /win32icon in the build.
+            Icon = originalTrayIcon ?? SystemIcons.Application;
             tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
