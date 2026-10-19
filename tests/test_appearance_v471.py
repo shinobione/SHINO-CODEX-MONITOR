@@ -43,7 +43,7 @@ class AppearancePolishAudit(unittest.TestCase):
         self.assertIn('runningVersion.ToString(3)',FORM)
         self.assertNotIn('return "Version : 4.6.0',FORM)
         self.assertIn('V5.1.0 / PREVIEW',FORM)
-        self.assertIn('SHINO // CODEX V5.0.0',TESTS)
+        self.assertIn('SHINO // CODEX V5.1.0 PREVIEW',TESTS)
 
     def test_no_codex_reader_changes_or_global_security_bypass(self):
         self.assertNotIn('CodexReader',MODELS)
