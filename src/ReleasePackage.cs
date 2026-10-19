@@ -38,7 +38,7 @@ namespace ShinoCodexMonitor
         internal static string AssetFile(Version version)
         {
             if (version == null || version.Major < 0 || version.Minor < 0 || version.Major > 99 || version.Minor > 99)
-                throw new InvalidDataException("Version non prise en charge.");
+                throw new InvalidDataException("Unsupported version.");
             return string.Format("SHINO_CODEX_MONITOR_V{0}_{1}_WINDOWS.zip", version.Major, version.Minor);
         }
         internal static string InstallerFile(Version version)
@@ -112,7 +112,7 @@ namespace ShinoCodexMonitor
                     if (e.FullName.EndsWith("/") || e.FullName.EndsWith("\\"))
                         continue;
                     string name = ValidateEntry(e, asset.Release.Number);
-                    if (!allowed.Contains(name) || !seen.Add(name)) throw new InvalidDataException("Fichier ZIP non autorise ou duplique.");
+                    if (!allowed.Contains(name) || !seen.Add(name)) throw new InvalidDataException("ZIP entry not allowed or duplicated.");
                     if (e.Length < 0 || e.Length > MaxExpandedBytes || total > MaxExpandedBytes - e.Length)
                         throw new InvalidDataException("Taille decompressee excessive.");
                     total += e.Length;
@@ -132,7 +132,7 @@ namespace ShinoCodexMonitor
                         while ((n = source.Read(buffer, 0, buffer.Length)) > 0)
                         {
                             copied += n;
-                            if (copied > e.Length || copied > MaxExpandedBytes) throw new InvalidDataException("ZIP non conforme.");
+                            if (copied > e.Length || copied > MaxExpandedBytes) throw new InvalidDataException("Invalid ZIP archive.");
                             output.Write(buffer, 0, n);
                         }
                         if (copied != e.Length) throw new InvalidDataException("Fichier ZIP tronque.");
@@ -159,7 +159,7 @@ namespace ShinoCodexMonitor
                 throw new InvalidDataException("Chemin ZIP dangereux.");
             // POSIX symlinks must never be extracted, even when ZIP came from a GitHub asset.
             if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
-                throw new InvalidDataException("Lien symbolique dans le ZIP.");
+                throw new InvalidDataException("ZIP contains a symbolic link.");
             return name;
         }
         internal static string ValidateRedirect(string url)
@@ -170,7 +170,7 @@ namespace ShinoCodexMonitor
                 !(uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
                   uri.Host.Equals("release-assets.githubusercontent.com", StringComparison.OrdinalIgnoreCase) ||
                   uri.Host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidDataException("Redirection de telechargement non autorisee.");
+                throw new InvalidDataException("Download redirect not allowed.");
             return uri.AbsoluteUri;
         }
         internal static Task<StagedUpdate> StageAsync(ReleaseAsset asset)
@@ -202,7 +202,7 @@ namespace ShinoCodexMonitor
                                     url = ValidateRedirect(new Uri(new Uri(url), loc).AbsoluteUri);
                                     continue;
                                 }
-                                if (response.StatusCode != HttpStatusCode.OK) throw new WebException("Reponse telechargement non valide.");
+                                if (response.StatusCode != HttpStatusCode.OK) throw new WebException("Invalid download response.");
                                 if (response.ContentLength > MaxZipBytes) throw new InvalidDataException("Fichier trop volumineux.");
                                 using (Stream input = response.GetResponseStream())
                                 {
