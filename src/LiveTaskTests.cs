@@ -313,6 +313,67 @@ namespace ShinoCodexMonitor
                     "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\"}}");
                 Assert(t.IsRootConfirmed && !t.IsSubagent);
             });
+            Check("Read() : priorité au tour utilisateur, sous-agent exclu", delegate {
+                string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    "shino-fixture-" + Guid.NewGuid().ToString("N"));
+                string previous = Environment.GetEnvironmentVariable("CODEX_HOME");
+                try
+                {
+                    Environment.SetEnvironmentVariable("CODEX_HOME", parent);
+                    string dir = System.IO.Path.Combine(parent, "sessions", "2026", "10", "19");
+                    System.IO.Directory.CreateDirectory(dir);
+                    string rootFile = System.IO.Path.Combine(dir, "rollout-fixture-user.jsonl");
+                    string childFile = System.IO.Path.Combine(dir, "rollout-fixture-child.jsonl");
+                    string userMeta = "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\",\"originator\":\"Codex Desktop\"}}";
+                    string childMeta = "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"subagent\",\"originator\":\"Codex Desktop\"}}";
+                    System.IO.File.WriteAllLines(rootFile, new string[] { userMeta,
+                        Event("task_started", "root", 650), Event("task_complete", "root", 12, ",\"duration_ms\":638000") });
+                    System.IO.File.WriteAllLines(childFile, new string[] { childMeta,
+                        Event("task_started", "child", 5), Event("task_complete", "child", 3) });
+                    System.IO.File.SetLastWriteTimeUtc(rootFile, Now.AddSeconds(-5).UtcDateTime);
+                    System.IO.File.SetLastWriteTimeUtc(childFile, Now.AddSeconds(-2).UtcDateTime);
+                    LiveTaskReport data = LiveTaskReader.Read(Now);
+                    Assert(data.Tasks.Count == 1 && data.Tasks[0].Id == "root" &&
+                        data.Tasks[0].Duration(Now) == "10:38" && data.Tasks[0].IsRootConfirmed);
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable("CODEX_HOME", previous);
+                    if (System.IO.Directory.Exists(parent))
+                        System.IO.Directory.Delete(parent, true);
+                }
+            });
+            Check("Session racine retrouvée quand en-tête hors de la fin du fichier", delegate {
+                string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    "shino-fixture-" + Guid.NewGuid().ToString("N"));
+                string previous = Environment.GetEnvironmentVariable("CODEX_HOME");
+                try
+                {
+                    Environment.SetEnvironmentVariable("CODEX_HOME", parent);
+                    string dir = System.IO.Path.Combine(parent, "sessions", "2026", "10", "19");
+                    System.IO.Directory.CreateDirectory(dir);
+                    string path = System.IO.Path.Combine(dir, "rollout-long-root.jsonl");
+                    string meta = "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\",\"originator\":\"Codex Desktop\"}}";
+                    string unrelated = "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\"ignored\"}}";
+                    using (System.IO.StreamWriter writer = new System.IO.StreamWriter(path))
+                    {
+                        writer.WriteLine(meta);
+                        for (int i = 0; i < 9000; i++) writer.WriteLine(unrelated);
+                        writer.WriteLine(Event("task_started", "root", 650));
+                        writer.WriteLine(Event("task_complete", "root", 12, ",\"duration_ms\":638000"));
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path, Now.AddSeconds(-2).UtcDateTime);
+                    LiveTaskReport data = LiveTaskReader.Read(Now);
+                    Assert(data.Tasks.Count == 1 && data.Tasks[0].IsRootConfirmed &&
+                        data.Tasks[0].Duration(Now) == "10:38");
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable("CODEX_HOME", previous);
+                    if (System.IO.Directory.Exists(parent))
+                        System.IO.Directory.Delete(parent, true);
+                }
+            });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
