@@ -196,3 +196,22 @@ dont un événement terminal est vérifié après le démarrage déclenchent une
 Les sessions sans turn_id sont corrélées par nom du fichier de session et
 horodatage initial ; les tâches courtes terminées entre deux sondages peuvent
 aussi être signalées. Pas de replay des anciennes fins après une reprise.
+
+### V5.1 — Icône fenêtre vs icône Tray (correctif Windows)
+
+Le widget dispose de **deux icônes indépendantes** : le petit indicateur de quota
+dans la zone de notification (Tray) et l'icône de sa fenêtre dans la barre des
+tâches. La Preview précédente personnalisait uniquement l'icône Tray ; Windows
+pouvait afficher les carrés génériques WinForms pour l'autre. Le correctif
+assigne explicitement à la fenêtre l'icône SHINO incluse dans l'EXE.
+
+La visibilité dans la barre des tâches reste **volontairement optionnelle** :
+clic droit sur l'icône Tray → Fenêtre → cocher « Épingler le widget » et
+« Afficher dans la barre des tâches ». Les préférences existantes sont
+conservées ; ne pas forcer leur activation au démarrage. Les raccourcis
+épinglés par Windows peuvent conserver une ancienne icône en cache :
+désépingler puis réépingler le nouvel EXE après l'avoir lancé. L'icône de
+zone de notification continue d'afficher les quotas séparément.
+
+Ce correctif ne transforme pas l'EXE unsigned en application signée, ne
+modifie aucune association Windows globale et n'exécute aucune installation.
