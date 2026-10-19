@@ -33,14 +33,20 @@ try {
     & $csc @argsCSC
     if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $exe)) { throw 'C# compilation failed.' }
     $proc = Start-Process -FilePath $exe -ArgumentList '--self-test-silent' -Wait -PassThru
-    if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Core C# self-tests failed.' }
+    if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) {
+        if (Test-Path -LiteralPath $report) { Write-Host ([IO.File]::ReadAllText($report)) }
+        throw 'Core C# self-tests failed.'
+    }
     $result = [IO.File]::ReadAllText($report)
     Write-Host $result
     if (!$result.Contains('98/98') -or $result.Contains('FAIL ')) { throw 'Core Windows tests incomplete.' }
     $taskReport = Join-Path $bin 'V5_TASK_TEST_REPORT.txt'
     if (Test-Path -LiteralPath $taskReport) { Remove-Item -LiteralPath $taskReport -Force }
     $taskProc = Start-Process -FilePath $exe -ArgumentList '--live-task-self-test' -Wait -PassThru
-    if ($taskProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskReport)) { throw 'Task self-tests failed.' }
+    if ($taskProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskReport)) {
+        if (Test-Path -LiteralPath $taskReport) { Write-Host ([IO.File]::ReadAllText($taskReport)) }
+        throw 'Task self-tests failed.'
+    }
     $taskResult = [IO.File]::ReadAllText($taskReport)
     if (!$taskResult.Contains('46/46') -or $taskResult.Contains('FAIL ')) { throw 'Task self-tests incomplete.' }
     # Seven allowlisted, English-only Preview files; no legacy scripts.
