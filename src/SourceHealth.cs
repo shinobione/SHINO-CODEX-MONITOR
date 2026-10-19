@@ -26,8 +26,8 @@ namespace ShinoCodexMonitor
         {
             StringBuilder report = new StringBuilder();
             report.AppendLine("SOURCE AND FRESHNESS");
-            report.AppendLine("Origine : Codex CLI / account/rateLimits/read");
-            report.AppendLine("Statut : " + (string.IsNullOrEmpty(state) ? "Unavailable" : state));
+            report.AppendLine("Origin: Codex CLI / account/rateLimits/read");
+            report.AppendLine("Status: " + (string.IsNullOrEmpty(state) ? "Unavailable" : state));
             report.AppendLine("Last valid reading: " +
                 (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime()
                     .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture) : "None"));
@@ -42,9 +42,9 @@ namespace ShinoCodexMonitor
             report.AppendLine("Consecutive failures: " + failures);
             if (!string.IsNullOrEmpty(lastError))
                 report.AppendLine("Last error: " + lastError);
-            report.AppendLine("Prochain essai : " +
+            report.AppendLine("Next attempt: " +
                 (nextRefresh == DateTimeOffset.MinValue || nextRefresh <= nowUtc ?
-                    "Imminent / en cours" : nextRefresh.ToLocalTime()
+                    "Due / in progress" : nextRefresh.ToLocalTime()
                         .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture)));
             report.AppendLine();
             report.AppendLine("CODEX WINDOWS — REMAINING QUOTA");
@@ -55,7 +55,7 @@ namespace ShinoCodexMonitor
             report.AppendLine(WindowLine("7 days", snapshot == null ? null : snapshot.Week, current, nowUtc));
             report.AppendLine();
             report.AppendLine("Stale readings are not current quotas.");
-            report.Append("Ce rapport n’utilise ni cookies, ni jetons, ni API payante.");
+            report.Append("This report does not use cookies, tokens or a paid API.");
             return report.ToString();
         }
     }
