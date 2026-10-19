@@ -13,14 +13,14 @@ namespace ShinoCodexMonitor
         private readonly Label period;
         internal HistoryWindow(LocalStore store)
         {
-            Text = "SHINO // CODEX — Historique local";
+            Text = "CODEX PERISCOPE — History local";
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(700, 420);
             MinimumSize = new Size(520, 320);
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             Font = new Font("Segoe UI", 9f);
-            Label header = new Label { Text = "Quota restant (%) · relevés réels uniquement · les interruptions ne sont pas interpolées",
+            Label header = new Label { Text = "Remaining quota (%) · real samples only · gaps are not interpolated",
                 Dock = DockStyle.Top, Height = 34, ForeColor = UiColors.Muted, Padding = new Padding(12, 8, 0, 0) };
             FlowLayoutPanel tools = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42,
                 FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(8, 3, 0, 0) };
@@ -60,7 +60,7 @@ namespace ShinoCodexMonitor
         private void SetHours(double hours)
         {
             canvas.VisibleHours = Math.Max(6, Math.Min(336, hours));
-            period.Text = "Période : " + (canvas.VisibleHours < 48 ?
+            period.Text = "Period: " + (canvas.VisibleHours < 48 ?
                 canvas.VisibleHours.ToString("0.#", CultureInfo.InvariantCulture) + " h" :
                 (canvas.VisibleHours / 24).ToString("0.#", CultureInfo.InvariantCulture) + " j");
             canvas.Invalidate();
@@ -94,7 +94,7 @@ namespace ShinoCodexMonitor
                     g.DrawString(tick.ToString(CultureInfo.InvariantCulture), font, muted, 8, y - 7);
                 }
                 if (count == 0)
-                    g.DrawString("Aucun relevé pendant cette période.", font, muted, 65, Height / 2f);
+                    g.DrawString("No sample yet pendant cette période.", font, muted, 65, Height / 2f);
                 else
                 {
                     DrawSeries(g, Rows, minTime, maxTime, left, width, height, bottom, true, UiColors.Five);
@@ -108,9 +108,9 @@ namespace ShinoCodexMonitor
                 using (SolidBrush week = new SolidBrush(UiColors.Week))
                 {
                     g.DrawString("━  5 h", font, five, left, Height - 34);
-                    g.DrawString("━  7 jours", font, week, left + 85, Height - 34);
+                    g.DrawString("━  weekly", font, week, left + 85, Height - 34);
                 }
-                g.DrawString(count + " relevé" + (count > 1 ? "s" : ""), font, muted,
+                g.DrawString(count + " sample" + (count > 1 ? "s" : ""), font, muted,
                     Math.Max(left + 155, right - 100), Height - 34);
             }
         }
