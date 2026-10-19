@@ -1,6 +1,6 @@
 # SHINO // CODEX MONITOR — Roadmap
 
-**Mise à jour : 19 octobre 2026 · branche `feature/v5.1-live-task-monitor` · PR #11 Draft**
+**Mise à jour : 19 octobre 2026 · V5.1.0 publication autorisée et en cours.**
 
 Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Codex de l'abonnement ChatGPT** et, si observables, les *tours principaux* Codex. Ni chat classique, ni facturation API, ni autre projet SHINO.
 
@@ -9,8 +9,8 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 | Version | État | Livrables et critères |
 |---|---|---|
 | **V5.0.0** | **Release stable publiée** | Quotas 5h / 7j s'ils sont exposés, resets, fraîcheur, origine Codex CLI, fenêtre épinglable, tray et historique local. |
-| **V5.1.0-preview.1** | **Branche de test — non fusionnée, non publiée** | Widget unique avec activité Codex, icône animée en cours, coche à fin confirmée, durée/modèle/effort si exposés, journaux locaux lus en lecture seule. Menus et identité de version rationalisés ; ZIP portable distinct de V5.0. |
-| **V5.1.0 stable** | **Bloqué en validation terrain** | Passer les critères ci-dessous sur le PC utilisateur ; ne pas publier sur simples tests simulés. |
+| **V5.1.0-preview.1** | **Preview validée par l'utilisateur** | Widget unique avec activité Codex, icône animée en cours, coche à fin confirmée, durée/modèle/effort si exposés, journaux locaux lus en lecture seule. Menus et identité de version rationalisés ; ZIP portable distinct de V5.0. |
+| **V5.1.0 stable** | **Publication autorisée le 19/10/2026** | Packaging V5.1 dédié, CI Windows, GitHub Release après fusion ; ne déclarer publiée qu'après confirmation de GitHub. |
 | **V5.2 (hypothèse)** | **À étudier** | Si possible, intégration **documentée** aux événements Codex Desktop / app-server afin de synchroniser le tour visible à l'écran, sans attachement clandestin, jetons, cookies ni endpoints privés. |
 
 ## V5.1 — Critères avant fusion/publication
@@ -20,12 +20,13 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 - [x] Affichage tout-en-un, statuts explicites, roue vectorielle désactivable, notification configurable, icône de fenêtre.
 - [x] Filtrage des sous-agents quand `thread_source` est présent ; support des tours longs et de `duration_ms` cohérent.
 - [x] Test automatique sur CI Windows (fixtures synthétiques, audits statiques, build natif) — dernière vérification : [CI Windows réussie](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39252417243) (101 audits Python, 98 tests C# des quotas, 46 tests C# des tâches).
-- [ ] Sur **le même compte et au même instant**, comparer la valeur des quotas au tableau officiel.
-- [ ] Tester avec **Codex Desktop réellement installé** : 3 commandes utilisateur (courte, >10 min, avec sous-agent), comparer démarrage, fin et durée finale, identifier les cas non observables.
-- [ ] Vérifier l'absence de notifications intempestives ; notification Windows visible ou état dégradé/explication si bloquée.
+- [ ] Sur **le même compte et au même instant**, comparer la valeur des quotas au tableau officiel (pas de comparaison instrumentée fournie).
+- [x] Fonctionnement réel de la Preview confirmé par l'utilisateur (« tout est OK »), publication autorisée.
+- [ ] Couvrir par des mesures instrumentées 3 commandes utilisateur (courte, >10 min, sous-agent) et comparer aux événements locaux : validation détaillée non publiée.
+- [ ] Confirmer réception de notifications Windows sur la V5.1 finale ; mécanisme dépendant de Windows.
 - [ ] Valider quatre dispositions, DPI 100/125/150/200 %, écran secondaire, redimensionnement, veille/reprise, hors ligne, mémoire et CPU.
 - [ ] Vérifier mise à niveau de préférences depuis V5.0, retour arrière, aucun secret ou prompt dans diagnostics.
-- [ ] Vérifier la prévisualisation sur le PC, puis obtenir validation explicite pour **fusion dans main**, **version finale**, **installateur**, **tag/Release publics**.
+- [x] Validation utilisateur de la Preview et autorisation explicite de fusion/publication reçues le 19/10/2026.
 
 ## Risques et limites à ne pas masquer
 
@@ -37,8 +38,8 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 
 ## Actions prioritaires
 
-1. Installer **aucune** Preview automatiquement : fournir ZIP portable non signé, exécuter les deux autotests et demander retour écran/diagnostic expurgé.
+1. Publier la V5.1.0 après CI de la branche fusionnée, avec ZIP Windows versionné et installateur sans administrateur.
 2. Valider sur la machine utilisateur la corrélation du **tour utilisateur complet** (non un sous-agent), puis traiter les erreurs documentées dans la même PR.
-3. Avant publication, préparer un **installeur V5.1 dédié**, migration/rollback, tests de mise à jour et source d'authentification officielle si disponible ; demander l'accord de publication.
+3. Après publication, tester l'assistant de mise à jour V5.0 → V5.1 sur le PC Windows et documenter les écarts.
 
 Référence : [PR #11](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/11) · [CHANGELOG.md](CHANGELOG.md) · [README.md](README.md).
