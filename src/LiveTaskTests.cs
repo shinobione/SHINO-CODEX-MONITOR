@@ -15,12 +15,12 @@ namespace ShinoCodexMonitor
         private static void Check(string label, Action test)
         {
             total++;
-            try { test(); passed++; report.AppendLine("PASS " + label); }
-            catch (Exception e) { report.AppendLine("FAIL " + label + " : " + e.GetType().Name); }
+            try { test(); passed++; report.AppendLine("PASS Test #" + total); }
+            catch (Exception e) { report.AppendLine("FAIL Test #" + total + " : " + e.GetType().Name); }
         }
         private static void Assert(bool condition)
         {
-            if (!condition) throw new InvalidOperationException("Échec d'assertion.");
+            if (!condition) throw new InvalidOperationException("Assertion failed.");
         }
         private static string Event(string name, string id, int secondsAgo, string extras = "")
         {
