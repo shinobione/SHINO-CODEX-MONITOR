@@ -814,7 +814,7 @@ namespace ShinoCodexMonitor
         private static void OpenUrl(string url)
         {
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-            catch { MessageBox.Show("Ouvre ce lien dans ton navigateur :\n" + url, "Codex"); }
+            catch { MessageBox.Show("Open this link in your browser:\n" + url, "Codex"); }
         }
         private async void CheckForUpdates()
         {
@@ -1025,7 +1025,7 @@ namespace ShinoCodexMonitor
                 "Alertes 50/25/10/reset : " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
                 "Last reading valide : " + last + "\n" +
                 "Reprises / invalidations : " + wakeRefreshes + "\n" +
-                "Dernier signal : " + lastWakeReason + "\n" +
+                "Last wake event: " + lastWakeReason + "\n" +
                 "Collecte suspendue : " + suspended + "\n" +
                 runtime.Summary() + "\n" +
                 "Consecutive failures: " + failures + "\n" +
@@ -1147,7 +1147,7 @@ namespace ShinoCodexMonitor
             }
             catch (System.Runtime.InteropServices.ExternalException)
             {
-                MessageBox.Show(this, "Impossible de copier le diagnostic dans le presse-papiers.",
+                MessageBox.Show(this, "Could not copy diagnostics to the clipboard.",
                     "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
@@ -1224,14 +1224,14 @@ namespace ShinoCodexMonitor
                 if (display.LastTerminal != null)
                 {
                     LiveTask last = display.LastTerminal;
-                    taskExtra.Text = "Dernier tour local : " + last.Workspace + " · " +
+                    taskExtra.Text = "Last local turn: " + last.Workspace + " · " +
                         (last.Phase == LiveTaskPhase.Completed ? "completed" :
                             last.Phase == LiveTaskPhase.Failed ? "failed" : "interrupted") +
                         " at " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
                 }
                 else
                     taskExtra.Text = taskReport == null ? "Waiting for first reading" :
-                        display.Detail + " · source partielle";
+                        display.Detail + " · partial source";
             }
             else
             {
@@ -1249,7 +1249,7 @@ namespace ShinoCodexMonitor
                     taskExtra.Text = "Elapsed: " + duration + " · activity observed in local log; tab unknown" +
                         (otherActive > 0 ? " · +" + otherActive + " autres" : "");
                 else if (display.Kind == TaskDisplayKind.Uncertain)
-                    taskExtra.Text = "Dernier journal : " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
+                    taskExtra.Text = "Last log activity: " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
                         " · current status unverified";
                 else
                     taskExtra.Text = "Last local turn, not the global Codex status · " +
@@ -1260,7 +1260,7 @@ namespace ShinoCodexMonitor
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
-            string description = taskReport == null ? "Lecture locale non completede" :
+            string description = taskReport == null ? "Local reading incomplete" :
                 display.Detail + " · source : local JSONL files; may not match the active tab";
             tooltip.SetToolTip(taskDock, description);
             tooltip.SetToolTip(taskGlyph, description);
@@ -1271,7 +1271,7 @@ namespace ShinoCodexMonitor
 
         private static string SafeError(Exception error)
         {
-            string message = error.Message ?? "Erreur de lecture Codex";
+            string message = error.Message ?? "Codex read error";
             if (message.Contains("401") || message.Contains("403")) return "Access denied (401/403)";
             return message.Length <= 120 ? message : message.Substring(0, 120);
         }
@@ -1329,7 +1329,7 @@ namespace ShinoCodexMonitor
             {
                 string token = label + ":seuil:" + crossed.Value + ":" + newValue.ResetUtc.Value.ToUnixTimeSeconds();
                 if (alerted.Add(token))
-                    messages.Add("Quota " + label + " : " + crossed.Value + " % restants atteints");
+                    messages.Add("Quota " + label + " : " + crossed.Value + " % remaining reached");
             }
             if (alerted.Count > 100) alerted.Clear();
         }
@@ -1370,8 +1370,8 @@ namespace ShinoCodexMonitor
                     status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
                 tooltip.SetToolTip(statusAge, "Last reading Codex : " +
-                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "aucun") +
-                    " (heure Windows). Status : " + state);
+                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "none") +
+                    " (Windows local time). Status : " + state);
             }
             tooltip.SetToolTip(status, live ? "Source : Codex CLI / account/rateLimits/read" : lastError);
             string caption = live && snapshot != null && snapshot.Week != null ?
@@ -1407,7 +1407,7 @@ namespace ShinoCodexMonitor
             int activeTasks = taskDisplay.Kind == TaskDisplayKind.ObservedActive ?
                 taskReport.ActiveCount : 0;
             tray.Text = current && rounded >= 0 ?
-                "CODEX PERISCOPE · " + window + " : " + rounded + "% restants" :
+                "CODEX PERISCOPE · " + window + " : " + rounded + "% remaining" :
                 "CODEX PERISCOPE · " + (blocked ? "Usage blocked" : state);
             Color color = current && rounded >= 0 ? QuotaColor(rounded) : UiColors.Muted;
             if (activeTasks > 0 && tray.Text.Length <= 48)
@@ -1449,11 +1449,11 @@ namespace ShinoCodexMonitor
             meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
                 settings.Layout, live || blocked, DateTimeOffset.UtcNow);
             tooltip.SetToolTip(meter.Ring, blocked ? "Codex usage blocked" :
-                live ? "Quota restant · source Codex CLI" : "Ancienne mesure non actuelle");
+                live ? "Remaining quota · Codex CLI source" : "Stale quota reading");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports usage is blocked" :
-                live ? "Quota restant · source Codex CLI" : "Last reading NON ACTUEL");
+                live ? "Remaining quota · Codex CLI source" : "Stale quota reading");
             tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
-                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (heure Windows)" : "Reset unavailable or unverified");
+                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (Windows local time)" : "Reset unavailable or unverified");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
         {
@@ -1489,8 +1489,8 @@ namespace ShinoCodexMonitor
                 absolute = "le " + local.Day + " " + month + " " + local.ToString("HH:mm");
             }
             string relative = left.TotalDays >= 1 ?
-                "dans " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
-                "dans " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
+                "in " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
+                "in " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
             if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
             if (style == "absolute") return "Reset " + absolute;
