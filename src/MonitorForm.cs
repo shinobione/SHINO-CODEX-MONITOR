@@ -890,7 +890,7 @@ namespace ShinoCodexMonitor
                 DialogResult yes = MessageBox.Show(
                     "Official package downloaded and SHA-256 verified.\n" +
                     "Version : " + latest.Tag + "\n" +
-                    "Taille : " + asset.Size + " octets\n" +
+                    "Size: " + asset.Size + " bytes\n" +
                     "Empreinte GitHub : " + asset.Sha256 + "\n\n" +
                     "Install this version now? The widget will close.\n" +
                     "The previous version will be backed up. This executable is NOT signed.",
@@ -1025,18 +1025,18 @@ namespace ShinoCodexMonitor
             return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
-                "Binaire CLI : " + binaryPath + "\n" +
+                "CLI binary: " + binaryPath + "\n" +
                 "Status : " + State() + "\n" +
                 "Tray icon: " + settings.TrayStyle + "\n" +
                 "Pinned widget: " + settings.Pinned + "\n" +
-                "Taille circulaire : " + settings.CircularWidth + " px\n" +
-                "Aimantation : " + settings.SnapToEdges + "\n" +
-                "Alertes 5 h / 7 j : " + settings.AlertFive + "/" + settings.AlertWeek + "\n" +
-                "Alertes 50/25/10/reset : " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
-                "Last reading valide : " + last + "\n" +
-                "Reprises / invalidations : " + wakeRefreshes + "\n" +
+                "Circular size: " + settings.CircularWidth + " px\n" +
+                "Snap to edges: " + settings.SnapToEdges + "\n" +
+                "5h / weekly alerts: " + settings.AlertFive + "/" + settings.AlertWeek + "\n" +
+                "Threshold/reset alerts: " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
+                "Last valid reading: " + last + "\n" +
+                "Wakeups / invalidations: " + wakeRefreshes + "\n" +
                 "Last wake event: " + lastWakeReason + "\n" +
-                "Collecte suspendue : " + suspended + "\n" +
+                "Collection suspended: " + suspended + "\n" +
                 runtime.Summary() + "\n" +
                 "Consecutive failures: " + failures + "\n" +
                 "Error: " + (lastError.Length == 0 ? "None" : lastError) + "\n" +
@@ -1385,7 +1385,7 @@ namespace ShinoCodexMonitor
             }
             tooltip.SetToolTip(status, live ? "Source : Codex CLI / account/rateLimits/read" : lastError);
             string caption = live && snapshot != null && snapshot.Week != null ?
-                "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% semaine" : "CODEX PERISCOPE · " + state;
+                "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% weekly" : "CODEX PERISCOPE · " + state;
             tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
             UpdateQuotaTrayIcon(state, blocked);
         }
