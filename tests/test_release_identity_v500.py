@@ -13,7 +13,7 @@ PACKAGE = (ROOT / 'src' / 'ReleasePackage.cs').read_text(encoding='utf-8')
 CI = (ROOT / '.github' / 'workflows' / 'build-windows.yml').read_text(encoding='utf-8')
 
 
-class StableAndPreviewReleaseIdentityTests(unittest.TestCase):
+class StableReleaseV510IdentityTests(unittest.TestCase):
     def test_assembly_has_unique_new_version(self):
         self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
         self.assertIn('AssemblyFileVersion("5.1.0.0")', ASSEMBLY)
@@ -35,13 +35,15 @@ class StableAndPreviewReleaseIdentityTests(unittest.TestCase):
         self.assertIn('DESINSTALLER-V5.1.ps1', INSTALL)
         self.assertIn('V5.0.0 : nom ZIP et installateur conformes', SELF)
 
-    def test_preview_cannot_be_passed_off_as_v50_release(self):
-        candidate = (ROOT / 'BUILD-PREVIEW-V5.1.ps1').read_text(encoding='utf-8-sig')
-        self.assertIn('SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip', candidate)
-        self.assertIn("'README-PREVIEW-V5.1.txt'", candidate)
-        self.assertNotIn("'INSTALLER-V5.0.bat'", candidate)
-        self.assertNotIn('INSTALLER-V5.0.ps1', candidate)
-        self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
+    def test_stable_release_has_dedicated_safe_packaging(self):
+        self.assertIn('SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip', BUILD)
+        for asset in ("'INSTALLER-V5.1.bat'", "'INSTALLER-V5.1.ps1'",
+                      "'DESINSTALLER-V5.1.ps1'", "'SHINO-CODEX.ico'"):
+            self.assertIn(asset, BUILD)
+        self.assertNotIn("PREVIEW_WINDOWS.zip", BUILD)
+        self.assertIn("'46/46'", BUILD)
+        self.assertIn("INSTALLER-V5.1.ps1') -ValidateOnly", BUILD)
+        self.assertIn('AssemblyInformationalVersion("5.1.0")', ASSEMBLY)
 
     def test_http_user_agents_derive_running_assembly_version(self):
         self.assertIn('typeof(ReleaseUpdater).Assembly.GetName().Version.ToString(3)', RELEASE)
