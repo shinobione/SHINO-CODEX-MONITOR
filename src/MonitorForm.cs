@@ -88,6 +88,7 @@ namespace ShinoCodexMonitor
         private LiveTaskReport taskReport;
         private Task<LiveTaskReport> taskRead;
         private DateTimeOffset nextTaskPoll = DateTimeOffset.MinValue;
+        private readonly HashSet<string> sentTaskNotifications = new HashSet<string>();
 
         internal MonitorForm()
         {
@@ -437,6 +438,10 @@ namespace ShinoCodexMonitor
             Menu(context, "Actualiser maintenant", delegate { nextRefresh = DateTimeOffset.MinValue; });
             context.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem tasksMenu = Menu(context, "Tâches Codex · LIVE", null);
+            ToolStripMenuItem testNotification = Menu(tasksMenu, "Tester la notification Windows",
+                delegate { TestWindowsNotification(); });
+            testNotification.ToolTipText = "Envoie une notification de test, même si les alertes Codex sont désactivées.";
+            tasksMenu.DropDownItems.Add(new ToolStripSeparator());
             AddAlertToggle(tasksMenu, "Notifier les tâches terminées", settings.TaskAlerts,
                 delegate(bool value) { settings.TaskAlerts = value; Save(); });
             AddAlertToggle(tasksMenu, "Animations (roue en rotation)", settings.TaskAnimations,
@@ -1050,6 +1055,14 @@ namespace ShinoCodexMonitor
                 catch (InvalidOperationException) { }
             });
         }
+        private void TestWindowsNotification()
+        {
+            // Diagnostic action requested explicitly by the user, not a claim of OS delivery.
+            tray.ShowBalloonTip(6500, "SHINO // CODEX — TEST",
+                "Notification de test du widget. Si rien n'apparaît, vérifiez Notifications et Ne pas déranger dans Windows.",
+                ToolTipIcon.Info);
+        }
+
         private void PollTasks(DateTimeOffset now)
         {
             if (suspended || taskRead != null || now < nextTaskPoll) return;
@@ -1068,19 +1081,16 @@ namespace ShinoCodexMonitor
                     bool canAlert = taskReport != null && settings.Alerts && settings.TaskAlerts;
                     if (canAlert)
                     {
-                        foreach (LiveTask current in fresh.Tasks)
+                        foreach (LiveTask current in TaskNotificationRules.NewTerminals(taskReport, fresh))
                         {
-                            if (current.Phase != LiveTaskPhase.Completed &&
-                                current.Phase != LiveTaskPhase.Failed &&
-                                current.Phase != LiveTaskPhase.Interrupted) continue;
-                            LiveTask older = taskReport.Tasks.Find(t => t.Id.Length > 0 &&
-                                t.Id == current.Id && t.Phase == LiveTaskPhase.Active);
-                            if (older == null) continue;
-                            tray.BalloonTipTitle = "Codex · " + current.PhaseLabel;
-                            tray.BalloonTipText = current.Workspace + " · " +
-                                current.Duration(DateTimeOffset.UtcNow);
-                            tray.ShowBalloonTip(4000);
+                            string key = current.SessionKey + ":" +
+                                current.StartedUtc.ToUnixTimeMilliseconds() + ":" + current.Phase;
+                            if (!sentTaskNotifications.Add(key)) continue;
+                            tray.ShowBalloonTip(5500, "Codex · " + current.PhaseLabel,
+                                current.Workspace + " · " + current.Duration(DateTimeOffset.UtcNow),
+                                current.Phase == LiveTaskPhase.Failed ? ToolTipIcon.Error : ToolTipIcon.Info);
                         }
+                        if (sentTaskNotifications.Count > 256) sentTaskNotifications.Clear();
                     }
                     taskReport = fresh;
                     UpdateTaskBadge();
