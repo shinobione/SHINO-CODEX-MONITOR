@@ -1147,8 +1147,8 @@ namespace ShinoCodexMonitor
                 string duration = task.Duration(now);
                 taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVÉ " + duration :
                     display.Kind == TaskDisplayKind.Uncertain ? "? À VÉRIFIER" :
-                    task.Phase == LiveTaskPhase.Completed ? "✓ TOUR FINI" :
-                    task.Phase == LiveTaskPhase.Failed ? "× TOUR ÉCHEC" : "■ TOUR ARRÊTÉ";
+                    task.Phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
+                    task.Phase == LiveTaskPhase.Failed ? "× ÉCHEC " + duration : "■ STOP " + duration;
                 taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " + task.Effort;
                 int otherActive = taskReport.ActiveCount -
                     (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
