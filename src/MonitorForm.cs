@@ -12,11 +12,11 @@ namespace ShinoCodexMonitor
 {
     internal static class UiColors
     {
-        internal static readonly Color Background = ColorTranslator.FromHtml("#111926");
+        internal static readonly Color Background = ColorTranslator.FromHtml("#101D2C");
         internal static readonly Color Text = ColorTranslator.FromHtml("#D7E6EF");
         internal static readonly Color Muted = ColorTranslator.FromHtml("#8BA0B1");
         internal static readonly Color Track = ColorTranslator.FromHtml("#29394C");
-        internal static readonly Color Five = ColorTranslator.FromHtml("#51D7AF");
+        internal static readonly Color Five = ColorTranslator.FromHtml("#49DAB9");
         internal static readonly Color Week = ColorTranslator.FromHtml("#E5B64D");
         internal static readonly Color Warning = ColorTranslator.FromHtml("#FFB65D");
     }
@@ -94,7 +94,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "CODEX PERISCOPE V5.2.0";
+            Text = "CODEX PERISCOPE — V5.2.0 PREVIEW";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -104,16 +104,16 @@ namespace ShinoCodexMonitor
             AutoScaleMode = AutoScaleMode.Dpi;
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
-            header = TextLabel("● CODEX PERISCOPE", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V5.2.0", 8, UiColors.Muted, false);
+            header = TextLabel("◉ CODEX PERISCOPE", 11, UiColors.Five, true);
+            version = TextLabel("RADAR / V5.2.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
             Controls.Add(header); Controls.Add(version); Controls.Add(close);
             // One window, always-visible task telemetry: no popup or detail window.
-            taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
+            taskDock.BackColor = ColorTranslator.FromHtml("#152A36");
             taskRule.BackColor = UiColors.Track;
-            taskHeading = TextLabel("CODEX ACTIVITY", 8, UiColors.Text, true);
+            taskHeading = TextLabel("CODEX ACTIVITY RADAR", 8, UiColors.Text, true);
             taskSource = TextLabel("LOCAL · PARTIAL", 7, UiColors.Muted, false);
             taskSource.TextAlign = ContentAlignment.MiddleRight;
             taskBadge = TextLabel("UNVERIFIED", 8, UiColors.Muted, true);
@@ -1206,7 +1206,7 @@ namespace ShinoCodexMonitor
                         task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
                         " · " + duration;
             }
-            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(73, 218, 185) :
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
