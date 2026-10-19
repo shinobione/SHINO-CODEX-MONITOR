@@ -1,5 +1,26 @@
 # SHINO // CODEX MONITOR — Change log
 
+## V5.1.0 — Live Task Monitor (Release stable)
+
+- Version **5.1.0.0** du widget et **5.1.0** de l'assembly informationnelle ; compilation Windows et publication vérifiées.
+- **Installateur dédié V5.1** : SHA-256 et version contrôlés, sauvegarde de l'ancien EXE, conservation des préférences/historique, tests 98 + 46 avant remplacement.
+- Archive stable `SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip` compatible avec le mécanisme de mise à jour sécurisé ; validation locale de l'installateur sans installation.
+- Publication par workflow GitHub Actions sur `main`, tag GitHub `v5.1.0`, build et tests de la version fusionnée avant mise en ligne.
+- Confirmation utilisateur du fonctionnement de la Preview avant demande explicite de publication (19 octobre 2026).
+- **Limitations documentées :** sessions Codex JSONL non garanties, événements parfois absents, notifications dépendantes de Windows ; le monitor ne prétend pas identifier l'onglet Codex Desktop actif dans tous les cas.
+
+### Historique de développement : V5.1.0-preview.1 (PR #11)
+
+
+- **Version distincte :** assembly 5.1.0.0, libellé V5.1.0 / PREVIEW ; script `BUILD-PREVIEW-V5.1.ps1` et ZIP portable preview dédiés. Aucun installateur V5.0 utilisé pour cette candidate ; ancien builder bloqué si version inadéquate.
+- **Un widget unique :** quotas 5 h / 7 j, resets, source et fraîcheur en haut ; bandeau « Activité Codex » sous les jauges, quatre dispositions et Tray conservés.
+- **Tour utilisateur complet (dans la mesure observable) :** sources locales JSONL lues en lecture seule, filtrage des sous-agents selon métadonnées disponibles, prise en compte du début/de la fin et de `duration_ms` cohérent ; statut incertain explicite lorsque Codex Desktop ne publie pas les événements.
+- **États graphiques :** roue violette en activité récente, coche verte à la fin enregistrée du même tour, statut non vérifié après péremption ; durée/modèle/effort affichés seulement avec provenance.
+- **Notifications :** test manuel de bulle Windows, corrélation des événements de fin même sans turn_id, protection contre les replays.
+- **Interface :** icône Windows assignée explicitement, menus organisés par action (Activité, Quotas, Apparence, Fenêtre, Notifications, Historique, Application), options explicites et rafraîchissements indépendants.
+- **Vie privée :** diagnostic des tours expurgé ; pas de prompt, chemin complet, mot de passe, jeton, cookie ni API payante ; pas de publication automatique.
+- **Validation :** build Windows et tests synthétiques sur PR ; suivi de l'onglet Codex Desktop, notification Windows, veille et multi-DPI **restent à vérifier en situation réelle**. Voir `ROADMAP.md`.
+
 ## V5.0.0 — Data Trust & Health (Release publique)
 
 - Rapport d'état local accessible sous Quotas & données : source, statut, âge, horodatage local avec décalage horaire, échecs, dernier problème, prochain essai et statut des fenêtres.

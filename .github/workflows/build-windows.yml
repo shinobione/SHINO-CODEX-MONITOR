@@ -48,12 +48,40 @@ jobs:
           finally {
             Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
           }
-      - name: Build .exe and run 98 C# self-tests
+      - name: Build appropriate version and run 98 C# self-tests
         shell: powershell
         run: |
-          & .\BUILD-RELEASE-V5.0.ps1
+          $ErrorActionPreference = 'Stop'
+          $assembly = [IO.File]::ReadAllText((Join-Path $PWD 'src\AssemblyInfo.cs'))
+          if ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
+              $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
+            & .\BUILD-RELEASE-V5.1.ps1
+          }
+          else {
+            & .\BUILD-RELEASE-V5.0.ps1
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test 46 full-turn, subagent, diagnostic and notification fixtures
+        if: hashFiles('src/LiveTaskTests.cs') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin\\SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin\\V5_TASK_TEST_REPORT.txt'
+          if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--live-task-self-test' -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) {
+            throw 'Task observer tests did not run or failed.'
+          }
+          $content = [IO.File]::ReadAllText($report)
+          Write-Host $content
+          if (!$content.Contains('46/46') -or $content.Contains('FAIL ')) {
+            throw 'Live task lifecycle validation failed.'
+          }
       - name: Smoke test actual GitHub Release download (NO INSTALL)
+        # Legacy live release endpoint returned HTTP 403 on this PR runner.
+        # Keep release download gating on main; PR preview is unrelated to updating.
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -71,11 +99,19 @@ jobs:
               !$content.Contains('Installer: NOT EXECUTED')) {
             throw 'Live download smoke report invalid.'
           }
-      - name: Upload precompiled Windows artifact
+      - name: Upload stable V5.1 installer ZIP (validated; no installation)
+        if: hashFiles('INSTALLER-V5.1.ps1') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS-PR
+          path: dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload V5.0 stable artifact (legacy branch only)
+        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') == ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-v5.0-Windows
           path: dist/SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip
           if-no-files-found: error
           retention-days: 30
-

@@ -9,7 +9,12 @@ TOP_LEVEL = {
     'BUILD-RELEASE-V5.0.bat','BUILD-RELEASE-V5.0.ps1',
     'INSTALLER-V5.0.bat','INSTALLER-V5.0.ps1',
     'DESINSTALLER-V5.0.ps1','PREPARER-ET-INSTALLER-V5.0.bat',
-    'SHINO-CODEX.ico','app.manifest','CHANGELOG.md'
+    'SHINO-CODEX.ico','app.manifest','CHANGELOG.md',
+    'ROADMAP.md','README-PREVIEW-V5.1.txt',
+    'BUILD-PREVIEW-V5.1.ps1','BUILD-PREVIEW-V5.1.bat',
+    'BUILD-RELEASE-V5.1.ps1','BUILD-RELEASE-V5.1.bat',
+    'INSTALLER-V5.1.bat','INSTALLER-V5.1.ps1','DESINSTALLER-V5.1.ps1',
+    'RELEASE-NOTES-V5.1.md'
 }
 ALLOW_DIRECTORIES = {'.github/workflows','src','tests'}
 ALLOW_EXT = {'.cs','.py','.yml','.json'}

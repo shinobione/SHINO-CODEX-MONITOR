@@ -14,7 +14,7 @@ namespace ShinoCodexMonitor
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool DestroyIcon(IntPtr hIcon);
 
-        internal static Icon Create(double? remaining, Color accent, bool isCurrent, string mode)
+        internal static Icon Create(double? remaining, Color accent, bool isCurrent, string mode, LiveTaskPhase task = LiveTaskPhase.Unknown)
         {
             const int n = 64;
             Color liveAccent = accent;
@@ -60,6 +60,22 @@ namespace ShinoCodexMonitor
                     }
                 }
 
+                // A small secondary dot keeps the original quota glyph legible.
+                // No motion in the notification area: zero continuous icon churn.
+                if (task == LiveTaskPhase.Active || task == LiveTaskPhase.Completed ||
+                    task == LiveTaskPhase.Failed || task == LiveTaskPhase.Interrupted)
+                {
+                    Color dot = task == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+                        task == LiveTaskPhase.Completed ? Color.FromArgb(81, 215, 175) :
+                        task == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
+                        Color.FromArgb(255, 182, 93);
+                    using (Brush rim = new SolidBrush(Color.FromArgb(17, 25, 38)))
+                    using (Brush spot = new SolidBrush(dot))
+                    {
+                        g.FillEllipse(rim, 41, 41, 23, 23);
+                        g.FillEllipse(spot, 44, 44, 17, 17);
+                    }
+                }
                 IntPtr native = bitmap.GetHicon();
                 if (native == IntPtr.Zero)
                     throw new InvalidOperationException("Création d'icône Windows impossible.");

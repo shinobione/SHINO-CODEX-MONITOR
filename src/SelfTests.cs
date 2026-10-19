@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "5.0.0");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "5.1.0");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -545,7 +545,7 @@ namespace ShinoCodexMonitor
                     text.Contains("Dernier relevé valide : Aucun") &&
                     !text.Contains("% restants"));
             });
-            report.Insert(0, "SHINO // CODEX V5.0.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            report.Insert(0, "SHINO // CODEX V5.1.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }

@@ -29,8 +29,8 @@ class ReliabilityV49Audit(unittest.TestCase):
             self.assertIn(title, SELF)
 
     def test_version_and_existing_guardrails(self):
-        self.assertIn('5.0.0.0', ASSEMBLY)
-        self.assertIn('SHINO // CODEX MONITOR V5.0.0', FORM)
+        self.assertIn('5.1.0.0', ASSEMBLY)
+        self.assertIn('SHINO // CODEX MONITOR V5.1.0', FORM)
         self.assertIn('if (forcedStale) return', FORM)
         self.assertIn('settings.Layout, live || blocked, DateTimeOffset.UtcNow', FORM)
 

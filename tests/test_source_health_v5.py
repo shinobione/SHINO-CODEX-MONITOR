@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HEALTH = (ROOT / 'src' / 'SourceHealth.cs').read_text(encoding='utf-8')
 FORM = (ROOT / 'src' / 'MonitorForm.cs').read_text(encoding='utf-8')
 SELF = (ROOT / 'src' / 'SelfTests.cs').read_text(encoding='utf-8')
-BUILD = (ROOT / 'BUILD-RELEASE-V5.0.ps1').read_text(encoding='utf-8-sig')
+BUILD = (ROOT / 'BUILD-RELEASE-V5.1.ps1').read_text(encoding='utf-8-sig')
 
 
 class SourceHealthV5Audit(unittest.TestCase):

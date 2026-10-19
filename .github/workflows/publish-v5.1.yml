@@ -1,0 +1,94 @@
+name: Publish SHINO Codex Monitor v5.1.0
+
+# Authorized publication: this workflow runs only after a vetted merge to main.
+# It builds and verifies the release from the merge commit, not from PR artifacts.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-shino-codex-v5.1.0
+  cancel-in-progress: false
+
+jobs:
+  publish-v5-1:
+    name: Verify Windows package and publish v5.1.0
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact main commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify dedicated v5.1.0 release identity
+        shell: pwsh
+        run: |
+          if ("$env:GITHUB_REF" -ne 'refs/heads/main') { throw 'Release is only allowed from main.' }
+          $content = [IO.File]::ReadAllText((Join-Path $PWD 'src/AssemblyInfo.cs'))
+          if (!$content.Contains('AssemblyVersion("5.1.0.0")') -or
+              !$content.Contains('AssemblyInformationalVersion("5.1.0")')) {
+            throw 'Wrong assembly identity for stable v5.1.0 publication.'
+          }
+          if (!(Test-Path -LiteralPath 'INSTALLER-V5.1.ps1') -or
+              !(Test-Path -LiteralPath 'BUILD-RELEASE-V5.1.ps1')) {
+            throw 'Missing dedicated V5.1 packaging scripts.'
+          }
+      - name: Audit public sources and package policy
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build, test and validate stable Windows installer
+        shell: powershell
+        run: |
+          & .\BUILD-RELEASE-V5.1.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check ZIP structure and SHA256 manifest
+        shell: pwsh
+        run: |
+          $zip = Join-Path $PWD 'dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip'
+          if (!(Test-Path -LiteralPath $zip)) { throw 'Stable ZIP missing.' }
+          $items = @([IO.Compression.ZipFile]::OpenRead($zip).Entries |
+            Where-Object { $_.Name.Length -gt 0 } | ForEach-Object { $_.Name })
+          $required = @('SHINO-CODEX-MONITOR.exe','SHINO-CODEX.ico','README-FR.txt',
+            'INSTALLER-V5.1.bat','INSTALLER-V5.1.ps1','DESINSTALLER-V5.1.ps1',
+            'SHA256SUMS.txt')
+          if ($items.Count -ne $required.Count) { throw "Unexpected ZIP contents count." }
+          foreach ($needed in $required) {
+            if ($needed -notin $items) { throw ("Missing archive file: " + $needed) }
+          }
+          $size = (Get-Item -LiteralPath $zip).Length
+          if ($size -le 0 -or $size -gt 32MB) { throw 'Invalid ZIP size.' }
+          Write-Host "Verified stable ZIP with $($items.Count) allowlisted files, $size bytes."
+      - name: Upload validated stable build for audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS
+          path: dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish official stable release if not already present
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exists = gh release view v5.1.0 --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'Release v5.1.0 already exists; not publishing a duplicate.'
+            exit 0
+          }
+          # A pre-existing tag pointing elsewhere must not be silently replaced.
+          gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/v5.1.0" --silent 2>$null
+          if ($LASTEXITCODE -eq 0) { throw 'v5.1.0 tag already exists without a release. Manual review needed.' }
+          gh release create v5.1.0 "dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip" `
+            --repo "$env:GITHUB_REPOSITORY" --title "SHINO // CODEX MONITOR V5.1.0" `
+            --notes-file RELEASE-NOTES-V5.1.md --target "$env:GITHUB_SHA" --latest
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
+          gh release view v5.1.0 --repo "$env:GITHUB_REPOSITORY" --json tagName,url,isDraft,isPrerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Release could not be verified after publishing.' }

@@ -75,12 +75,26 @@ namespace ShinoCodexMonitor
         private readonly Dictionary<string, ToolStripMenuItem> intervalItems = new Dictionary<string, ToolStripMenuItem>();
         private ToolStripMenuItem updateMenuItem;
         private bool updateCheckRunning;
+        private readonly Panel taskDock = new Panel();
+        private readonly Panel taskRule = new Panel();
+        private readonly ActivityGlyph taskGlyph = new ActivityGlyph();
+        private readonly Label taskHeading;
+        private readonly Label taskSource;
+        private readonly Label taskBadge;
+        private readonly Label taskName;
+        private readonly Label taskMeta;
+        private readonly Label taskExtra;
+        private readonly System.Windows.Forms.Timer taskMotion = new System.Windows.Forms.Timer();
+        private LiveTaskReport taskReport;
+        private Task<LiveTaskReport> taskRead;
+        private DateTimeOffset nextTaskPoll = DateTimeOffset.MinValue;
+        private readonly HashSet<string> sentTaskNotifications = new HashSet<string>();
 
         internal MonitorForm()
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V5.0.0";
+            Text = "SHINO // CODEX MONITOR V5.1.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -91,11 +105,34 @@ namespace ShinoCodexMonitor
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V5.0.0", 8, UiColors.Muted, false);
+            version = TextLabel("MONITOR / V5.1.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
             Controls.Add(header); Controls.Add(version); Controls.Add(close);
+            // One window, always-visible task telemetry: no popup or detail window.
+            taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
+            taskRule.BackColor = UiColors.Track;
+            taskHeading = TextLabel("ACTIVITÉ CODEX", 8, UiColors.Text, true);
+            taskSource = TextLabel("LOCAL · PARTIEL", 7, UiColors.Muted, false);
+            taskSource.TextAlign = ContentAlignment.MiddleRight;
+            taskBadge = TextLabel("À VÉRIFIER", 8, UiColors.Muted, true);
+            taskBadge.TextAlign = ContentAlignment.MiddleRight;
+            taskName = TextLabel("Recherche de sessions locales…", 9, UiColors.Text, true);
+            taskName.AutoEllipsis = true;
+            taskMeta = TextLabel("Modèle : —   ·   Effort : —", 8, UiColors.Muted, false);
+            taskMeta.AutoEllipsis = true;
+            taskExtra = TextLabel("Aucune activité encore vérifiée", 7, UiColors.Muted, false);
+            taskExtra.AutoEllipsis = true;
+            taskDock.Controls.Add(taskRule);
+            taskDock.Controls.Add(taskHeading);
+            taskDock.Controls.Add(taskSource);
+            taskDock.Controls.Add(taskGlyph);
+            taskDock.Controls.Add(taskBadge);
+            taskDock.Controls.Add(taskName);
+            taskDock.Controls.Add(taskMeta);
+            taskDock.Controls.Add(taskExtra);
+            Controls.Add(taskDock);
             five = BuildMeter("QUOTA 5 HEURES");
             week = BuildMeter("QUOTA 7 JOURS");
             status = TextLabel("● Initialisation Codex...", 8, UiColors.Muted, false);
@@ -111,6 +148,10 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(resizeGrip, "Glisser pour redimensionner les roues");
             Controls.Add(resizeGrip);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            // WinForms Form.Icon is independent of NotifyIcon.Icon. When omitted,
+            // Windows may show the generic multicolour WinForms squares in the taskbar.
+            // Reuse the exact executable icon embedded by /win32icon in the build.
+            Icon = originalTrayIcon ?? SystemIcons.Application;
             tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
@@ -136,6 +177,9 @@ namespace ShinoCodexMonitor
             SystemEvents.TimeChanged += OnTimeChanged;
             tick.Interval = 1000;
             tick.Tick += delegate { Heartbeat(); };
+            taskMotion.Interval = 85;
+            taskMotion.Tick += delegate { taskGlyph.Advance(); };
+            VisibleChanged += delegate { UpdateTaskMotion(); };
             tick.Start();
             Heartbeat();
         }
@@ -255,13 +299,65 @@ namespace ShinoCodexMonitor
                 status.SetBounds(17, 238, 322, 18);
             }
             close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10, 25, micro ? 24 : 28);
+            int quotaHeight = ClientSize.Height;
+            Rectangle activity = DesktopGeometry.ActivityBounds(ClientSize.Width, quotaHeight, settings.Layout);
+            ClientSize = new Size(ClientSize.Width,
+                DesktopGeometry.CombinedHeight(ClientSize.Width, quotaHeight, settings.Layout));
+            taskDock.Bounds = activity;
+            PlaceActivityControls(circular, micro);
+            UpdateTaskSurface(DateTimeOffset.UtcNow);
             resizeGrip.Visible = circular && settings.Pinned;
             if (circular)
-                resizeGrip.Bounds = DesktopGeometry.ScaleRect(520, 257, 17, 17, settings.CircularWidth);
+                resizeGrip.Bounds = new Rectangle(ClientSize.Width - DesktopGeometry.Scale(21, settings.CircularWidth),
+                    ClientSize.Height - DesktopGeometry.Scale(21, settings.CircularWidth),
+                    DesktopGeometry.Scale(17, settings.CircularWidth), DesktopGeometry.Scale(17, settings.CircularWidth));
             Location = new Point(Math.Max(work.Left, Math.Min(Left, work.Right - Width)),
                 Math.Max(work.Top, Math.Min(Top, work.Bottom - Height)));
             PaintSnapshot();
         }
+        private void PlaceActivityControls(bool circular, bool micro)
+        {
+            int width = taskDock.ClientSize.Width;
+            // Circular layout follows its existing 470–720 px size preference.
+            int basis = circular ? settings.CircularWidth : DesktopGeometry.DefaultWidth;
+            Func<int, int> unit = value => circular ? DesktopGeometry.Scale(value, basis) : value;
+            int side = unit(14);
+            int rightWidth = Math.Max(unit(108), width / 4);
+            taskRule.SetBounds(side, unit(25), width - side * 2, Math.Max(1, unit(1)));
+            int sourceWidth = width < 400 ? unit(133) : unit(170);
+            int sourceLeft = width - side - sourceWidth;
+            taskHeading.SetBounds(side, unit(4), Math.Max(70, sourceLeft - side - unit(8)), unit(20));
+            taskSource.SetBounds(sourceLeft, unit(4), sourceWidth, unit(20));
+            taskGlyph.SetBounds(side, unit(34), unit(30), unit(30));
+            int start = side + unit(40);
+            taskName.SetBounds(start, unit(29), Math.Max(40, width - start - rightWidth - side), unit(23));
+            taskBadge.SetBounds(width - side - rightWidth, unit(29), rightWidth, unit(23));
+            taskMeta.SetBounds(start, unit(53), Math.Max(40, width - start - side), unit(20));
+            taskExtra.SetBounds(side, unit(76), Math.Max(40, width - side * 2 - unit(12)), unit(18));
+            if (circular)
+            {
+                float scale = basis / (float)DesktopGeometry.DefaultWidth;
+                taskHeading.Font = new Font("Segoe UI", 8f * scale, FontStyle.Bold);
+                taskName.Font = new Font("Segoe UI", 9f * scale, FontStyle.Bold);
+                taskBadge.Font = new Font("Segoe UI", 8f * scale, FontStyle.Bold);
+                taskMeta.Font = new Font("Segoe UI", 8f * scale);
+                taskExtra.Font = new Font("Segoe UI", 7f * scale);
+                taskSource.Font = new Font("Segoe UI", 7f * scale);
+            }
+            else if (micro)
+            {
+                taskHeading.Font = new Font("Segoe UI", 7f, FontStyle.Bold);
+                taskName.Font = new Font("Segoe UI", 8f, FontStyle.Bold);
+                taskMeta.Font = new Font("Segoe UI", 7f);
+            }
+        }
+
+        private void UpdateTaskMotion()
+        {
+            taskMotion.Enabled = Visible && settings.TaskAnimations &&
+                taskGlyph.Phase == LiveTaskPhase.Active;
+        }
+
         private void ToggleVisibility()
         {
             if (Visible) { Hide(); return; }
@@ -343,7 +439,24 @@ namespace ShinoCodexMonitor
         {
             // Two immediate actions; everything else is grouped by user intention.
             Menu(context, "Afficher / masquer", delegate { ToggleVisibility(); });
-            Menu(context, "Actualiser maintenant", delegate { nextRefresh = DateTimeOffset.MinValue; });
+            Menu(context, "Actualiser les quotas", delegate { nextRefresh = DateTimeOffset.MinValue; });
+            context.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem tasksMenu = Menu(context, "Activité Codex (locale)", null);
+            Menu(tasksMenu, "Actualiser l'activité locale", delegate {
+                nextTaskPoll = DateTimeOffset.MinValue;
+                PollTasks(DateTimeOffset.UtcNow);
+            });
+            Menu(tasksMenu, "Copier le diagnostic des tours (sans données privées)",
+                delegate { CopyTaskDiagnostic(); });
+            tasksMenu.DropDownItems.Add(new ToolStripSeparator());
+            ToolStripMenuItem taskSourceInfo = Menu(tasksMenu, "Source : journaux locaux, statut indicatif", null);
+            taskSourceInfo.Enabled = false;
+            tasksMenu.DropDownOpening += delegate {
+                taskSourceInfo.Text = taskReport == null ?
+                    "Source : aucun relevé" :
+                    "Sources : " + taskReport.ExaminedRoots + " principale(s), " +
+                    taskReport.IgnoredSubagents + " sous-agent(s) exclus";
+            };
             context.Items.Add(new ToolStripSeparator());
 
             // QUOTAS: source, reset display and rate-limit polling interval.
@@ -484,6 +597,14 @@ namespace ShinoCodexMonitor
                 settings.TrayStyle = value; Save(); UpdateQuotaTrayIcon(State(),
                     State() == "Direct" && snapshot != null && snapshot.UsageAllowed == false);
             }, settings.TrayStyle);
+            appearance.DropDownItems.Add(new ToolStripSeparator());
+            AddAlertToggle(appearance, "Animer la roue d'activité Codex", settings.TaskAnimations,
+                delegate(bool value) { settings.TaskAnimations = value; UpdateTaskMotion(); Save(); });
+            ToolStripMenuItem motionToggle = appearance.DropDownItems[appearance.DropDownItems.Count - 1]
+                as ToolStripMenuItem;
+            appearance.DropDownOpening += delegate {
+                if (motionToggle != null) motionToggle.Checked = settings.TaskAnimations;
+            };
 
             // WINDOW: behavioral controls stay out of appearance/color settings.
             ToolStripMenuItem window = Menu(context, "Fenêtre", null);
@@ -534,6 +655,14 @@ namespace ShinoCodexMonitor
                     Save();
                 });
             notificationsEnabled.CheckOnClick = true;
+            ToolStripMenuItem testNotification = Menu(alerts, "Tester la notification Windows",
+                delegate { TestWindowsNotification(); });
+            testNotification.ToolTipText = "Test manuel, indépendant des options d'alertes ; affichage soumis à Windows.";
+            alerts.DropDownItems.Add(new ToolStripSeparator());
+            AddAlertToggle(alerts, "Tâche Codex terminée", settings.TaskAlerts,
+                delegate(bool value) { settings.TaskAlerts = value; Save(); });
+            ToolStripMenuItem taskAlertsToggle = alerts.DropDownItems[alerts.DropDownItems.Count - 1]
+                as ToolStripMenuItem;
             alerts.DropDownItems.Add(new ToolStripSeparator());
             AddAlertToggle(alerts, "Fenêtre 5 heures", settings.AlertFive,
                 delegate(bool v) { settings.AlertFive = v; Save(); });
@@ -550,8 +679,9 @@ namespace ShinoCodexMonitor
                 delegate(bool v) { settings.AlertResets = v; Save(); });
             alerts.DropDownOpening += delegate {
                 notificationsEnabled.Checked = settings.Alerts;
+                if (taskAlertsToggle != null) taskAlertsToggle.Checked = settings.TaskAlerts;
                 foreach (ToolStripItem child in alerts.DropDownItems)
-                    if (child != notificationsEnabled) child.Enabled = settings.Alerts;
+                    if (child != notificationsEnabled && child != testNotification) child.Enabled = settings.Alerts;
             };
 
             ToolStripMenuItem historyMenu = Menu(context, "Historique", null);
@@ -901,6 +1031,12 @@ namespace ShinoCodexMonitor
             nextRefresh = DateTimeOffset.MinValue;
             lastUiPaintUtc = DateTimeOffset.MinValue;
             active = null;
+            taskRead = null;
+            taskReport = null;
+            nextTaskPoll = DateTimeOffset.MinValue;
+            taskGlyph.SetPhase(LiveTaskPhase.Unknown);
+            UpdateTaskMotion();
+            UpdateTaskSurface(DateTimeOffset.UtcNow);
             CodexReader.Cancel();
             PaintSnapshot();
         }
@@ -912,6 +1048,9 @@ namespace ShinoCodexMonitor
                 InvalidateForWake("Interruption de l'horloge d'interface (> 15 s)");
             lastHeartbeatUtc = nowUtc;
             runtime.Sample(nowUtc);
+            // Also expire green terminal glyphs and stale scans while Codex is idle.
+            if (taskReport != null) UpdateTaskSurface(nowUtc);
+            PollTasks(nowUtc);
             // The reset countdown is displayed in whole minutes. Avoid repainting every second.
             if (nowUtc >= lastUiPaintUtc.AddSeconds(10) || lastUiPaintUtc == DateTimeOffset.MinValue)
             {
@@ -944,6 +1083,142 @@ namespace ShinoCodexMonitor
                 catch (InvalidOperationException) { }
             });
         }
+        private void CopyTaskDiagnostic()
+        {
+            // Explicit, local user action. Never copy session IDs, prompts or paths.
+            string details = taskReport == null ?
+                "SHINO // CODEX V5.1 — aucune lecture de tâches disponible." :
+                taskReport.RedactedDiagnostics(DateTimeOffset.UtcNow);
+            try
+            {
+                Clipboard.SetText(details);
+                MessageBox.Show(this, "Diagnostic des tours copié (sans prompts, chemins ou identifiants).",
+                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (System.Runtime.InteropServices.ExternalException)
+            {
+                MessageBox.Show(this, "Impossible de copier le diagnostic dans le presse-papiers.",
+                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void TestWindowsNotification()
+        {
+            // Diagnostic action requested explicitly by the user, not a claim of OS delivery.
+            tray.ShowBalloonTip(6500, "SHINO // CODEX — TEST",
+                "Notification de test du widget. Si rien n'apparaît, vérifiez Notifications et Ne pas déranger dans Windows.",
+                ToolTipIcon.Info);
+        }
+
+        private void PollTasks(DateTimeOffset now)
+        {
+            if (suspended || taskRead != null || now < nextTaskPoll) return;
+            nextTaskPoll = now.AddSeconds(5);
+            int generation = readerGeneration;
+            taskRead = Task.Run(delegate { return LiveTaskReader.Read(DateTimeOffset.UtcNow); });
+            taskRead.ContinueWith(delegate(Task<LiveTaskReport> result) {
+                if (!IsHandleCreated || IsDisposed) return;
+                try { BeginInvoke((Action)delegate {
+                    if (generation != readerGeneration || exiting || suspended) return;
+                    taskRead = null;
+                    LiveTaskReport fresh;
+                    if (result.Status == TaskStatus.RanToCompletion) fresh = result.Result;
+                    else fresh = new LiveTaskReport { CheckedUtc = DateTimeOffset.UtcNow,
+                        Message = "À vérifier · erreur de lecture locale" };
+                    bool canAlert = taskReport != null && settings.Alerts && settings.TaskAlerts;
+                    if (canAlert)
+                    {
+                        foreach (LiveTask current in TaskNotificationRules.NewTerminals(taskReport, fresh))
+                        {
+                            string key = current.SessionKey + ":" +
+                                current.StartedUtc.ToUnixTimeMilliseconds() + ":" + current.Phase;
+                            if (!sentTaskNotifications.Add(key)) continue;
+                            tray.ShowBalloonTip(5500, "Codex · " + current.PhaseLabel,
+                                current.Workspace + " · " + current.Duration(DateTimeOffset.UtcNow),
+                                current.Phase == LiveTaskPhase.Failed ? ToolTipIcon.Error : ToolTipIcon.Info);
+                        }
+                        if (sentTaskNotifications.Count > 256) sentTaskNotifications.Clear();
+                    }
+                    taskReport = fresh;
+                    UpdateTaskBadge();
+                }); }
+                catch (InvalidOperationException) { }
+            });
+        }
+
+        private void UpdateTaskBadge()
+        {
+            UpdateTaskSurface(DateTimeOffset.UtcNow);
+            UpdateTaskMotion();
+            string state = State();
+            bool blocked = state == "Direct" && snapshot != null && snapshot.UsageAllowed == false;
+            UpdateQuotaTrayIcon(state, blocked);
+        }
+
+        private void UpdateTaskSurface(DateTimeOffset now)
+        {
+            TaskDisplay display = taskReport == null ? new TaskDisplay() : taskReport.DisplayAt(now);
+            LiveTask task = display.Primary;
+            // These icons describe the OBSERVED local rollout, never all Codex Desktop tasks.
+            LiveTaskPhase phase = task == null ? LiveTaskPhase.Unknown :
+                display.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
+                display.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
+                task.Phase;
+            taskGlyph.SetPhase(phase);
+            if (task == null)
+            {
+                taskName.Text = taskReport == null ? "Recherche d'événements locaux…" :
+                    "État actuel de Codex non vérifiable";
+                taskBadge.Text = "NON VÉRIFIÉ";
+                taskMeta.Text = "Aucune tâche active confirmée dans les journaux";
+                if (display.LastTerminal != null)
+                {
+                    LiveTask last = display.LastTerminal;
+                    taskExtra.Text = "Dernier tour local : " + last.Workspace + " · " +
+                        (last.Phase == LiveTaskPhase.Completed ? "terminé" :
+                            last.Phase == LiveTaskPhase.Failed ? "échec" : "interrompu") +
+                        " à " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
+                }
+                else
+                    taskExtra.Text = taskReport == null ? "En attente du premier relevé" :
+                        display.Detail + " · source partielle";
+            }
+            else
+            {
+                taskName.Text = task.Workspace == "Projet non communiqué" ?
+                    "Session Codex locale" : task.Workspace;
+                string duration = task.Duration(now);
+                taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVÉ " + duration :
+                    display.Kind == TaskDisplayKind.Uncertain ? "? À VÉRIFIER" :
+                    task.Phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
+                    task.Phase == LiveTaskPhase.Failed ? "× ÉCHEC " + duration : "■ STOP " + duration;
+                taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " + task.Effort;
+                int otherActive = taskReport.ActiveCount -
+                    (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
+                if (display.Kind == TaskDisplayKind.ObservedActive)
+                    taskExtra.Text = "Durée : " + duration + " · activité dans un journal local, onglet non identifié" +
+                        (otherActive > 0 ? " · +" + otherActive + " autres" : "");
+                else if (display.Kind == TaskDisplayKind.Uncertain)
+                    taskExtra.Text = "Dernier journal : " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
+                        " · statut actuel non vérifié";
+                else
+                    taskExtra.Text = "Dernier tour local, pas l'état global de Codex · " +
+                        task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
+                        " · " + duration;
+            }
+            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+                phase == LiveTaskPhase.Completed ? UiColors.Five :
+                phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
+                phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
+            string description = taskReport == null ? "Lecture locale non terminée" :
+                display.Detail + " · source : fichiers JSONL locaux, ne suit pas forcément l'onglet actif";
+            tooltip.SetToolTip(taskDock, description);
+            tooltip.SetToolTip(taskGlyph, description);
+            tooltip.SetToolTip(taskBadge, description);
+            // Stop animation when observation expires, even if no new file arrives.
+            UpdateTaskMotion();
+        }
+
         private static string SafeError(Exception error)
         {
             string message = error.Message ?? "Erreur de lecture Codex";
@@ -1073,15 +1348,26 @@ namespace ShinoCodexMonitor
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
+            TaskDisplay taskDisplay = taskReport == null ? new TaskDisplay() :
+                taskReport.DisplayAt(DateTimeOffset.UtcNow);
+            LiveTaskPhase livePhase = taskDisplay.Primary == null ? LiveTaskPhase.Unknown :
+                taskDisplay.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
+                taskDisplay.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
+                taskDisplay.Primary.Phase;
+            int activeTasks = taskDisplay.Kind == TaskDisplayKind.ObservedActive ?
+                taskReport.ActiveCount : 0;
             tray.Text = current && rounded >= 0 ?
                 "SHINO // CODEX · " + window + " : " + rounded + "% restants" :
                 "SHINO // CODEX · " + (blocked ? "Usage bloqué" : state);
             Color color = current && rounded >= 0 ? QuotaColor(rounded) : UiColors.Muted;
-            string signature = (current ? "1" : "0") + ":" + rounded + ":" + color.ToArgb() + ":" + settings.TrayStyle;
+            if (activeTasks > 0 && tray.Text.Length <= 48)
+                tray.Text += " · " + activeTasks + " tâche(s)";
+            string signature = (current ? "1" : "0") + ":" + rounded + ":" +
+                color.ToArgb() + ":" + settings.TrayStyle + ":" + livePhase;
             if (signature == trayIconSignature) return;
             try
             {
-                Icon created = QuotaTrayIcon.Create(remaining, color, current, settings.TrayStyle);
+                Icon created = QuotaTrayIcon.Create(remaining, color, current, settings.TrayStyle, livePhase);
                 Icon previous = dynamicTrayIcon;
                 tray.Icon = created;
                 dynamicTrayIcon = created;
@@ -1166,6 +1452,8 @@ namespace ShinoCodexMonitor
             if (!exiting && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); return; }
             exiting = true;
             tick.Stop();
+            taskMotion.Stop();
+            taskMotion.Dispose();
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             SystemEvents.TimeChanged -= OnTimeChanged;
             readerGeneration++;
