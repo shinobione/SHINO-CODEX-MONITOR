@@ -40,10 +40,10 @@ namespace ShinoCodexMonitor
 
         internal string Summary()
         {
-            return "RAM courante : " + ramMiB.ToString("F1", CultureInfo.InvariantCulture) + " MiB\n" +
-                "CPU moyen sur dernier intervalle (part machine) : " +
-                (cpuPercent.HasValue ? cpuPercent.Value.ToString("F2", CultureInfo.InvariantCulture) + " %" : "en cours") + "\n" +
-                "Échantillons performance : " + sampleCount;
+            return "Current RAM: " + ramMiB.ToString("F1", CultureInfo.InvariantCulture) + " MiB\n" +
+                "Average CPU over last interval (machine share): " +
+                (cpuPercent.HasValue ? cpuPercent.Value.ToString("F2", CultureInfo.InvariantCulture) + " %" : "pending") + "\n" +
+                "Performance samples: " + sampleCount;
         }
     }
 }
