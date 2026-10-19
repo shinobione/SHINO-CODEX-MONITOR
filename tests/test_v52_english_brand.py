@@ -79,6 +79,9 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertNotIn('Historique local', history)
         self.assertIn('CONFIRM-INSTALLATION.ps1', handoff)
         self.assertIn('Installing CODEX PERISCOPE', handoff)
+        package = (ROOT / 'src/ReleasePackage.cs').read_text(encoding='utf-8')
+        self.assertNotIn('Chemin ZIP', package)
+        self.assertIn('Unsafe ZIP entry path.', package)
         for old in ('CONFIRMER-INSTALLATION', 'Fichiers de mise a jour',
                     'Empreinte ZIP differente', 'Installation confirmee de SHINO',
                     'Chemin de mise a jour invalide'):
