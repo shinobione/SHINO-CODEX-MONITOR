@@ -41,7 +41,7 @@ namespace ShinoCodexMonitor
                     case LiveTaskPhase.Failed: return "FAILED";
                     case LiveTaskPhase.Interrupted: return "INTERROMPU";
                     case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
-                    default: return "INDISPONIBLE";
+                    default: return "UNAVAILABLE";
                 }
             }
         }
@@ -265,7 +265,7 @@ namespace ShinoCodexMonitor
             string root = SessionRoot();
             if (!Directory.Exists(root))
             {
-                report.Message = "Unavailable · none dossier de sessions locales Codex";
+                report.Message = "Unavailable · no local Codex sessions folder";
                 return report;
             }
             try
@@ -338,7 +338,7 @@ namespace ShinoCodexMonitor
                     report.Message += " · current turn unverified";
             }
             catch (UnauthorizedAccessException) { report.Message = "Unavailable · folder access denied"; }
-            catch (IOException) { report.Message = "À vérifier · lecture des sessions interruptede"; }
+            catch (IOException) { report.Message = "Unverified · session read interrupted"; }
             return report;
         }
 
