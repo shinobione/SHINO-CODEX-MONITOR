@@ -16,6 +16,8 @@ namespace ShinoCodexMonitor
         private int writes;
         internal LocalStore()
         {
+            // Intentionally keep the legacy data directory on V5.2 upgrades.
+            // Changing it would orphan saved quota history and preferences.
             DirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SHINO-CODEX-MONITOR");
             System.IO.Directory.CreateDirectory(DirectoryPath);
             settingPath = Path.Combine(DirectoryPath, "settings.json");
