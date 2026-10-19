@@ -13,8 +13,8 @@ namespace ShinoCodexMonitor
         private static void Check(string title, Action test)
         {
             total++;
-            try { test(); passed++; report.AppendLine("PASS " + title); }
-            catch (Exception ex) { report.AppendLine("FAIL " + title + " : " + ex.GetType().Name + " " + ex.Message); }
+            try { test(); passed++; report.AppendLine("PASS Test #" + total); }
+            catch (Exception ex) { report.AppendLine("FAIL Test #" + total + " : " + ex.GetType().Name + " " + ex.Message); }
         }
         private static void Assert(bool ok) { if (!ok) throw new Exception("Assertion failed"); }
         private static Snapshot Parse(string json)
