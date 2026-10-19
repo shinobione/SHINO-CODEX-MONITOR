@@ -48,7 +48,7 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Unable to launch CODEX PERISCOPE " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Le programme doit être examiné avant un nouveau démarrage.",
+                    MessageBox.Show("Unable to launch CODEX PERISCOPE " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Inspect this application before trying again.",
                         "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
