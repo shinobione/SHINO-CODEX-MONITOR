@@ -27,7 +27,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("task_started", "task_complete", "turn_aborted",
                       "LiveTaskPhase.Unconfirmed", "ActivityMaxAgeSeconds"):
             self.assertIn(value, READER)
-        self.assertIn("phase == LiveTaskPhase.Active", FORM)
+        self.assertIn("v.State == RadarState.Active", FORM)
         self.assertIn('old.Phase == LiveTaskPhase.Active', READER)
 
     def test_graphics_lightweight_and_only_visible_animation(self):
@@ -39,7 +39,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertNotIn("Electron", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
         self.assertNotIn("LiveTaskWindow", FORM)
-        self.assertIn("taskDock.Controls.Add(taskGlyph);", FORM)
+        self.assertIn("taskDock.Controls.Add(taskDeck);", FORM)
 
     def test_notification_requires_observed_transition(self):
         self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)

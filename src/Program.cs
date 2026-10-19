@@ -9,6 +9,22 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--p0-performance")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"P0_PERFORMANCE_REPORT.txt"),P0Tests.Performance());
+                return;
+            }
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--p0-self-test")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                string report = P0Tests.Run();
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"P0_TEST_REPORT.txt"),report);
+                Environment.ExitCode = report.Contains("FAIL ") ? 1 : 0;
+                return;
+            }
             if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--premium-performance")
             {
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);

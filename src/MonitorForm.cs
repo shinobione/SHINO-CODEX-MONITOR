@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -27,7 +28,7 @@ namespace ShinoCodexMonitor
         internal CircularGauge Ring;
         internal QuotaWindow Data;
     }
-    internal sealed class MonitorForm : Form
+    internal sealed class MonitorForm : PeriscopeWindow
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string RunName = "CODEX_PERISCOPE";
@@ -78,19 +79,13 @@ namespace ShinoCodexMonitor
         private ToolStripMenuItem updateMenuItem;
         private bool updateCheckRunning;
         private readonly Panel taskDock = new Panel();
-        private readonly Panel taskRule = new Panel();
-        private readonly ActivityGlyph taskGlyph = new ActivityGlyph();
-        private readonly Label taskHeading;
-        private readonly Label taskSource;
-        private readonly Label taskBadge;
-        private readonly Label taskName;
-        private readonly Label taskMeta;
-        private readonly Label taskExtra;
+        private readonly MissionDeck taskDeck = new MissionDeck();
         private readonly System.Windows.Forms.Timer taskMotion = new System.Windows.Forms.Timer();
+
         private LiveTaskReport taskReport;
         private Task<LiveTaskReport> taskRead;
         private DateTimeOffset nextTaskPoll = DateTimeOffset.MinValue;
-        private readonly HashSet<string> sentTaskNotifications = new HashSet<string>();
+        private readonly Dictionary<string,DateTimeOffset> sentTaskNotifications = new Dictionary<string,DateTimeOffset>();
 
         internal MonitorForm()
         {
@@ -114,26 +109,8 @@ namespace ShinoCodexMonitor
             Controls.Add(header); Controls.Add(version); Controls.Add(close);
             // One window, always-visible task telemetry: no popup or detail window.
             taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
-            taskRule.BackColor = UiColors.Track;
-            taskHeading = TextLabel("CODEX ACTIVITY", 8, UiColors.Text, true);
-            taskSource = TextLabel("LOCAL · PARTIAL", 7, UiColors.Muted, false);
-            taskSource.TextAlign = ContentAlignment.MiddleRight;
-            taskBadge = TextLabel("UNVERIFIED", 8, UiColors.Muted, true);
-            taskBadge.TextAlign = ContentAlignment.MiddleRight;
-            taskName = TextLabel("Scanning local sessions…", 9, UiColors.Text, true);
-            taskName.AutoEllipsis = true;
-            taskMeta = TextLabel("Model: —   ·   Effort: —", 8, UiColors.Muted, false);
-            taskMeta.AutoEllipsis = true;
-            taskExtra = TextLabel("No activity verified yet", 7, UiColors.Muted, false);
-            taskExtra.AutoEllipsis = true;
-            taskDock.Controls.Add(taskRule);
-            taskDock.Controls.Add(taskHeading);
-            taskDock.Controls.Add(taskSource);
-            taskDock.Controls.Add(taskGlyph);
-            taskDock.Controls.Add(taskBadge);
-            taskDock.Controls.Add(taskName);
-            taskDock.Controls.Add(taskMeta);
-            taskDock.Controls.Add(taskExtra);
+            taskDeck.Dock = DockStyle.Fill;
+            taskDock.Controls.Add(taskDeck);
             Controls.Add(taskDock);
             five = BuildMeter("5-HOUR QUOTA");
             week = BuildMeter("WEEKLY QUOTA");
@@ -180,7 +157,7 @@ namespace ShinoCodexMonitor
             tick.Interval = 1000;
             tick.Tick += delegate { Heartbeat(); };
             taskMotion.Interval = 34; // At most 29.4 requested frames per second.
-            taskMotion.Tick += delegate { taskGlyph.Advance(); UpdateTaskMotion(); };
+            taskMotion.Tick += delegate { taskDeck.Advance(); UpdateTaskMotion(); };
             VisibleChanged += delegate { UpdateTaskMotion(); };
             tick.Start();
             Heartbeat();
@@ -318,47 +295,13 @@ namespace ShinoCodexMonitor
             PaintSnapshot();
         }
         private void PlaceActivityControls(bool circular, bool micro)
-        {
-            int width = taskDock.ClientSize.Width;
-            // Circular layout follows its existing 470–720 px size preference.
-            int basis = circular ? settings.CircularWidth : DesktopGeometry.DefaultWidth;
-            Func<int, int> unit = value => circular ? DesktopGeometry.Scale(value, basis) : value;
-            int side = unit(14);
-            int rightWidth = Math.Max(unit(108), width / 4);
-            taskRule.SetBounds(side, unit(25), width - side * 2, Math.Max(1, unit(1)));
-            int sourceWidth = width < 400 ? unit(133) : unit(170);
-            int sourceLeft = width - side - sourceWidth;
-            taskHeading.SetBounds(side, unit(4), Math.Max(70, sourceLeft - side - unit(8)), unit(20));
-            taskSource.SetBounds(sourceLeft, unit(4), sourceWidth, unit(20));
-            taskGlyph.SetBounds(side, unit(34), unit(30), unit(30));
-            int start = side + unit(40);
-            taskName.SetBounds(start, unit(29), Math.Max(40, width - start - rightWidth - side), unit(23));
-            taskBadge.SetBounds(width - side - rightWidth, unit(29), rightWidth, unit(23));
-            taskMeta.SetBounds(start, unit(53), Math.Max(40, width - start - side), unit(20));
-            taskExtra.SetBounds(side, unit(76), Math.Max(40, width - side * 2 - unit(12)), unit(18));
-            if (circular)
-            {
-                float scale = basis / (float)DesktopGeometry.DefaultWidth;
-                taskHeading.Font = new Font("Segoe UI", 8f * scale, FontStyle.Bold);
-                taskName.Font = new Font("Segoe UI", 9f * scale, FontStyle.Bold);
-                taskBadge.Font = new Font("Segoe UI", 8f * scale, FontStyle.Bold);
-                taskMeta.Font = new Font("Segoe UI", 8f * scale);
-                taskExtra.Font = new Font("Segoe UI", 7f * scale);
-                taskSource.Font = new Font("Segoe UI", 7f * scale);
-            }
-            else if (micro)
-            {
-                taskHeading.Font = new Font("Segoe UI", 7f, FontStyle.Bold);
-                taskName.Font = new Font("Segoe UI", 8f, FontStyle.Bold);
-                taskMeta.Font = new Font("Segoe UI", 7f);
-            }
-        }
+        { taskDeck.PerformLayout(); }
 
         private void UpdateTaskMotion()
         {
             taskMotion.Enabled = Visible && !suspended && settings.TaskAnimations &&
-                taskGlyph.NeedsFrames;
-            taskGlyph.SetMotion(taskMotion.Enabled);
+                taskDeck.NeedsFrames;
+            taskDeck.SetMotion(taskMotion.Enabled);
         }
 
         private void ToggleVisibility()
@@ -755,7 +698,7 @@ namespace ShinoCodexMonitor
             week.Ring.BackColor = BackColor;
             five.Ring.Invalidate();
             week.Ring.Invalidate();
-            taskGlyph.Invalidate();
+            taskDeck.Invalidate();
             Invalidate();
         }
         private void SetBackground(string hex)
@@ -1097,7 +1040,7 @@ namespace ShinoCodexMonitor
             taskRead = null;
             taskReport = null;
             nextTaskPoll = DateTimeOffset.MinValue;
-            taskGlyph.SetPhase(LiveTaskPhase.Unknown);
+            taskDeck.UpdateReport(null,DateTimeOffset.UtcNow);
             UpdateTaskMotion();
             UpdateTaskSurface(DateTimeOffset.UtcNow);
             CodexReader.Cancel();
@@ -1194,23 +1137,22 @@ namespace ShinoCodexMonitor
                     {
                         foreach (LiveTask current in TaskNotificationRules.NewTerminals(taskReport, fresh))
                         {
-                            string key = current.SessionKey + ":" +
-                                current.StartedUtc.ToUnixTimeMilliseconds() + ":" + current.Phase;
-                            if (!sentTaskNotifications.Add(key)) continue;
+                            string key = current.Identity + ":" + current.Phase;
+                            if (sentTaskNotifications.ContainsKey(key)) continue;
+                            sentTaskNotifications.Add(key,fresh.CheckedUtc);
                             tray.ShowBalloonTip(5500, "Codex · " + current.PhaseLabel,
                                 current.Workspace + " · " + current.Duration(DateTimeOffset.UtcNow),
                                 current.Phase == LiveTaskPhase.Failed ? ToolTipIcon.Error : ToolTipIcon.Info);
                         }
-                        if (sentTaskNotifications.Count > 256) sentTaskNotifications.Clear();
                     }
+                    foreach (string key in sentTaskNotifications.Where(pair => fresh.CheckedUtc-pair.Value > TimeSpan.FromMinutes(10)).Select(pair => pair.Key).ToArray())
+                        sentTaskNotifications.Remove(key);
                     taskReport = fresh;
                     UpdateTaskBadge();
                     // Same confirmed-event rules as notifications, independent of alert opt-in.
                     // No replay on startup, missing logs, stale scans or repeated terminals.
                     foreach (LiveTask terminal in TaskNotificationRules.NewTerminals(previousTasks, fresh))
-                        if (terminal.Phase == LiveTaskPhase.Completed &&
-                            fresh.DisplayAt(DateTimeOffset.UtcNow).Primary == terminal)
-                            taskGlyph.ConfirmCompletion(terminal.SessionKey + ":" + terminal.StartedUtc.ToUnixTimeMilliseconds());
+                        if (terminal.Phase == LiveTaskPhase.Completed) taskDeck.ConfirmCompletion(terminal);
                     UpdateTaskMotion();
                 }); }
                 catch (InvalidOperationException) { }
@@ -1228,68 +1170,8 @@ namespace ShinoCodexMonitor
 
         private void UpdateTaskSurface(DateTimeOffset now)
         {
-            TaskDisplay display = taskReport == null ? new TaskDisplay() : taskReport.DisplayAt(now);
-            LiveTask task = display.Primary;
-            // These icons describe the OBSERVED local rollout, never all Codex Desktop tasks.
-            LiveTaskPhase phase = task == null ? LiveTaskPhase.Unknown :
-                display.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
-                display.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
-                task.Phase;
-            bool readingAvailable = taskReport != null && taskReport.CheckedUtc != DateTimeOffset.MinValue;
-            double readingAge = readingAvailable ? (now - taskReport.CheckedUtc).TotalSeconds : double.MaxValue;
-            bool readingFresh = readingAge >= -5 && readingAge <= 25;
-            taskGlyph.SetObservation(phase, readingFresh, !readingAvailable);
-            if (task == null)
-            {
-                taskName.Text = taskReport == null ? "Scanning local events…" :
-                    "Current Codex status unavailable";
-                taskBadge.Text = !readingAvailable ? "UNAVAILABLE" : !readingFresh ? "STALE" : "UNVERIFIED";
-                taskMeta.Text = "No active task confirmed in local logs";
-                if (display.LastTerminal != null)
-                {
-                    LiveTask last = display.LastTerminal;
-                    taskExtra.Text = "Last local turn: " + last.Workspace + " · " +
-                        (last.Phase == LiveTaskPhase.Completed ? "completed" :
-                            last.Phase == LiveTaskPhase.Failed ? "failed" : "interrupted") +
-                        " at " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
-                }
-                else
-                    taskExtra.Text = taskReport == null ? "Waiting for first reading" :
-                        display.Detail + " · partial source";
-            }
-            else
-            {
-                taskName.Text = task.Workspace == "Project not provided" ?
-                    "Local Codex session" : task.Workspace;
-                string duration = task.Duration(now);
-                taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVED " + duration :
-                    display.Kind == TaskDisplayKind.Uncertain ? "? UNVERIFIED" :
-                    task.Phase == LiveTaskPhase.Completed ? "✓ DONE " + duration :
-                    task.Phase == LiveTaskPhase.Failed ? "× FAILED " + duration : "■ STOP " + duration;
-                taskMeta.Text = "Model: " + task.Model + "   ·   Effort: " + task.Effort;
-                int otherActive = taskReport.ActiveCount -
-                    (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
-                if (display.Kind == TaskDisplayKind.ObservedActive)
-                    taskExtra.Text = "Elapsed: " + duration + " · activity observed in local log; tab unknown" +
-                        (otherActive > 0 ? " · +" + otherActive + " more" : "");
-                else if (display.Kind == TaskDisplayKind.Uncertain)
-                    taskExtra.Text = "Last log activity: " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
-                        " · current status unverified";
-                else
-                    taskExtra.Text = "Last local turn, not the global Codex status · " +
-                        task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
-                        " · " + duration;
-            }
-            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(41, 216, 195) :
-                phase == LiveTaskPhase.Completed ? UiColors.Five :
-                phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
-                phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
-            string description = taskReport == null ? "Local reading incomplete" :
-                display.Detail + " · source: local JSONL files; may not match the active tab";
-            tooltip.SetToolTip(taskDock, description);
-            tooltip.SetToolTip(taskGlyph, description);
-            tooltip.SetToolTip(taskBadge, description);
-            // Stop animation when observation expires, even if no new file arrives.
+            taskDeck.UpdateReport(taskReport,now);
+            tooltip.SetToolTip(taskDock,"Local observed turns · partial JSONL source; not guaranteed Desktop mission state.");
             UpdateTaskMotion();
         }
 
@@ -1422,14 +1304,10 @@ namespace ShinoCodexMonitor
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
-            TaskDisplay taskDisplay = taskReport == null ? new TaskDisplay() :
-                taskReport.DisplayAt(DateTimeOffset.UtcNow);
-            LiveTaskPhase livePhase = taskDisplay.Primary == null ? LiveTaskPhase.Unknown :
-                taskDisplay.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
-                taskDisplay.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
-                taskDisplay.Primary.Phase;
-            int activeTasks = taskDisplay.Kind == TaskDisplayKind.ObservedActive ?
-                taskReport.ActiveCount : 0;
+            List<MissionView> missions=taskDeck.At(DateTimeOffset.UtcNow);
+            int activeTasks=missions.Count(v => v.State == RadarState.Active);
+            LiveTaskPhase livePhase=activeTasks > 0 ? LiveTaskPhase.Active :
+                missions.Any(v => v.State == RadarState.Complete) ? LiveTaskPhase.Completed : LiveTaskPhase.Unknown;
             tray.Text = current && rounded >= 0 ?
                 "CODEX PERISCOPE · " + window + " : " + rounded + "% remaining" :
                 "CODEX PERISCOPE · " + (blocked ? "Usage blocked" : state);

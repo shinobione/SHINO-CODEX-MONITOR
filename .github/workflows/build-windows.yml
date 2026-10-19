@@ -92,6 +92,17 @@ jobs:
           $proc = Start-Process -FilePath $exe -ArgumentList '--premium-performance' -WindowStyle Hidden -Wait -PassThru
           if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Native benchmark did not complete.' }
           Get-Content -LiteralPath $report
+      - name: Measure three-radar performance (synthetic, no live readers)
+        if: hashFiles('src/P0Tests.cs') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin/SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin/P0_PERFORMANCE_REPORT.txt'
+          if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--p0-performance' -WindowStyle Hidden -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'P0 benchmark did not complete.' }
+          Get-Content -LiteralPath $report
       - name: Upload synthetic UI evidence and native reports
         if: always() && hashFiles('src/PremiumTests.cs') != ''
         uses: actions/upload-artifact@v4
@@ -103,6 +114,10 @@ jobs:
             bin/PREMIUM_PERFORMANCE_REPORT.txt
             bin/V4_TEST_REPORT.txt
             bin/V5_TASK_TEST_REPORT.txt
+            bin/p0-qa/*.png
+            bin/P0_TEST_REPORT.txt
+            bin/P0_PROGRESS.txt
+            bin/P0_PERFORMANCE_REPORT.txt
           if-no-files-found: error
           retention-days: 30
       - name: Smoke test actual GitHub Release download (NO INSTALL)

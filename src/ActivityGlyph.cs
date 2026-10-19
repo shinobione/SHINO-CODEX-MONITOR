@@ -31,6 +31,9 @@ namespace ShinoCodexMonitor
         private readonly Stopwatch clock = new Stopwatch();
         private double lastFrame;
         private bool completing;
+        private bool sharedClock, sharedRunning;
+        private double sharedSeconds, completionOrigin;
+        private double AnimationSeconds { get { return sharedClock ? (completing ? Math.Max(0,sharedSeconds-completionOrigin) : sharedSeconds) : clock.Elapsed.TotalSeconds; } }
         private float completionAngle;
         private readonly HashSet<string> completions = new HashSet<string>();
         private Bitmap lens;
@@ -48,8 +51,8 @@ namespace ShinoCodexMonitor
         internal RadarState State { get { return state; } }
         internal bool Completing { get { return completing; } }
         internal bool NeedsFrames { get { return Visible && (state == RadarState.Active || completing); } }
-        internal bool MotionRunning { get { return clock.IsRunning; } }
-        internal double ElapsedSeconds { get { return clock.Elapsed.TotalSeconds; } }
+        internal bool MotionRunning { get { return sharedClock ? sharedRunning : clock.IsRunning; } }
+        internal double ElapsedSeconds { get { return AnimationSeconds; } }
         internal ActivityGlyph()
         {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
@@ -65,7 +68,7 @@ namespace ShinoCodexMonitor
             RadarState mapped = RadarMotion.Map(next,fresh,unavailable);
             if (phase == next && state == mapped) return;
             if (state == RadarState.Active && mapped == RadarState.Complete)
-                completionAngle = RadarMotion.AngleAt(clock.Elapsed.TotalSeconds)-90;
+                completionAngle = RadarMotion.AngleAt(AnimationSeconds)-90;
             phase = next; state = mapped; FinishMotion();
             AccessibleName = "Observed task radar: " + StateLabel;
             Invalidate();
@@ -73,20 +76,28 @@ namespace ShinoCodexMonitor
         internal void ConfirmCompletion(string eventKey)
         {
             if (string.IsNullOrEmpty(eventKey) || !completions.Add(eventKey) || state != RadarState.Complete || !Visible) return;
-            completing = true; clock.Restart(); lastFrame = 0; Invalidate();
+            completing = true;
+            if (sharedClock) completionOrigin=sharedSeconds; else clock.Restart();
+            lastFrame = 0; Invalidate();
+        }
+        internal void SetSharedMotion(bool enabled, double seconds, double phaseOffset)
+        {
+            sharedClock=true; clock.Reset(); sharedSeconds=seconds+phaseOffset;
+            sharedRunning=enabled && NeedsFrames;
+            if (!sharedRunning && completing) FinishMotion();
         }
         internal void SetMotion(bool enabled)
         {
             if (enabled && NeedsFrames) { if (!clock.IsRunning) { clock.Restart(); lastFrame = 0; } }
             else { if (clock.IsRunning || completing) FinishMotion(); }
         }
-        internal void FinishMotion() { completing = false; clock.Reset(); lastFrame = 0; Invalidate(); }
+        internal void FinishMotion() { completing = false; sharedRunning=false; clock.Reset(); lastFrame = 0; Invalidate(); }
         internal void Advance()
         {
-            if (!NeedsFrames || !clock.IsRunning) return;
-            double seconds = clock.Elapsed.TotalSeconds;
+            if (!NeedsFrames || !MotionRunning) return;
+            double seconds = AnimationSeconds;
             // Timer starvation / sleep resumes a new visual epoch, never a giant angular jump.
-            if (seconds-lastFrame > .5) { if (completing) { FinishMotion(); return; } clock.Restart(); seconds = 0; }
+            if (!sharedClock && seconds-lastFrame > .5) { if (completing) { FinishMotion(); return; } clock.Restart(); seconds = 0; }
             if (completing && seconds >= .9) { FinishMotion(); return; }
             lastFrame = seconds; Invalidate();
         }
@@ -132,7 +143,7 @@ namespace ShinoCodexMonitor
             g.DrawImageUnscaled(lens,0,0);
             float cx = Width/2f, cy = Height/2f, radius = side * .41f;
             RectangleF ring = new RectangleF(cx-radius,cy-radius,radius*2,radius*2);
-            double seconds = clock.Elapsed.TotalSeconds;
+            double seconds = AnimationSeconds;
             if (state == RadarState.Active || completing) {
                 float angle = completing ? completionAngle : RadarMotion.AngleAt(seconds)-90;
                 float fade = completing ? (float)Math.Max(0,1-seconds/.55) : 1;

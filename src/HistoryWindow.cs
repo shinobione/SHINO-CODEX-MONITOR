@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace ShinoCodexMonitor
 {
-    internal sealed class HistoryWindow : Form
+    internal sealed class HistoryWindow : PeriscopeWindow
     {
         private readonly HistoryCanvas canvas = new HistoryCanvas();
         private readonly Label metadata = new Label(), footer = new Label();
@@ -28,7 +28,6 @@ namespace ShinoCodexMonitor
         {
             data = source; fixtureNow = now;
             Text = "Quota History — CODEX PERISCOPE";
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
             AutoScaleMode = AutoScaleMode.Dpi;
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(920, 620); MinimumSize = new Size(620, 460);
