@@ -1,6 +1,11 @@
 ﻿$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $root = $PSScriptRoot
+# Guard against presenting a V5.1 candidate as the published V5.0 installer.
+$assemblyText = [IO.File]::ReadAllText((Join-Path $root 'src\AssemblyInfo.cs'))
+if (!$assemblyText.Contains('AssemblyVersion("5.0.0.0")')) {
+    throw 'Ce builder est reserve a V5.0. Pour la candidate V5.1 utilisez BUILD-PREVIEW-V5.1.bat.'
+}
 $output = Join-Path $root 'dist'
 $bin = Join-Path $root 'bin'
 $staging = Join-Path $output 'SHINO_CODEX_MONITOR_V5_0_WINDOWS'
