@@ -1,74 +1,69 @@
-# SHINO // CODEX MONITOR
+# CODEX PERISCOPE
 
-**V5.1.0 — Windows (Release stable)**
+**An independent Windows radar for Codex quotas and task activity.** All UI text, menus, installers, alerts, history and diagnostics are **English-only**, regardless of Windows display language.
 
-Application native C# WinForms, sans Electron ni serveur, qui présente les **quotas Codex liés à l'abonnement ChatGPT** et une observation locale des tours Codex. Ce n'est ni le quota du chat classique ni celui de l'API payante.
+**Version in development:** `5.2.0-preview.1` · **Stable published version:** [SHINO Codex Monitor v5.1.0](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0). Codex Periscope is a rebrand of that same application, not a new cloud service.
 
-[**Télécharger la dernière Release Windows**](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/latest) · [ROADMAP](ROADMAP.md) · [CHANGELOG](CHANGELOG.md) · [Notes V5.1](RELEASE-NOTES-V5.1.md)
+> Independent community utility, **not affiliated with or endorsed by OpenAI**. It reads **Codex limits on a ChatGPT account**, not classic ChatGPT chat limits or OpenAI API spending.
 
-## Fonctionnalités
+## Features
 
-- **Quota 5 h et 7 jours** : pourcentage **restant**, heure/délai de reset réellement exposé, source et horodatage du dernier relevé. Pas de quota, fenêtre ni reset inventé.
-- **Widget tout-en-un** : activité Codex intégrée sous les jauges. Roue violette pendant un tour **local observé**, coche verte seulement après événement de fin confirmé, gris `NON VÉRIFIÉ` si les preuves ne suffisent pas. Durée, modèle et effort uniquement si communiqués par la source.
-- **Affichage Windows** : 4 dispositions (Circulaire, Vertical, Compact, Micro), tray, option de barre des tâches, multi-écran, redimensionnement, palettes, opacité, historique local.
-- **Notifications** : alertes de quotas et de fin de tour indépendantes ; test manuel dans le menu. L'envoi d'une bulle n'assure pas son affichage par Windows.
-- **Sobriété/confidentialité** : aucun appel payant à un modèle IA, pas de mot de passe à saisir, pas de récupération des cookies ou jetons, stockage local des préférences et historique.
+- **Quota radar:** remaining quota, 5-hour and weekly windows only when exposed, next reset, last update, confidence and source status.
+- **Local Codex activity:** animated rotating radar beam while a user turn is observed, green confirmation after its recorded completion, elapsed duration, model and effort when provided. No invented progress percentage.
+- **Native Windows:** lightweight C# WinForms, a tray icon, an optional taskbar entry, pinning, opacity, four layouts, support for multiple displays and display scaling.
+- **Notifications:** configurable quota alerts, completed-turn alerts, Windows notification test. Delivery still depends on Windows settings.
+- **Privacy:** no cookies, token extraction, ChatGPT password prompt, background server or paid inference call.
 
-## Installation et mise à jour de V5.1.0
+### Important telemetry distinction
 
-1. Télécharger **`SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip`** depuis la [Release V5.1.0](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0).
-2. Quitter complètement une version déjà ouverte depuis le Tray.
-3. Extraire le ZIP, puis lancer **`INSTALLER-V5.1.bat`**. Droits administrateur non nécessaires.
-4. L'installateur vérifie l'intégrité SHA-256 du binaire, son numéro de version, lance **98 tests C# du programme** et **46 tests C# des tours Codex** avant installation, conserve les préférences/historique et sauvegarde l'ancien EXE pour retour arrière en cas d'échec.
-
-Le widget est installé sous `%LOCALAPPDATA%\Programs\SHINO Codex Monitor`. Son icône Windows est incluse dans l'exécutable. Vous pouvez aussi **Vérifier les mises à jour** depuis le menu Application : seules les Releases GitHub stables sont proposées, avec vérification du digest `sha256:` exposé par GitHub, du ZIP et du binaire avant l'installation assistée. Aucune mise à jour automatique sans accord.
-
-**Sécurité :** le binaire n'est **pas signé**. Le manifeste SHA-256 est une vérification d'intégrité, pas une preuve d'authenticité de l'éditeur. Ne désactivez pas Defender ou SmartScreen.
-
-## Comprendre les sources
-
-| Donnée | Provenance | Validité |
+| Metric | Source | Confidence |
 |---|---|---|
-| Quotas Codex | CLI Codex déjà authentifié, `account/rateLimits/read` | Relevé direct, daté et marqué périmé quand nécessaire |
-| Activité Codex | Fichiers de sessions JSONL locales | **Observation indicative, interface non documentée** |
+| ChatGPT Codex quotas | Authenticated Codex CLI `account/rateLimits/read` | Source timestamped and marked stale when necessary |
+| Current turn activity | Local Codex JSONL session files | **Indicative**, undocumented format; not guaranteed to track the active Desktop tab |
+| Model / reasoning effort | Local turn metadata when exposed | Explicitly not provided if missing |
+| Finished turn duration | Verified start/end timestamps or consistent `duration_ms` | Only applies to the identified local user turn |
 
-L'activité essaie d'isoler le **tour utilisateur principal** et non les petits tours des sous-agents ; `task_started`, `task_complete` et `duration_ms` ne sont retenus que s'ils existent et sont cohérents. L'application **ne peut pas garantir** le suivi de l'onglet Codex Desktop affiché. Si les événements ne sont pas accessibles, elle doit annoncer `NON VÉRIFIÉ`, jamais déduire d'un journal silencieux que Codex a terminé.
+**No record is not an idle signal.** If task telemetry cannot verify activity, Codex Periscope says **UNVERIFIED**, never falsely reports a finished active task.
 
-Le CLI doit être installé et authentifié sur **le même compte ChatGPT** que le tableau officiel. Aucune clé API n'est nécessaire. Le moniteur est communautaire et non affilié à OpenAI.
+## V5.2 preview (Windows)
 
-## Menus
+On [the V5.2 pull request](https://github.com/shinobione/SHINO-CODEX-MONITOR/pulls), open the latest successful Windows preview workflow and download `CODEX_PERISCOPE_V5_2_PREVIEW_WINDOWS.zip`.
 
-| Groupe | Commandes |
+1. Exit the old SHINO Codex Monitor from the tray.
+2. Extract the ZIP and run `CODEX-PERISCOPE.exe` directly. No admin rights.
+3. Check the embedded **5.2.0 PREVIEW** version, Codex quota freshness, radar animation, windows/taskbar icon, and English menus.
+4. For an installation test, run `INSTALLER-V5.2.bat`. It verifies SHA-256 and runs the program's 98 core plus 46 task tests before installing. The installer is **not** run automatically.
+5. For removal, use Windows Installed Apps or `UNINSTALL-V5.2.ps1` and type **YES**. Local settings and quota history are preserved.
+
+**Build locally (Windows):** `BUILD-PREVIEW-V5.2.bat`. This creates the portable archive and runs installer `-ValidateOnly` (no installation).
+
+**Unsigned preview.** SHA-256 verifies contents, not publisher identity. Do not disable Windows Defender or SmartScreen to run it.
+
+## Upgrade compatibility: formerly SHINO // CODEX MONITOR
+
+To protect existing V5.1 installations, the new installer keeps the internal legacy application directory and local data folder:
+`%LOCALAPPDATA%\Programs\SHINO Codex Monitor` and `%LOCALAPPDATA%\SHINO-CODEX-MONITOR`.
+Those are **backward-compatible internal paths**, not the public branding. The displayed product, Windows shortcut, tray label, taskbar icon and new executable use **Codex Periscope**.
+
+Windows autostart stays optional. If a legacy entry is detected, the installer prompts before migrating it. The widget also offers explicit, reviewed migration on the **Start with Windows** option; it never silently edits an unknown startup entry. The Windows single-instance mutex is retained to prevent two monitor instances.
+
+The GitHub repository and current stable Release channel retain their original URL during the migration. V5.2 is **not published** until its real Windows and update-path tests are confirmed.
+
+## English menus
+
+| Menu | Purpose |
 |---|---|
-| Actions rapides | Afficher/masquer, actualiser les quotas |
-| **Activité Codex (locale)** | Actualiser l'activité, diagnostic expurgé, résumé des sources |
-| **Quotas & données** | Tableau officiel, état des données, resets, fréquence |
-| **Apparence** | Disposition, taille, palettes, opacité et animation |
-| **Fenêtre** | Épinglage, bords d'écrans, premier plan, barre des tâches |
-| **Notifications** | Interrupteur général, alertes de tâche/quota et notification de test |
-| **Historique** | Consulter et activer/désactiver l'historique |
-| **Application** | Mise à jour stable, démarrage facultatif avec Windows, diagnostics, quitter |
+| Show / hide, Refresh quotas | Quick actions |
+| Codex activity (local) | Refresh, root-thread source detail and sanitized diagnostics |
+| Quotas & data | Official usage dashboard, collection freshness and reset options |
+| Appearance | Gauge layouts, theme, opacity, radar animation and tray icon |
+| Window | Pin, taskbar visibility, always on top and screen edge snapping |
+| Notifications | Quota thresholds, task completion, Windows notification test |
+| History | View stored real quota samples |
+| Application | Stable update check, optional Windows startup, support diagnostics, exit |
 
-## Compiler et tester depuis GitHub
+## Troubleshooting and remaining limitations
 
-Sur Windows, depuis la branche stable `main` :
+No quotas? Verify that the Codex CLI is installed and logged into the **same ChatGPT account** as the dashboard. No task activity? Check the sanitized local diagnostic; Codex Desktop may not persist all turns in the local JSONL source. No notifications? Check Windows notifications and Do not disturb. No taskbar icon? Toggle Window → Show in taskbar and refresh any pinned shortcut.
 
-```powershell
-.\BUILD-RELEASE-V5.1.ps1
-```
-
-L'archive produite est `dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip`. Ce script compile le programme avec l'icône Windows, valide les **98 + 46 autotests**, construit le ZIP et exécute **l'installateur en mode `-ValidateOnly`**. Il ne modifie pas l'application installée.
-
-Audits du code : `python -m unittest discover -s tests -p "test_*.py"`. La CI Windows est la preuve de compilation et de tests automatisés, pas une simulation d'accès à un compte Codex. Le workflow de publication est verrouillé sur la branche `main` et publie la Release `v5.1.0` une seule fois.
-
-## Désinstallation et dépannage
-
-Désinstaller via Applications installées ou le raccourci Démarrer. La désinstallation demande confirmation et préserve par défaut `settings.json` et `history.jsonl` sous `%LOCALAPPDATA%\SHINO-CODEX-MONITOR`.
-
-- **Pas de quota :** vérifier le CLI Codex et `Quotas & données → État des données Codex`.
-- **Activité grise/non vérifiée :** consulter `Activité Codex (locale) → Copier le diagnostic des tours` ; la source JSONL peut être insuffisante.
-- **Notification absente :** vérifier `Notifications`, puis Paramètres Windows / Ne pas déranger.
-- **Pas d'icône dans la barre des tâches :** `Fenêtre → Épingler` et `Afficher dans la barre des tâches`.
-- **Installation refusée :** fermer toutes les instances du widget ; consulter le diagnostic de l'installateur, ne pas contourner la protection Windows.
-
-Voir [ROADMAP.md](ROADMAP.md) pour les améliorations proposées et limites. Licence de réutilisation non attribuée : dépôt public ne signifie pas automatiquement logiciel open source.
+For a tested release, requirements and open tasks see [ROADMAP.md](ROADMAP.md). The [CHANGELOG.md](CHANGELOG.md) describes preview changes. Historical stable documentation is available in the [v5.1.0 tag](https://github.com/shinobione/SHINO-CODEX-MONITOR/tree/v5.1.0).
