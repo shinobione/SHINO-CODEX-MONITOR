@@ -1,111 +1,43 @@
-SHINO // CODEX MONITOR — DOCUMENTATION FR
-=============================================
-Sur cette branche : V5.1.0-preview.1 (PR #11, pas de Release).
-Version STABLE publiée : V5.0.0.
+SHINO // CODEX MONITOR V5.1.0 — RELEASE STABLE WINDOWS
+===========================================================
+Dossier stable : https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0
 
-La candidate V5.1 doit etre testee SANS installer : utiliser
-BUILD-PREVIEW-V5.1.bat, puis le ZIP portable
-dist\SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip.
-Ne pas lancer INSTALLER-V5.0 avec le binaire V5.1.
-Clic droit Tray > Activite Codex (locale) pour rafraichir ou copier
-un diagnostic anonymise, Apparence pour activer l'animation,
-Notifications pour les alertes et le test de bulle Windows.
-Pas de statut Codex Desktop global garanti : journaux locaux
-non documentes, interruptions/absence de source explicitement affichees.
-Roadmap : ROADMAP.md. Details : README.md / README-PREVIEW-V5.1.txt.
+INSTALLER LA V5.1
+1. Telecharger SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip depuis Releases.
+2. Quitter completement SHINO // CODEX MONITOR depuis le Tray Windows.
+3. Decompresser, puis lancer INSTALLER-V5.1.bat (sans admin).
+4. Le script verifie SHA-256 et la version 5.1.0, execute 98 tests
+   du programme et 46 tests du moniteur de taches avant installation.
+5. Les preferences/history sont preservees, backup du binaire precedent.
 
--------------------------------------------------------------------
-CI-DESSOUS : NOTICE HISTORIQUE DE LA RELEASE STABLE V5.0.0
--------------------------------------------------------------------
+FONCTIONS
+Deux quotas Codex restants (5 h, 7 j) et reset lorsque exposes.
+Une seule fenetre : roue d'activite locale violette si un tour principal
+est observe, coche verte a sa fin confirmee, gris NON VERIFIE si le
+journal ne permet pas de conclure. Durée, modèle et effort quand presents.
+Apparence configurable ; Tray et barre des taches ; notifications opt-in.
 
-SHINO // CODEX MONITOR V5.0.0 — DATA TRUST & HEALTH
-===================================================================
-Release publique V5.0.0 ; versions V4.8 et V4.9 integrees.
-92/92 tests Python et 98/98 autotests Windows C# PASS en CI.
+LIMITES
+Quotas : CLI Codex authentifie, account/rateLimits/read.
+Taches : sessions JSONL locales non documentees. Une session silencieuse
+n'est PAS necessairement inactive. Il n'existe pas de preuve de
+correspondance systematique avec l'onglet Codex Desktop affiche.
+Pas de jeton, mot de passe ou cookie recupere.
 
-OBJECTIF
-Widget Windows local pour les quotas Codex ChatGPT, et non les quotas
-du chat classique ou de l'API facturee. Aucune cle API demandee.
+APRES INSTALLATION
+Clic droit Tray > Activite Codex (locale) > Copier le diagnostic
+des tours (sans donnees privees) pour investiguer toute incoherence.
+Pour Windows Notifications : tester depuis Notifications dans le menu.
 
-INSTALLATION / BUILD (sources V5.0)
-- Sur Windows 10/11 : BUILD-RELEASE-V5.0.bat.
-- Verifier les 98 autotests Windows avant toute installation.
-- Quitter completement le widget actuellement installe.
-- Installer depuis dist\SHINO_CODEX_MONITOR_V5_0_WINDOWS\INSTALLER-V5.0.bat
-  ou utiliser PREPARER-ET-INSTALLER-V5.0.bat (build, tests et installation).
-- Pas de droits administrateur.
-- Les preferences et l'historique local sont conserves.
-- Si Chrome/Windows bloque un executable non signe, ne desactivez pas
-  les protections ; privilégiez une compilation locale des sources inspectees.
+BUILD SOURCE
+BUILD-RELEASE-V5.1.bat ou BUILD-RELEASE-V5.1.ps1.
+ZIP attendu : dist\SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip.
+Le script peut valider l'installateur sans aucune installation.
 
-FONCTIONNALITES V5.0
-- Widget epingle : poignée en bas a droite pour agrandir/reduire les roues.
-  Largeur autorisee 470-720 px. Modes Vertical, Compact et Micro inchanges.
-- Clic droit > Apparence > Taille des roues :
-  Petit 480 px / Standard 540 px / Grand 620 px / Tres grand 700 px.
-- Fenetre > Aimantation aux bords des ecrans : facultative, desactivee
-  par defaut, active a proximite des bords lors d'un deplacement.
-- Apparence > Opacite : 70, 75, 80, 85, 90, 95, 96, 98 ou 100 %.
-- Notifications : activer independamment 5 h et 7 jours,
-  puis les seuils et alertes reset deja disponibles.
-- Pourcentage central = quota RESTANT, jamais le pourcentage consomme.
-- Couleurs de quota restant :
-  76-100 violet, 51-75 turquoise, 26-50 jaune dore,
-  11-25 orange, 0-10 rouge.
-- Reset affiche seulement si Codex fournit un horodatage valide ;
-  usage bloque, anciennete et erreurs de source explicitement signales.
+DESINSTALLER
+Applications installees > SHINO // CODEX MONITOR, ou raccourci
+Desinstaller dans le menu Demarrer ; confirmer avec OUI.
+Les donnees locales settings.json/history.jsonl restent par defaut.
 
-CONFIDENTIALITE
-- Codex CLI doit deja etre authentifie avec votre compte ChatGPT.
-- Pas de lecture/copie de cookie, mot de passe ou fichier auth.json.
-- Stockage : %LOCALAPPDATA%\SHINO-CODEX-MONITOR
-- Aucun autostart cree sans selection explicite.
-
-DESINSTALLATION
-Menu Demarrer > Desinstaller SHINO Codex Monitor, confirmation OUI.
-Historique et preferences locaux conserves par defaut.
-
-DEPANNAGE
-- Clic droit tray > Diagnostic : verifier source, relevé valide, erreur.
-- Si la jauge est grise, regarder l'etat/fraicheur (pas de simulation).
-- En cas d'absence du CLI, verifier son installation et sa connexion.
-- Le binaire est non signe. Le SHA-256 verifie l'integrite, pas l'editeur.
-
-STATUT
-V5.0.0 publiee. Fonctionnement general confirme par utilisateur Windows.
-DPI multiples, reprise veille, cas quota bloque a 0 %, update depuis V4.7.2
-et avertissements SmartScreen/Chrome restent a verifier specifiquement.
-
-MENU TRAY V5.0 - ORGANISATION
-- Afficher/masquer et Actualiser maintenant : directement accessibles.
-- Quotas & donnees : Tableau officiel, Reinitialisations, Frequence.
-- Apparence : Disposition, Taille des roues, Opacite, Couleur du fond,
-  Couleurs des jauges, Tray Icon (anneau + pourcentage ou anneau seul).
-- Fenetre : Epingler, Aimantation multi-ecran, Toujours au-dessus,
-  Afficher dans la barre des taches.
-- Notifications : marche/arret, fenetres 5 h / 7 jours, seuils et resets.
-- Historique : consulter, activer l'enregistrement, ouvrir le dossier.
-- Application : Mise a jour, Releases GitHub, Demarrer avec Windows,
-  Diagnostic et copier diagnostic.
-- Quitter completement : directement accessible en bas du menu.
-- L'aimantation et les options d'epingle sont disponibles seulement lorsque
-  leur effet est pertinent. Aucun reglage n'est active automatiquement.
-
-NOUVEAUTE V5.0
-- Ancienne position sous un ecran debranche : retour a la zone visible du
-  moniteur Windows le plus proche, sans reinitialiser les preferences.
-- Version initiale Tray Icon synchronisee avec la version de l'executable.
-- Quatre autotests C# nouveaux (92 attendus) et cinq tests Python nouveaux.
-- Les fonctions V4.8 (roues, aimantation, menu trie) restent incluses.
-- Corrections V4.9 integrees a la Release publique V5.0.0.
-Evolutions suivantes suivies dans issue GitHub #9.
-
-V5.0 - ETAT DES DONNEES CODEX
-- Menu : Quotas & donnees > Etat des donnees Codex.
-- Rapport local : provenance, fraicheur, dernier releve, erreurs, prochain essai,
-  5 heures, 7 jours, resets reels et statut d'usage bloque.
-- Les fenetres manquantes ne sont pas simulees ; donnees anciennes indiquees.
-- Interface pour le moment : boite de dialogue WinForms, non une page dediee.
-- Sources Codex CLI et compte ChatGPT inchanges. Aucun secret lu.
-- Tester le rendu Windows, l'horodatage, la veille et le parcours d'update.
-- Fonction disponible dans V5.0.0 ; suite suivie dans issue GitHub #9.
+NON SIGNE. Ne jamais desactiver Defender/SmartScreen.
+Projet communautaire non officiel. Details dans README.md, ROADMAP.md.
