@@ -77,7 +77,7 @@ class ContextMenuRefactorTests(unittest.TestCase):
         self.assertIn('Menu(tasksMenu, "Copy privacy-safe task diagnostics', MENU)
         self.assertIn("settings.Alerts = ((ToolStripMenuItem)sender).Checked;", MENU)
         self.assertIn("child.Enabled = settings.Alerts;", MENU)
-        for text in ("Window 5 heures", "Window 7 jours", "Threshold 50 %",
+        for text in ("5-hour window", "Weekly window", "Threshold 50 %",
                      "Threshold 25 %", "Threshold 10 %", "Reset observed"):
             self.assertIn(f'AddAlertToggle(alerts, "{text}"', MENU)
 
