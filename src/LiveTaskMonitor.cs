@@ -53,6 +53,18 @@ namespace ShinoCodexMonitor
         }
     }
 
+    internal enum TaskDisplayKind { ObservedActive, Uncertain, RecentTerminal, NotVerified }
+
+    // Presentation is a SEPARATE projection. A completed local turn does not
+    // indicate that the currently selected Codex Desktop thread is finished.
+    internal sealed class TaskDisplay
+    {
+        internal TaskDisplayKind Kind = TaskDisplayKind.NotVerified;
+        internal LiveTask Primary;
+        internal LiveTask LastTerminal;
+        internal string Detail = "Aucune activité actuelle vérifiable";
+    }
+
     internal sealed class LiveTaskReport
     {
         internal readonly List<LiveTask> Tasks = new List<LiveTask>();
@@ -63,10 +75,74 @@ namespace ShinoCodexMonitor
         {
             get
             {
+                // Legacy raw reporting only; NEVER use as current-status evidence.
                 return Tasks.OrderBy(t => t.Phase == LiveTaskPhase.Active ? 0 :
                     t.Phase == LiveTaskPhase.Unconfirmed ? 1 : 2)
                     .ThenByDescending(t => t.FinishedUtc ?? t.StartedUtc).FirstOrDefault();
             }
+        }
+
+        internal TaskDisplay DisplayAt(DateTimeOffset now)
+        {
+            TaskDisplay display = new TaskDisplay();
+            // Do not silently keep presenting a cached green check / active wheel
+            // when the observer has stopped producing valid snapshots.
+            double scanAge = (now - CheckedUtc).TotalSeconds;
+            if (CheckedUtc == DateTimeOffset.MinValue || scanAge < -5 || scanAge > 25)
+            {
+                display.Detail = "Relevé des tâches ancien ou indisponible";
+                return display;
+            }
+
+            display.LastTerminal = Tasks.Where(t =>
+                (t.Phase == LiveTaskPhase.Completed || t.Phase == LiveTaskPhase.Failed ||
+                    t.Phase == LiveTaskPhase.Interrupted) &&
+                t.FinishedUtc.HasValue && t.FinishedUtc.Value <= now.AddSeconds(5))
+                .OrderByDescending(t => t.FinishedUtc.Value).FirstOrDefault();
+
+            LiveTask active = Tasks.Where(t => t.Phase == LiveTaskPhase.Active &&
+                t.StartedUtc <= now.AddSeconds(5) &&
+                (now - t.LastWriteUtc).TotalSeconds >= -5 &&
+                (now - t.LastWriteUtc).TotalSeconds <= LiveTaskReader.ActivityMaxAgeSeconds)
+                .OrderByDescending(t => t.StartedUtc).FirstOrDefault();
+            if (active != null)
+            {
+                display.Primary = active;
+                display.Kind = TaskDisplayKind.ObservedActive;
+                display.Detail = "Événement de début local · activité récente";
+                return display;
+            }
+
+            LiveTask uncertain = Tasks.Where(t => t.Phase == LiveTaskPhase.Unconfirmed &&
+                t.StartedUtc <= now.AddSeconds(5) &&
+                (now - t.LastWriteUtc).TotalMinutes <= 30 &&
+                (now - t.LastWriteUtc).TotalSeconds >= -5)
+                .OrderByDescending(t => t.StartedUtc).FirstOrDefault();
+            if (uncertain != null)
+            {
+                display.Primary = uncertain;
+                display.Kind = TaskDisplayKind.Uncertain;
+                display.Detail = "Début enregistré, mais activité non vérifiable";
+                return display;
+            }
+
+            // Briefly show the most recently CONFIRMED terminal event, but label it
+            // as a *past local turn*, not the current Codex application state.
+            if (display.LastTerminal != null)
+            {
+                double elapsed = (now - display.LastTerminal.FinishedUtc.Value).TotalSeconds;
+                if (elapsed >= -5 && elapsed <= 30)
+                {
+                    display.Primary = display.LastTerminal;
+                    display.Kind = TaskDisplayKind.RecentTerminal;
+                    display.Detail = "Dernier tour local terminé, pas l'état global de Codex";
+                    return display;
+                }
+                display.Detail = "Dernier tour enregistré : terminé ; activité actuelle inconnue";
+            }
+            else
+                display.Detail = "Aucune exécution active confirmée dans les journaux";
+            return display;
         }
     }
 
