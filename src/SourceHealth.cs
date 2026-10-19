@@ -13,7 +13,7 @@ namespace ShinoCodexMonitor
             if (window == null) return label + " : Window not available";
             int percentage = (int)Math.Round(window.Remaining, MidpointRounding.AwayFromZero);
             percentage = Math.Max(0, Math.Min(100, percentage));
-            string line = label + " : " + percentage + " % restants";
+            string line = label + " : " + percentage + " % remaining";
             if (!current) return line + " (stale data · reset unverified)";
             if (!window.ResetUtc.HasValue) return line + " · Reset not provided";
             if (window.ResetUtc.Value <= nowUtc) return line + " · Reset due · checking…";
@@ -28,9 +28,9 @@ namespace ShinoCodexMonitor
             report.AppendLine("SOURCE AND FRESHNESS");
             report.AppendLine("Origine : Codex CLI / account/rateLimits/read");
             report.AppendLine("Statut : " + (string.IsNullOrEmpty(state) ? "Unavailable" : state));
-            report.AppendLine("Dernier reading valide : " +
+            report.AppendLine("Last valid reading: " +
                 (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime()
-                    .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture) : "Aucun"));
+                    .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture) : "None"));
             if (lastSuccess.HasValue)
             {
                 double seconds = (nowUtc - lastSuccess.Value).TotalSeconds;
@@ -51,8 +51,8 @@ namespace ShinoCodexMonitor
             bool current = state == "Direct";
             if (snapshot != null && snapshot.UsageAllowed == false && current)
                 report.AppendLine("⚠ Codex reports standard usage blocked");
-            report.AppendLine(WindowLine("5 heures", snapshot == null ? null : snapshot.Five, current, nowUtc));
-            report.AppendLine(WindowLine("7 jours", snapshot == null ? null : snapshot.Week, current, nowUtc));
+            report.AppendLine(WindowLine("5 hours", snapshot == null ? null : snapshot.Five, current, nowUtc));
+            report.AppendLine(WindowLine("7 days", snapshot == null ? null : snapshot.Week, current, nowUtc));
             report.AppendLine();
             report.AppendLine("Stale readings are not current quotas.");
             report.Append("Ce rapport n’utilise ni cookies, ni jetons, ni API payante.");
