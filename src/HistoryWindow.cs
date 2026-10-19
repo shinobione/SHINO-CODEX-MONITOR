@@ -108,7 +108,7 @@ namespace ShinoCodexMonitor
                 using (SolidBrush week = new SolidBrush(UiColors.Week))
                 {
                     g.DrawString("━  5 h", font, five, left, Height - 34);
-                    g.DrawString("━  7 jours", font, week, left + 85, Height - 34);
+                    g.DrawString("━  7 days", font, week, left + 85, Height - 34);
                 }
                 g.DrawString(count + " reading" + (count > 1 ? "s" : ""), font, muted,
                     Math.Max(left + 155, right - 100), Height - 34);
