@@ -77,6 +77,9 @@ namespace ShinoCodexMonitor
         internal readonly List<LiveTask> Tasks = new List<LiveTask>();
         internal string Message = "Aucune session Codex locale récente";
         internal DateTimeOffset CheckedUtc;
+        internal int ExaminedRoots;
+        internal int IgnoredSubagents;
+        internal int UnknownOrigins;
         internal int ActiveCount { get { return Tasks.Count(t => t.Phase == LiveTaskPhase.Active); } }
         internal LiveTask Featured
         {
@@ -87,6 +90,38 @@ namespace ShinoCodexMonitor
                     t.Phase == LiveTaskPhase.Unconfirmed ? 1 : 2)
                     .ThenByDescending(t => t.FinishedUtc ?? t.StartedUtc).FirstOrDefault();
             }
+        }
+
+        internal string RedactedDiagnostics(DateTimeOffset now)
+        {
+            StringBuilder text = new StringBuilder();
+            text.AppendLine("SHINO // CODEX V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
+            text.AppendLine("Relevé (UTC) : " +
+                (CheckedUtc == DateTimeOffset.MinValue ? "aucun" :
+                    CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
+            text.AppendLine("Racines inspectées : " + ExaminedRoots +
+                " ; enfants ignorés : " + IgnoredSubagents +
+                " ; origines non classées : " + UnknownOrigins);
+            TaskDisplay display = DisplayAt(now);
+            text.AppendLine("État observé : " + display.Kind + " ; " + display.Detail);
+            int i = 0;
+            foreach (LiveTask task in Tasks.OrderByDescending(t => t.StartedUtc).Take(6))
+            {
+                // No session UUID, full path, cwd, user message, command or token.
+                text.AppendLine("Tour #" + (++i) + " : " +
+                    task.Phase + " ; source=" + task.ThreadSource +
+                    " ; démarré (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
+                    " ; terminé (UTC)=" +
+                    (task.FinishedUtc.HasValue ?
+                        task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
+                    " ; durée=" + task.Duration(now) +
+                    " ; durée_ms=" + (task.RecordedDurationMs.HasValue ?
+                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
+                    " ; fraîcheur (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
+            }
+            if (i == 0) text.AppendLine("Aucun tour principal observable.");
+            text.AppendLine("Aucun prompt, chemin, identifiant de session ou secret copié.");
+            return text.ToString();
         }
 
         internal TaskDisplay DisplayAt(DateTimeOffset now)
@@ -293,6 +328,9 @@ namespace ShinoCodexMonitor
                 report.Tasks.Sort(delegate(LiveTask x, LiveTask y) {
                     return y.LastWriteUtc.CompareTo(x.LastWriteUtc);
                 });
+                report.ExaminedRoots = checkedRoots;
+                report.IgnoredSubagents = ignoredChildren;
+                report.UnknownOrigins = unknownHeaders;
                 report.Message = "Tours principaux locaux · " + checkedRoots +
                     " inspecté(s), " + ignoredChildren + " sous-agent(s) ignoré(s)" +
                     (unknownHeaders > 0 ? " · " + unknownHeaders + " source(s) non classée(s)" : "");
