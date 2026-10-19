@@ -179,3 +179,20 @@ signalée par un compteur. Pas de faux pourcentage d'avancement.
   le mutex commun. Ne pas utiliser l'installateur V5.0 de la candidate :
   aucun numéro de Release V5.1 ni test en conditions réelles n'est encore validé.
   Pour revenir à la version stable, quitter le test et relancer la V5.0 installée.
+
+### V5.1 — Diagnostic de notification de fin (test Windows)
+
+Le monitor utilise NotifyIcon.ShowBalloonTip : une demande d'affichage n'est pas
+une preuve que Windows a présenté l'alerte. Dans le menu de l'icône Tray (clic
+droit), choisir **Tâches Codex · LIVE → Tester la notification Windows**.
+Ce test est indépendant des préférences du monitor : s'il ne s'affiche pas,
+vérifier Paramètres Windows → Système → Notifications et Ne pas déranger /
+Assistant de concentration. Un EXE portable sans identité Windows enregistrée
+peut également être limité par Windows.
+
+En usage normal, il faut cocher « Notifications → Activer les notifications »
+ET « Tâches Codex · LIVE → Notifier les tâches terminées ». Seules les tâches
+dont un événement terminal est vérifié après le démarrage déclenchent une alerte.
+Les sessions sans turn_id sont corrélées par nom du fichier de session et
+horodatage initial ; les tâches courtes terminées entre deux sondages peuvent
+aussi être signalées. Pas de replay des anciennes fins après une reprise.
