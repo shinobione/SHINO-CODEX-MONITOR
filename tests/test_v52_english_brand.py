@@ -46,6 +46,16 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertIn('g.DrawLine(stroke, cx, cy', glyph)
         self.assertNotIn('Electron', glyph)
 
+    def test_installer_batch_uses_process_only_execution_policy(self):
+        launcher = (ROOT / 'INSTALL-PERISCOPE-V5.2.bat').read_text(encoding='utf-8')
+        self.assertIn('-NoProfile -ExecutionPolicy Bypass -File', launcher)
+        self.assertIn('%~dp0INSTALL-PERISCOPE-V5.2.ps1', launcher)
+        self.assertIn('%*', launcher)
+        self.assertIn('exit /b %result%', launcher)
+        for unsafe in ('Set-ExecutionPolicy', 'reg add', 'Set-MpPreference',
+                       'powershell.exe -Command Set-ExecutionPolicy'):
+            self.assertNotIn(unsafe, launcher)
+
     def test_installer_and_uninstaller_are_english_only(self):
         for filename in ('INSTALL-PERISCOPE-V5.2.ps1',
                          'UNINSTALL-PERISCOPE-V5.2.ps1','README-EN.txt'):
