@@ -202,6 +202,69 @@ namespace ShinoCodexMonitor
                     TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10), old),
                         Report(Now, done)).Count == 0);
             });
+            Check("Capture réelle : ancien tour FIN ne vaut pas tâche actuelle", delegate {
+                LiveTask done = Parse(Now.AddSeconds(-120), Event("task_started", "old", 130),
+                    Event("task_complete", "old", 120));
+                done.SessionKey = "rollout-old.jsonl";
+                TaskDisplay d = Report(Now, done).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null &&
+                    d.LastTerminal == done);
+            });
+            Check("Fin locale récente seulement 30 s, explicitement historique", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "a", 20),
+                    Event("task_complete", "a", 8));
+                TaskDisplay d = Report(Now, done).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.RecentTerminal && d.Primary == done);
+            });
+            Check("Ancienne coche verte doit expirer sans nouveau relevé", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "a", 20),
+                    Event("task_complete", "a", 8));
+                TaskDisplay d = Report(Now, done).DisplayAt(Now.AddSeconds(31));
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null);
+            });
+            Check("Session active récente prioritaire sur autre session terminée", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "old", 25),
+                    Event("task_complete", "old", 5));
+                LiveTask active = Parse(Now.AddSeconds(-2), Event("task_started", "new", 15));
+                TaskDisplay d = Report(Now, done, active).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.ObservedActive && d.Primary == active &&
+                    d.LastTerminal == done);
+            });
+            Check("Début sans fin fiable : incertain prioritaire sur ancien succès", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "old", 20),
+                    Event("task_complete", "old", 5));
+                LiveTask unconfirmed = Parse(Now.AddSeconds(-100),
+                    Event("task_started", "new", 180));
+                TaskDisplay d = Report(Now, done, unconfirmed).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.Uncertain &&
+                    d.Primary == unconfirmed);
+            });
+            Check("Relevé sans refresh plus de 25 s : plus de statut LIVE", delegate {
+                LiveTask active = Parse(Now, Event("task_started", "run", 10));
+                TaskDisplay d = Report(Now.AddSeconds(-30), active).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null);
+            });
+            Check("Horodatage futur du fichier : aucune activité actuelle prétendue", delegate {
+                LiveTask run = Parse(Now.AddSeconds(5),
+                    Event("task_started", "run", 10));
+                run.LastWriteUtc = Now.AddSeconds(8);
+                TaskDisplay d = Report(Now, run).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null);
+            });
+            Check("Aucun tour présent ne signifie pas Codex inactif", delegate {
+                TaskDisplay d = Report(Now).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null &&
+                    d.LastTerminal == null);
+            });
+            Check("Deux tours terminés anciens : dernière fin n'est pas statut global", delegate {
+                LiveTask old = Parse(Now, Event("task_started", "old", 500),
+                    Event("task_complete", "old", 450));
+                LiveTask newer = Parse(Now, Event("task_started", "new", 300),
+                    Event("task_complete", "new", 180));
+                TaskDisplay d = Report(Now, old, newer).DisplayAt(Now);
+                Assert(d.Kind == TaskDisplayKind.NotVerified && d.Primary == null &&
+                    d.LastTerminal == newer);
+            });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
