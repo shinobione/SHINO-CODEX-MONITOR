@@ -41,7 +41,7 @@ namespace ShinoCodexMonitor
             float penSize = Math.Max(2f, side * .105f);
             RectangleF ring = new RectangleF((Width - side) / 2 + penSize,
                 (Height - side) / 2 + penSize, side - penSize * 2, side - penSize * 2);
-            Color accent = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+            Color accent = phase == LiveTaskPhase.Active ? Color.FromArgb(41, 216, 195) :
                 phase == LiveTaskPhase.Completed ? Color.FromArgb(81, 215, 175) :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? Color.FromArgb(255, 182, 93) :
@@ -52,9 +52,27 @@ namespace ShinoCodexMonitor
                 stroke.EndCap = LineCap.Round;
                 if (phase == LiveTaskPhase.Active)
                 {
-                    using (Pen track = new Pen(Color.FromArgb(41, 57, 76), penSize))
+                    // Real radar dial: two rings and one rotating sweep, never
+                    // a decorative spinner disconnected from the current task.
+                    float cx = Width / 2f, cy = Height / 2f;
+                    using (Pen track = new Pen(Color.FromArgb(53, 102, 118),
+                        Math.Max(1f, penSize * .42f)))
+                    {
                         g.DrawEllipse(track, ring);
-                    g.DrawArc(stroke, ring, -90 + angle, 260);
+                        RectangleF inner = new RectangleF(
+                            cx - ring.Width * .29f, cy - ring.Height * .29f,
+                            ring.Width * .58f, ring.Height * .58f);
+                        g.DrawEllipse(track, inner);
+                        g.DrawLine(track, cx, ring.Top, cx, ring.Bottom);
+                        g.DrawLine(track, ring.Left, cy, ring.Right, cy);
+                    }
+                    float radians = (float)((angle - 90) * Math.PI / 180.0);
+                    float radius = ring.Width * .45f;
+                    g.DrawLine(stroke, cx, cy, cx + (float)Math.Cos(radians) * radius,
+                        cy + (float)Math.Sin(radians) * radius);
+                    using (Brush blip = new SolidBrush(accent))
+                        g.FillEllipse(blip, cx + radius * .45f, cy - radius * .76f,
+                            Math.Max(2f, penSize * .8f), Math.Max(2f, penSize * .8f));
                 }
                 else
                 {
