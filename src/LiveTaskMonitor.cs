@@ -15,7 +15,7 @@ namespace ShinoCodexMonitor
     {
         internal string Id = "";
         internal string SessionKey = ""; // rollout filename only; never path, content or credentials
-        internal string ThreadSource = "Inconnue";
+        internal string ThreadSource = "Unknown";
         internal string Originator = "Not provided";
         internal bool IsSubagent;
         internal bool IsRootConfirmed;
@@ -116,7 +116,7 @@ namespace ShinoCodexMonitor
                         task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
                     " ; duration=" + task.Duration(now) +
                     " ; duration_ms=" + (task.RecordedDurationMs.HasValue ?
-                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
+                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "missing") +
                     " ; freshness (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
             if (i == 0) text.AppendLine("No primary turn observed.");
@@ -443,7 +443,7 @@ namespace ShinoCodexMonitor
                 new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
             string workspace = "Project not provided";
             string originator = "Not provided";
-            string threadSource = "Inconnue";
+            string threadSource = "Unknown";
             bool isSubagent = false;
             bool isRoot = false;
             foreach (string line in lines)
