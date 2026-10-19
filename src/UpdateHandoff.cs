@@ -12,7 +12,7 @@ namespace ShinoCodexMonitor
         internal static void Start(StagedUpdate update)
         {
             if (update == null || update.Asset == null || !File.Exists(update.Installer))
-                throw new InvalidDataException("Installation non preparee.");
+                throw new InvalidDataException("Update installation not prepared.");
             ReleasePackage.VerifyAssetFile(update.Asset, update.Archive);
             string ps1 = Path.Combine(update.Directory, "CONFIRMER-INSTALLATION.ps1");
             string script = @"param([int]$ParentPid, [string]$StagingDir, [string]$ZipName, [string]$Digest, [string]$InstallerName)
@@ -28,10 +28,10 @@ try {
   if (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue) { throw 'Le widget est encore actif. Installation annulee.' }
   Write-Host 'Installation confirmee de SHINO // CODEX MONITOR...' -ForegroundColor Cyan
   & $installer
-  if ($LASTEXITCODE -ne 0) { throw 'Installateur en echec (voir message ci-dessus).' }
+  if ($LASTEXITCODE -ne 0) { throw 'Installer failed (see error above).' }
   Write-Host 'Installation terminee. Le widget a ete relance.' -ForegroundColor Green
   # Retain the staging files for diagnostic/rollback until the user chooses to remove them.
-} catch { Write-Host ('ECHEC : ' + $_.Exception.Message) -ForegroundColor Red; Read-Host 'Appuyer sur Entree'; exit 1 }
+} catch { Write-Host ('ERROR: ' + $_.Exception.Message) -ForegroundColor Red; Read-Host 'Press Enter'; exit 1 }
 ";
             File.WriteAllText(ps1, script, new UTF8Encoding(true));
             string powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
