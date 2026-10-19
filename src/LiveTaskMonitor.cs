@@ -208,6 +208,7 @@ namespace ShinoCodexMonitor
     {
         internal const int ActivityMaxAgeSeconds = 90;
         private const int TailBytes = 524288;
+        private const int ActiveRootFallbackBytes = 16777216; // only freshest root; 16 MiB max
         private const int MaxFiles = 12;
         private const int DiscoveryFiles = 48;
         // Immutable, sanitized metadata only; never keep the original session_meta,
@@ -267,8 +268,16 @@ namespace ShinoCodexMonitor
                         if (threadKind != "user") { unknownHeaders++; continue; }
                         if (++checkedRoots > MaxFiles) break;
                         LiveTask task = ParseLines(
-                            new string[] { sessionMeta }.Concat(ReadTail(info.FullName)),
+                            new string[] { sessionMeta }.Concat(ReadTail(info.FullName, TailBytes)),
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
+                        // A 10+ minute Desktop turn may generate more than 512 KiB
+                        // of JSONL; the start event then falls outside the tail.
+                        // Only expand for the freshest root, never every old file.
+                        if (task == null && checkedRoots == 1 &&
+                            info.LastWriteTimeUtc >= now.UtcDateTime.AddMinutes(-2))
+                            task = ParseLines(new string[] { sessionMeta }.Concat(
+                                ReadTail(info.FullName, ActiveRootFallbackBytes)),
+                                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
                         if (task != null) task.SessionKey = info.Name;
                         if (task != null && !task.IsRootConfirmed) continue;
                         if (task != null && (task.Phase == LiveTaskPhase.Active ||
@@ -362,13 +371,13 @@ namespace ShinoCodexMonitor
             catch (ArgumentException) { return null; }
         }
 
-        private static IEnumerable<string> ReadTail(string path)
+        private static IEnumerable<string> ReadTail(string path, int maxBytes)
         {
             List<string> records = new List<string>();
             using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete))
             {
-                long start = Math.Max(0, stream.Length - TailBytes);
+                long start = Math.Max(0, stream.Length - maxBytes);
                 stream.Seek(start, SeekOrigin.Begin);
                 using (StreamReader reader = new StreamReader(stream, new UTF8Encoding(false), true, 4096))
                 {
