@@ -19,7 +19,7 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 - [x] Identité **5.1.0-preview.1** distincte de V5.0, script de build Preview, aucun installateur V5.0 embarqué.
 - [x] Affichage tout-en-un, statuts explicites, roue vectorielle désactivable, notification configurable, icône de fenêtre.
 - [x] Filtrage des sous-agents quand `thread_source` est présent ; support des tours longs et de `duration_ms` cohérent.
-- [x] Test automatique sur CI Windows (fixtures synthétiques, audits statiques, build natif) — à confirmer pour le **dernier commit**.
+- [x] Test automatique sur CI Windows (fixtures synthétiques, audits statiques, build natif) — dernière vérification : [CI Windows réussie](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39252417243) (101 audits Python, 98 tests C# des quotas, 46 tests C# des tâches).
 - [ ] Sur **le même compte et au même instant**, comparer la valeur des quotas au tableau officiel.
 - [ ] Tester avec **Codex Desktop réellement installé** : 3 commandes utilisateur (courte, >10 min, avec sous-agent), comparer démarrage, fin et durée finale, identifier les cas non observables.
 - [ ] Vérifier l'absence de notifications intempestives ; notification Windows visible ou état dégradé/explication si bloquée.
