@@ -374,6 +374,27 @@ namespace ShinoCodexMonitor
                         System.IO.Directory.Delete(parent, true);
                 }
             });
+            Check("Diagnostic : aucune donnée privée ni ID de thread", delegate {
+                LiveTask t = Parse(Now,
+                    "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\",\"originator\":\"Codex Desktop\",\"cwd\":\"C:/secret/project\"}}",
+                    Event("task_started", "PRIVATE_TURN_ID", 30),
+                    Event("task_complete", "PRIVATE_TURN_ID", 5, ",\"duration_ms\":25000"));
+                t.SessionKey = "PRIVATE_FILE.jsonl";
+                LiveTaskReport r = Report(Now, t);
+                r.ExaminedRoots = 1;
+                string sanitized = r.RedactedDiagnostics(Now);
+                Assert(sanitized.Contains("durée_ms=25000") &&
+                    !sanitized.Contains("PRIVATE_TURN_ID") &&
+                    !sanitized.Contains("PRIVATE_FILE") &&
+                    !sanitized.Contains("C:/secret") &&
+                    !sanitized.Contains("project"));
+            });
+            Check("Diagnostic : aucune session ne signifie pas terminé", delegate {
+                LiveTaskReport r = Report(Now);
+                string diagnostic = r.RedactedDiagnostics(Now);
+                Assert(diagnostic.Contains("NotVerified") &&
+                    diagnostic.Contains("Aucun tour principal observable."));
+            });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
             return report.ToString();
