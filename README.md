@@ -9,6 +9,8 @@
 | **Stable** | [5.1.0](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0) | Published as SHINO // CODEX MONITOR |
 | **Brand preview** | **5.2.0-preview.1** | [Draft PR #14](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/14), not published |
 
+For the V5.2 publication decision, see the [radar, Windows notifications and release acceptance report](RELEASE-GATE-V5.2.md). **Windows CI and GDI+ icon pixel tests have passed; live Windows toast delivery, reboot/autostart, multi-DPI UI and rollback remain field checks.**
+
 ## What the widget shows
 
 - **5-hour and weekly Codex quotas:** remaining percentages, resets only when supplied, timestamp, source status and staleness.
