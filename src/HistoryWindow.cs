@@ -13,7 +13,7 @@ namespace ShinoCodexMonitor
         private readonly Label period;
         internal HistoryWindow(LocalStore store)
         {
-            Text = "CODEX PERISCOPE — History local";
+            Text = "CODEX PERISCOPE — Local history";
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(700, 420);
             MinimumSize = new Size(520, 320);
