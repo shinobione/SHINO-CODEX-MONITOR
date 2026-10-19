@@ -78,25 +78,12 @@ try {
     }
     finally { Remove-Item -LiteralPath $pendingExe -Force -ErrorAction SilentlyContinue }
 
-    # Verify the installed EXE byte-for-byte before any MOTW operation.
-    # Only this already verified local binary may be unblocked; never disable
-    # SmartScreen, Windows attachment policies or global security settings.
+    # Verify the installed EXE byte-for-byte; never override Windows warnings.
     $installedHash = (Get-FileHash -LiteralPath $installedExe -Algorithm SHA256).Hash.ToUpperInvariant()
     if ($installedHash -ne $expected) {
         throw 'Installed executable failed verification: rollback required.'
     }
-    try {
-        # No automatic zone-unblocking in the independent V5.2 installer.
-        # Inform users about unsigned software instead of lowering OS prompts.
-        if ($false) { Unblock-File -LiteralPath $installedExe -ErrorAction Stop }
-        Write-Host 'Internet zone mark cleared from installed binary (if present).' -ForegroundColor Green
-    }
-    catch {
-        # The installed application remains unsigned: do not bypass policy or
-        # delete an arbitrary ADS. Report the limitation without hiding errors.
-        Write-Warning ('Internet zone mark could not be cleared: ' + $_.Exception.Message)
-        Write-Warning 'Windows may still show a security warning when launched.'
-    }
+    Write-Host 'The unsigned application may trigger a standard Windows security prompt.' -ForegroundColor Yellow
 
     $shell = New-Object -ComObject WScript.Shell
     # Remove only the known legacy Start Menu shortcuts after replacement.
@@ -112,7 +99,7 @@ try {
     $shortcut.IconLocation = $installedExe + ',0'
     $shortcut.Description = 'Independent Windows quota and activity radar for Codex'
     $shortcut.Save()
-    $shortcut = $shell.CreateShortcut((Join-Path $startMenu 'Desinstaller Codex Periscope.lnk'))
+    $shortcut = $shell.CreateShortcut((Join-Path $startMenu 'Uninstall Codex Periscope.lnk'))
     $shortcut.TargetPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $destination 'UNINSTALL-PERISCOPE-V5.2.ps1') + '"'
     $shortcut.WorkingDirectory = $destination
