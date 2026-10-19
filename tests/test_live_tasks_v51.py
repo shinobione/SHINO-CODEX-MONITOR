@@ -6,7 +6,7 @@ READER = (ROOT / "src" / "LiveTaskMonitor.cs").read_text(encoding="utf-8")
 VIEW = (ROOT / "src" / "ActivityGlyph.cs").read_text(encoding="utf-8")
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
 TESTS = (ROOT / "src" / "LiveTaskTests.cs").read_text(encoding="utf-8")
-BUILD = (ROOT / "BUILD-RELEASE-V5.1.ps1").read_text(encoding="utf-8-sig")
+BUILD = (ROOT / "BUILD-PERISCOPE-V5.2.ps1").read_text(encoding="utf-8-sig")
 CI = (ROOT / ".github/workflows/build-windows.yml").read_text(encoding="utf-8")
 PREFS = (ROOT / "src" / "Models.cs").read_text(encoding="utf-8")
 
@@ -44,7 +44,7 @@ class LiveTaskV51Audit(unittest.TestCase):
     def test_notification_requires_observed_transition(self):
         self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)
         self.assertIn("TaskNotificationRules.NewTerminals(taskReport, fresh)", FORM)
-        self.assertIn("Tester la notification Windows", FORM)
+        self.assertIn("Test Windows notification", FORM)
         self.assertIn("ShowBalloonTip(6500", FORM)
         self.assertIn("SessionKey", READER)
         self.assertIn("string.IsNullOrEmpty(a.Id)", READER)
@@ -53,7 +53,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("duration_ms", READER)
         self.assertIn("ReadFirstMetadataLine", READER)
         self.assertIn("RedactedDiagnostics", READER)
-        self.assertIn("Copier le diagnostic des tours", FORM)
+        self.assertIn("Copy privacy-safe task diagnostics", FORM)
         self.assertIn("tray.ShowBalloonTip(5500", FORM)
 
     def test_options_and_preserved_quota_collector(self):
