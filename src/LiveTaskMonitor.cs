@@ -346,7 +346,7 @@ namespace ShinoCodexMonitor
         {
             try
             {
-                Dictionary<string, object> root = Json.Object(Json.Serializer.DeserializeObject(sanitizedMeta));
+                Dictionary<string, object> root = Json.Object(new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 }.DeserializeObject(sanitizedMeta));
                 Dictionary<string, object> payload = Json.Object(Json.Get(root, "payload"));
                 if (payload == null) return "unknown";
                 string kind = Json.String(Json.Get(payload, "thread_source"));
@@ -378,7 +378,7 @@ namespace ShinoCodexMonitor
                         if (ch != '\r') line.Append((char)ch);
                     }
                     if (line.Length == 0 || line.Length >= 1048576) return null;
-                    Dictionary<string, object> root = Json.Object(Json.Serializer.DeserializeObject(line.ToString()));
+                    Dictionary<string, object> root = Json.Object(new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 }.DeserializeObject(line.ToString()));
                     if (root == null || Json.String(Json.Get(root, "type")) != "session_meta") return null;
                     Dictionary<string, object> payload = Json.Object(Json.Get(root, "payload"));
                     if (payload == null) return null;
@@ -392,11 +392,16 @@ namespace ShinoCodexMonitor
                         if (value is string)
                         {
                             string raw = (string)value;
+                            if (field == "cwd")
+                            {
+                                string normalized = raw.Replace('\\', '/').TrimEnd('/');
+                                raw = normalized.Substring(normalized.LastIndexOf('/') + 1);
+                            }
                             if (raw.Length <= 1024) clean[field] = raw;
                         }
                     }
                     // Non-string thread_source is deliberately not trusted as root.
-                    string safe = Json.Serializer.Serialize(new Dictionary<string, object> {
+                    string safe = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(new Dictionary<string, object> {
                         { "type", "session_meta" }, { "payload", clean }
                     });
                     if (HeaderCache.Count >= 256) HeaderCache.Clear();
