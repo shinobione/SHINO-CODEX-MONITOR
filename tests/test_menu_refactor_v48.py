@@ -12,8 +12,8 @@ MENU = UI[BEG:END]
 class ContextMenuRefactorTests(unittest.TestCase):
     def test_main_menu_is_short_and_ordered(self):
         expected = [
-            "Afficher / masquer", "Actualiser maintenant",
-            "Tâches Codex · LIVE", "Quotas & données", "Apparence", "Fenêtre",
+            "Afficher / masquer", "Actualiser les quotas",
+            "Activité Codex (locale)", "Quotas & données", "Apparence", "Fenêtre",
             "Notifications", "Historique", "Application",
             "Quitter complètement"
         ]
@@ -25,6 +25,7 @@ class ContextMenuRefactorTests(unittest.TestCase):
         for label in ("Disposition", "Taille des roues", "Opacité",
                       "Couleur du fond", "Couleurs des jauges", "Tray Icon"):
             self.assertIn(f'Menu(appearance, "{label}"', MENU)
+        self.assertIn("Animer la roue d'activité Codex", MENU)
         self.assertNotIn('Menu(context, "Disposition"', MENU)
         self.assertNotIn('Menu(context, "Couleurs des jauges"', MENU)
         self.assertNotIn('Menu(context, "Icône de notification"', MENU)
@@ -70,6 +71,10 @@ class ContextMenuRefactorTests(unittest.TestCase):
 
     def test_notifications_remain_opt_in_and_source_checked(self):
         self.assertIn('Menu(alerts, "Activer les notifications"', MENU)
+        self.assertIn('Menu(alerts, "Tester la notification Windows"', MENU)
+        self.assertIn('AddAlertToggle(alerts, "Tâche Codex terminée"', MENU)
+        self.assertIn("Menu(tasksMenu, \"Actualiser l'activité locale\"", MENU)
+        self.assertIn('Menu(tasksMenu, "Copier le diagnostic des tours', MENU)
         self.assertIn("settings.Alerts = ((ToolStripMenuItem)sender).Checked;", MENU)
         self.assertIn("child.Enabled = settings.Alerts;", MENU)
         for text in ("Fenêtre 5 heures", "Fenêtre 7 jours", "Seuil 50 %",
