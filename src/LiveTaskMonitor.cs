@@ -27,7 +27,7 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset StartedUtc;
         internal DateTimeOffset? FinishedUtc;
         internal DateTimeOffset LastWriteUtc;
-        internal string Source = "Codex local / JSONL sessions (undocumented)";
+        internal string Source = "Local Codex / JSONL sessions (undocumented)";
         internal string LastAction = "Activity details unavailable";
 
         internal string PhaseLabel
@@ -95,9 +95,9 @@ namespace ShinoCodexMonitor
         internal string RedactedDiagnostics(DateTimeOffset now)
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine("SHINO // CODEX V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
+            text.AppendLine("CODEX PERISCOPE V5.2 — READ-ONLY TASK DIAGNOSTICS");
             text.AppendLine("Reading (UTC): " +
-                (CheckedUtc == DateTimeOffset.MinValue ? "aucun" :
+                (CheckedUtc == DateTimeOffset.MinValue ? "none" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
             text.AppendLine("Root sessions checked: " + ExaminedRoots +
                 " ; child sessions excluded: " + IgnoredSubagents +
@@ -119,7 +119,7 @@ namespace ShinoCodexMonitor
                         task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
                     " ; freshness (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
-            if (i == 0) text.AppendLine("Aucun tour principal observable.");
+            if (i == 0) text.AppendLine("No primary turn observed.");
             text.AppendLine("No prompts, paths, session IDs or secrets copied.");
             return text.ToString();
         }
@@ -265,7 +265,7 @@ namespace ShinoCodexMonitor
             string root = SessionRoot();
             if (!Directory.Exists(root))
             {
-                report.Message = "Unavailable · aucun dossier de sessions locales Codex";
+                report.Message = "Unavailable · none Codex local sessions directory";
                 return report;
             }
             try
