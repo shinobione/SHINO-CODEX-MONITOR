@@ -149,7 +149,7 @@ namespace ShinoCodexMonitor
             if (!lastSuccess.HasValue) return "Unavailable";
             double age = (now - lastSuccess.Value).TotalSeconds;
             if (age < -5 || age >= refreshSeconds * 2) return "Stale data";
-            if (failures > 0) return "À vérifier";
+            if (failures > 0) return "UNVERIFIED";
             return "Direct";
         }
         internal static int Backoff(int failures, int refreshSeconds)
@@ -198,7 +198,7 @@ namespace ShinoCodexMonitor
                 }
             }
             if (snap.Five == null && snap.Week == null)
-                throw new InvalidDataException("None fenêtre Codex 5 h / 7 j valide renvoyée.");
+                throw new InvalidDataException("No valid Codex 5-hour or weekly window returned.");
             snap.UsageAllowed = Json.Bool(Json.Get(root, "ordinaryUsageAllowed"));
             Dictionary<string, object> credits = Json.Object(Json.Get(root, "rateLimitResetCredits"));
             int? available = Json.Int(Json.Get(credits, "availableCount"));
