@@ -215,3 +215,28 @@ zone de notification continue d'afficher les quotas séparément.
 
 Ce correctif ne transforme pas l'EXE unsigned en application signée, ne
 modifie aucune association Windows globale et n'exécute aucune installation.
+
+### V5.1 — Correction « FIN » alors que Codex Desktop travaille
+
+**Scénario observé :** Codex Desktop affiche un tour en cours dans le projet
+SHINO TV, tandis que le monitor affichait un tour FIN ancien d'un autre
+répertoire. Un fichier JSONL de session ne permet pas de savoir quel onglet
+Codex Desktop est au premier plan ou si un autre processus travaille.
+
+Le widget ne confond plus les deux :
+- **OBSERVÉ** (violet) : événement de début et activité du journal dans les
+  90 dernières secondes ; l'onglet Codex Desktop associé n'est pas identifié.
+- **À VÉRIFIER** (gris) : début détecté mais activité récente non confirmée.
+- **TOUR FINI** (vert) : résultat local de ce seul tour, montré au maximum
+  30 secondes après l'événement de fin.
+- **NON VÉRIFIÉ** (gris) : aucun tour actif observable. Une fin plus ancienne
+  est affichée en petit comme **dernier tour local**, jamais comme état actuel.
+- Si la dernière lecture du monitor date de plus de 25 secondes, le widget
+  retire l'état LIVE et demande de vérifier la source. Même règle pour le petit
+  point de statut Tray. Les notifications de fin basées sur événements
+  confirmés restent indépendantes.
+
+**Limite explicite :** ces changements éliminent la fausse équivalence « FIN =
+Codex Desktop inactif » mais ne fournissent pas une détection garantie de
+l'onglet Desktop actif. L'intégration d'une autre source devra être examinée
+avant usage, sans lire de secrets ni écrire dans les données Codex.
