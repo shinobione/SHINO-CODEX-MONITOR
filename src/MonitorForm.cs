@@ -439,20 +439,24 @@ namespace ShinoCodexMonitor
         {
             // Two immediate actions; everything else is grouped by user intention.
             Menu(context, "Afficher / masquer", delegate { ToggleVisibility(); });
-            Menu(context, "Actualiser maintenant", delegate { nextRefresh = DateTimeOffset.MinValue; });
+            Menu(context, "Actualiser les quotas", delegate { nextRefresh = DateTimeOffset.MinValue; });
             context.Items.Add(new ToolStripSeparator());
-            ToolStripMenuItem tasksMenu = Menu(context, "Tâches Codex · LIVE", null);
+            ToolStripMenuItem tasksMenu = Menu(context, "Activité Codex (locale)", null);
+            Menu(tasksMenu, "Actualiser l'activité locale", delegate {
+                nextTaskPoll = DateTimeOffset.MinValue;
+                PollTasks(DateTimeOffset.UtcNow);
+            });
             Menu(tasksMenu, "Copier le diagnostic des tours (sans données privées)",
                 delegate { CopyTaskDiagnostic(); });
             tasksMenu.DropDownItems.Add(new ToolStripSeparator());
-            ToolStripMenuItem testNotification = Menu(tasksMenu, "Tester la notification Windows",
-                delegate { TestWindowsNotification(); });
-            testNotification.ToolTipText = "Envoie une notification de test, même si les alertes Codex sont désactivées.";
-            tasksMenu.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(tasksMenu, "Notifier les tâches terminées", settings.TaskAlerts,
-                delegate(bool value) { settings.TaskAlerts = value; Save(); });
-            AddAlertToggle(tasksMenu, "Animations (roue en rotation)", settings.TaskAnimations,
-                delegate(bool value) { settings.TaskAnimations = value; UpdateTaskMotion(); Save(); });
+            ToolStripMenuItem taskSourceInfo = Menu(tasksMenu, "Source : journaux locaux, statut indicatif", null);
+            taskSourceInfo.Enabled = false;
+            tasksMenu.DropDownOpening += delegate {
+                taskSourceInfo.Text = taskReport == null ?
+                    "Source : aucun relevé" :
+                    "Sources : " + taskReport.ExaminedRoots + " principale(s), " +
+                    taskReport.IgnoredSubagents + " sous-agent(s) exclus";
+            };
             context.Items.Add(new ToolStripSeparator());
 
             // QUOTAS: source, reset display and rate-limit polling interval.
@@ -593,6 +597,14 @@ namespace ShinoCodexMonitor
                 settings.TrayStyle = value; Save(); UpdateQuotaTrayIcon(State(),
                     State() == "Direct" && snapshot != null && snapshot.UsageAllowed == false);
             }, settings.TrayStyle);
+            appearance.DropDownItems.Add(new ToolStripSeparator());
+            AddAlertToggle(appearance, "Animer la roue d'activité Codex", settings.TaskAnimations,
+                delegate(bool value) { settings.TaskAnimations = value; UpdateTaskMotion(); Save(); });
+            ToolStripMenuItem motionToggle = appearance.DropDownItems[appearance.DropDownItems.Count - 1]
+                as ToolStripMenuItem;
+            appearance.DropDownOpening += delegate {
+                if (motionToggle != null) motionToggle.Checked = settings.TaskAnimations;
+            };
 
             // WINDOW: behavioral controls stay out of appearance/color settings.
             ToolStripMenuItem window = Menu(context, "Fenêtre", null);
@@ -643,6 +655,14 @@ namespace ShinoCodexMonitor
                     Save();
                 });
             notificationsEnabled.CheckOnClick = true;
+            ToolStripMenuItem testNotification = Menu(alerts, "Tester la notification Windows",
+                delegate { TestWindowsNotification(); });
+            testNotification.ToolTipText = "Test manuel, indépendant des options d'alertes ; affichage soumis à Windows.";
+            alerts.DropDownItems.Add(new ToolStripSeparator());
+            AddAlertToggle(alerts, "Tâche Codex terminée", settings.TaskAlerts,
+                delegate(bool value) { settings.TaskAlerts = value; Save(); });
+            ToolStripMenuItem taskAlertsToggle = alerts.DropDownItems[alerts.DropDownItems.Count - 1]
+                as ToolStripMenuItem;
             alerts.DropDownItems.Add(new ToolStripSeparator());
             AddAlertToggle(alerts, "Fenêtre 5 heures", settings.AlertFive,
                 delegate(bool v) { settings.AlertFive = v; Save(); });
@@ -659,8 +679,9 @@ namespace ShinoCodexMonitor
                 delegate(bool v) { settings.AlertResets = v; Save(); });
             alerts.DropDownOpening += delegate {
                 notificationsEnabled.Checked = settings.Alerts;
+                if (taskAlertsToggle != null) taskAlertsToggle.Checked = settings.TaskAlerts;
                 foreach (ToolStripItem child in alerts.DropDownItems)
-                    if (child != notificationsEnabled) child.Enabled = settings.Alerts;
+                    if (child != notificationsEnabled && child != testNotification) child.Enabled = settings.Alerts;
             };
 
             ToolStripMenuItem historyMenu = Menu(context, "Historique", null);
