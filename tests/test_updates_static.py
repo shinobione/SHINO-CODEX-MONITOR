@@ -13,8 +13,8 @@ class UpdateChecks(unittest.TestCase):
         self.assertNotIn('Process.Start', s)
     def test_updates_are_opt_in(self):
         s=(ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8')
-        self.assertIn('Vérifier les mises à jour', s)
-        self.assertIn('deuxième accord explicite', s)
+        self.assertIn('Check for updates', s)
+        self.assertIn('Installation requires separate confirmation.', s)
         self.assertIn('if (choice == DialogResult.Yes) await DownloadAndConfirm(latest);', s)
     def test_unchanged_codex(self):
         s=(ROOT/'src'/'CodexReader.cs').read_text(encoding='utf-8')
