@@ -1,3 +1,23 @@
+SHINO // CODEX MONITOR — DOCUMENTATION FR
+=============================================
+Sur cette branche : V5.1.0-preview.1 (PR #11, pas de Release).
+Version STABLE publiée : V5.0.0.
+
+La candidate V5.1 doit etre testee SANS installer : utiliser
+BUILD-PREVIEW-V5.1.bat, puis le ZIP portable
+dist\SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip.
+Ne pas lancer INSTALLER-V5.0 avec le binaire V5.1.
+Clic droit Tray > Activite Codex (locale) pour rafraichir ou copier
+un diagnostic anonymise, Apparence pour activer l'animation,
+Notifications pour les alertes et le test de bulle Windows.
+Pas de statut Codex Desktop global garanti : journaux locaux
+non documentes, interruptions/absence de source explicitement affichees.
+Roadmap : ROADMAP.md. Details : README.md / README-PREVIEW-V5.1.txt.
+
+-------------------------------------------------------------------
+CI-DESSOUS : NOTICE HISTORIQUE DE LA RELEASE STABLE V5.0.0
+-------------------------------------------------------------------
+
 SHINO // CODEX MONITOR V5.0.0 — DATA TRUST & HEALTH
 ===================================================================
 Release publique V5.0.0 ; versions V4.8 et V4.9 integrees.
