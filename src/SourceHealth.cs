@@ -10,7 +10,7 @@ namespace ShinoCodexMonitor
         internal static string WindowLine(string label, QuotaWindow window, bool current,
             DateTimeOffset nowUtc)
         {
-            if (window == null) return label + " : Fenêtre not available";
+            if (window == null) return label + " : Window not available";
             int percentage = (int)Math.Round(window.Remaining, MidpointRounding.AwayFromZero);
             percentage = Math.Max(0, Math.Min(100, percentage));
             string line = label + " : " + percentage + " % restants";
@@ -34,8 +34,8 @@ namespace ShinoCodexMonitor
             if (lastSuccess.HasValue)
             {
                 double seconds = (nowUtc - lastSuccess.Value).TotalSeconds;
-                report.AppendLine("Âge du reading : " +
-                    (seconds < -5 ? "Horloge at vérifier" :
+                report.AppendLine("Reading age: " +
+                    (seconds < -5 ? "Check system clock" :
                     seconds < 60 ? "Moins d’une min agoute" :
                     ((int)Math.Floor(seconds / 60)).ToString(CultureInfo.InvariantCulture) + " min ago"));
             }
