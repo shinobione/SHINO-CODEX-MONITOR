@@ -34,7 +34,7 @@ try {
             Remove-ItemProperty -Path $runKey -Name $keyName -ErrorAction Stop
         }
     }
-    foreach ($name in @('Codex Periscope.lnk','Desinstaller Codex Periscope.lnk')) {
+    foreach ($name in @('Codex Periscope.lnk','Uninstall Codex Periscope.lnk')) {
         $lnk = Join-Path $startMenu $name
         if (Test-Path -LiteralPath $lnk) { Remove-Item -LiteralPath $lnk -Force }
     }
