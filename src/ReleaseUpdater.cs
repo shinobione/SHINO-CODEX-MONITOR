@@ -26,16 +26,16 @@ namespace ShinoCodexMonitor
         internal static PublicRelease ParseLatest(string response)
         {
             if (string.IsNullOrEmpty(response) || response.Length > 131072)
-                throw new InvalidDataException("Réponse GitHub absente ou trop volumineuse.");
+                throw new InvalidDataException("GitHub response missing or too large.");
             Dictionary<string, object> item;
             try { item = Json.Object(new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 131072 }.DeserializeObject(response)); }
-            catch (Exception ex) { throw new InvalidDataException("Réponse GitHub invalide.", ex); }
+            catch (Exception ex) { throw new InvalidDataException("Invalid GitHub response.", ex); }
             if (item == null || Json.Bool(Json.Get(item, "draft")) == true ||
                 Json.Bool(Json.Get(item, "prerelease")) == true)
-                throw new InvalidDataException("Aucune Release stable vérifiable.");
+                throw new InvalidDataException("No verifiable stable release.");
             string tag = Json.String(Json.Get(item, "tag_name"));
             Version number = ParseTag(tag);
-            if (number == null) throw new InvalidDataException("Version de Release invalide.");
+            if (number == null) throw new InvalidDataException("Invalid release version.");
             return new PublicRelease {
                 Tag = tag,
                 Number = number,
@@ -75,10 +75,10 @@ namespace ShinoCodexMonitor
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 {
                     if (response.StatusCode != HttpStatusCode.OK)
-                        throw new WebException("Le service de Release GitHub ne répond pas correctement.");
+                        throw new WebException("GitHub Releases service did not respond correctly.");
                     using (Stream input = response.GetResponseStream())
                     {
-                        if (input == null) throw new InvalidDataException("GitHub n'a retourné aucune donnée.");
+                        if (input == null) throw new InvalidDataException("GitHub returned no data.");
                         using (MemoryStream buffer = new MemoryStream())
                         {
                             byte[] chunk = new byte[4096];
@@ -86,7 +86,7 @@ namespace ShinoCodexMonitor
                             while ((read = input.Read(chunk, 0, chunk.Length)) > 0)
                             {
                                 if (buffer.Length + read > 131072)
-                                    throw new InvalidDataException("Réponse GitHub trop volumineuse.");
+                                    throw new InvalidDataException("GitHub response too large.");
                                 buffer.Write(chunk, 0, read);
                             }
                             string json = Encoding.UTF8.GetString(buffer.ToArray());
