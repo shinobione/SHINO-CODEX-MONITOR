@@ -442,6 +442,9 @@ namespace ShinoCodexMonitor
             Menu(context, "Actualiser maintenant", delegate { nextRefresh = DateTimeOffset.MinValue; });
             context.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem tasksMenu = Menu(context, "Tâches Codex · LIVE", null);
+            Menu(tasksMenu, "Copier le diagnostic des tours (sans données privées)",
+                delegate { CopyTaskDiagnostic(); });
+            tasksMenu.DropDownItems.Add(new ToolStripSeparator());
             ToolStripMenuItem testNotification = Menu(tasksMenu, "Tester la notification Windows",
                 delegate { TestWindowsNotification(); });
             testNotification.ToolTipText = "Envoie une notification de test, même si les alertes Codex sont désactivées.";
@@ -1059,6 +1062,25 @@ namespace ShinoCodexMonitor
                 catch (InvalidOperationException) { }
             });
         }
+        private void CopyTaskDiagnostic()
+        {
+            // Explicit, local user action. Never copy session IDs, prompts or paths.
+            string details = taskReport == null ?
+                "SHINO // CODEX V5.1 — aucune lecture de tâches disponible." :
+                taskReport.RedactedDiagnostics(DateTimeOffset.UtcNow);
+            try
+            {
+                Clipboard.SetText(details);
+                MessageBox.Show(this, "Diagnostic des tours copié (sans prompts, chemins ou identifiants).",
+                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (System.Runtime.InteropServices.ExternalException)
+            {
+                MessageBox.Show(this, "Impossible de copier le diagnostic dans le presse-papiers.",
+                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private void TestWindowsNotification()
         {
             // Diagnostic action requested explicitly by the user, not a claim of OS delivery.
