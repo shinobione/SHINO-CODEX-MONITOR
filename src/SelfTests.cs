@@ -526,7 +526,7 @@ namespace ShinoCodexMonitor
                 QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 0 };
                 Assert(SourceHealth.WindowLine("5 hours", w, true, now).Contains("Reset not provided"));
                 w.ResetUtc = now.AddMinutes(-1);
-                Assert(SourceHealth.WindowLine("5 hours", w, true, now).Contains("Reset attendu"));
+                Assert(SourceHealth.WindowLine("5 hours", w, true, now).Contains("Reset due"));
             });
             Check("V5 : état bloqué conservé indépendamment des deux fenêtres", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
