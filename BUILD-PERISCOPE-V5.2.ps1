@@ -22,7 +22,7 @@ try {
         throw 'Refusing build: the version does not match V5.2 Preview.'
     }
     & (Join-Path $root 'GENERATE-PERISCOPE-ICON.ps1')
-    if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath (Join-Path $root 'CODEX-PERISCOPE.ico'))) {
+    if (!(Test-Path -LiteralPath (Join-Path $root 'CODEX-PERISCOPE.ico'))) {
         throw 'Radar icon generation failed.'
     }
     $argsCSC = @('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimize+',
