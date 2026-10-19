@@ -1111,7 +1111,7 @@ namespace ShinoCodexMonitor
             // Also expire green terminal glyphs and stale scans while Codex is idle.
             if (taskReport != null) UpdateTaskSurface(nowUtc);
             PollTasks(nowUtc);
-            // The reset countdown is displayed in whole min agoutes. Avoid repainting every second.
+            // The reset countdown is displayed in whole minutes. Avoid repainting every second.
             if (nowUtc >= lastUiPaintUtc.AddSeconds(10) || lastUiPaintUtc == DateTimeOffset.MinValue)
             {
                 PaintSnapshot();
