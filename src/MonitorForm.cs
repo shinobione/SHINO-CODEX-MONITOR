@@ -70,7 +70,7 @@ namespace ShinoCodexMonitor
         private bool suspended;
         private bool suppressNextAlert;
         private int wakeRefreshes;
-        private string lastWakeReason = "Noe";
+        private string lastWakeReason = "None";
         private Point? dragMouse, dragOrigin;
         private Point? resizeMouse;
         private int resizeOriginalWidth;
@@ -666,9 +666,9 @@ namespace ShinoCodexMonitor
             ToolStripMenuItem taskAlertsToggle = alerts.DropDownItems[alerts.DropDownItems.Count - 1]
                 as ToolStripMenuItem;
             alerts.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(alerts, "Window 5 heures", settings.AlertFive,
+            AddAlertToggle(alerts, "Window 5 hours", settings.AlertFive,
                 delegate(bool v) { settings.AlertFive = v; Save(); });
-            AddAlertToggle(alerts, "Window 7 jours", settings.AlertWeek,
+            AddAlertToggle(alerts, "Weekly window", settings.AlertWeek,
                 delegate(bool v) { settings.AlertWeek = v; Save(); });
             alerts.DropDownItems.Add(new ToolStripSeparator());
             AddAlertToggle(alerts, "Threshold 50 %", settings.Alert50,
@@ -713,7 +713,7 @@ namespace ShinoCodexMonitor
             autostart.CheckOnClick = true;
             application.DropDownItems.Add(new ToolStripSeparator());
             Menu(application, "Diagnostic", delegate { ShowDiagnostic(); });
-            Menu(application, "Copier le diagnostic", delegate { CopyDiagnostic(); });
+            Menu(application, "Copy diagnostics", delegate { CopyDiagnostic(); });
             application.DropDownOpening += delegate { autostart.Checked = StartupEnabled(); };
 
             context.Items.Add(new ToolStripSeparator());
@@ -882,7 +882,7 @@ namespace ShinoCodexMonitor
                     "Version : " + latest.Tag + "\n" +
                     "Taille : " + asset.Size + " octets\n" +
                     "Empreinte GitHub : " + asset.Sha256 + "\n\n" +
-                    "Installer cette version maintenant ? Le widget va se fermer.\n" +
+                    "Install this version now? The widget will close.\n" +
                     "The previous version will be backed up. This executable is NOT signed.",
                     "CODEX PERISCOPE — Confirmer l'installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (yes != DialogResult.Yes) return;
@@ -1029,7 +1029,7 @@ namespace ShinoCodexMonitor
                 "Collecte suspendue : " + suspended + "\n" +
                 runtime.Summary() + "\n" +
                 "Consecutive failures: " + failures + "\n" +
-                "Erreur : " + (lastError.Length == 0 ? "Noe" : lastError) + "\n" +
+                "Error: " + (lastError.Length == 0 ? "None" : lastError) + "\n" +
                 "Local data: " + store.DirectoryPath + "\n" +
                 "The widget never accesses cookies, tokens or passwords.";
         }
@@ -1308,7 +1308,7 @@ namespace ShinoCodexMonitor
             if (settings.AlertFive)
                 CollectNotification(messages, "5 h", previous.Five, latest.Five, latest.CapturedUtc);
             if (settings.AlertWeek)
-                CollectNotification(messages, "7 jours", previous.Week, latest.Week, latest.CapturedUtc);
+                CollectNotification(messages, "7 days", previous.Week, latest.Week, latest.CapturedUtc);
             if (messages.Count == 0) return;
             tray.BalloonTipTitle = "CODEX PERISCOPE";
             tray.BalloonTipText = string.Join(" · ", messages.ToArray());
