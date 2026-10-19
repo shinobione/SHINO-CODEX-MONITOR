@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnosticss;
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -1128,7 +1128,7 @@ namespace ShinoCodexMonitor
             // Explicit, local user action. Never copy session IDs, prompts or paths.
             string details = taskReport == null ?
                 "CODEX PERISCOPE V5.2 — no task snapshot available." :
-                taskReport.RedactedDiagnosticss(DateTimeOffset.UtcNow);
+                taskReport.RedactedDiagnostics(DateTimeOffset.UtcNow);
             try
             {
                 Clipboard.SetText(details);
