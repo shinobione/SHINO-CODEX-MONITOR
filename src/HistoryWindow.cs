@@ -20,7 +20,7 @@ namespace ShinoCodexMonitor
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             Font = new Font("Segoe UI", 9f);
-            Label header = new Label { Text = "Quota restant (%) · relevés réels uniquement · les interruptions ne sont pas interpolées",
+            Label header = new Label { Text = "Quota restant (%) · readings réels uniquement · les interruptions ne sont pas interpolées",
                 Dock = DockStyle.Top, Height = 34, ForeColor = UiColors.Muted, Padding = new Padding(12, 8, 0, 0) };
             FlowLayoutPanel tools = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42,
                 FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(8, 3, 0, 0) };
@@ -60,7 +60,7 @@ namespace ShinoCodexMonitor
         private void SetHours(double hours)
         {
             canvas.VisibleHours = Math.Max(6, Math.Min(336, hours));
-            period.Text = "Période : " + (canvas.VisibleHours < 48 ?
+            period.Text = "Period: " + (canvas.VisibleHours < 48 ?
                 canvas.VisibleHours.ToString("0.#", CultureInfo.InvariantCulture) + " h" :
                 (canvas.VisibleHours / 24).ToString("0.#", CultureInfo.InvariantCulture) + " j");
             canvas.Invalidate();
@@ -80,9 +80,9 @@ namespace ShinoCodexMonitor
             int left = 48, right = Math.Max(60, Width - 20), top = 20, bottom = Math.Max(90, Height - 65);
             float width = Math.Max(1, right - left), height = Math.Max(1, bottom - top);
             DateTimeOffset maxTime = DateTimeOffset.UtcNow;
-            DateTimeOffset minTime = maxTime.AddHours(-VisibleHours);
+            DateTimeOffset min agoTime = maxTime.AddHours(-VisibleHours);
             int count = 0;
-            foreach (HistoryRow row in Rows) if (row.Utc >= minTime && row.Utc <= maxTime) count++;
+            foreach (HistoryRow row in Rows) if (row.Utc >= min agoTime && row.Utc <= maxTime) count++;
             using (Font font = new Font("Segoe UI", 8f))
             using (SolidBrush muted = new SolidBrush(UiColors.Muted))
             using (Pen grid = new Pen(UiColors.Track, 1f))
@@ -94,11 +94,11 @@ namespace ShinoCodexMonitor
                     g.DrawString(tick.ToString(CultureInfo.InvariantCulture), font, muted, 8, y - 7);
                 }
                 if (count == 0)
-                    g.DrawString("Aucun relevé pendant cette période.", font, muted, 65, Height / 2f);
+                    g.DrawString("Aucun reading pendant cette période.", font, muted, 65, Height / 2f);
                 else
                 {
-                    DrawSeries(g, Rows, minTime, maxTime, left, width, height, bottom, true, UiColors.Five);
-                    DrawSeries(g, Rows, minTime, maxTime, left, width, height, bottom, false, UiColors.Week);
+                    DrawSeries(g, Rows, min agoTime, maxTime, left, width, height, bottom, true, UiColors.Five);
+                    DrawSeries(g, Rows, min agoTime, maxTime, left, width, height, bottom, false, UiColors.Week);
                 }
                 string leftLabel = VisibleHours <= 48 ? "dd/MM HH:mm" : "dd/MM";
                 g.DrawString(minTime.ToLocalTime().ToString(leftLabel), font, muted, left, bottom + 12);
@@ -110,24 +110,24 @@ namespace ShinoCodexMonitor
                     g.DrawString("━  5 h", font, five, left, Height - 34);
                     g.DrawString("━  7 jours", font, week, left + 85, Height - 34);
                 }
-                g.DrawString(count + " relevé" + (count > 1 ? "s" : ""), font, muted,
+                g.DrawString(count + " reading" + (count > 1 ? "s" : ""), font, muted,
                     Math.Max(left + 155, right - 100), Height - 34);
             }
         }
-        private static void DrawSeries(Graphics g, List<HistoryRow> rows, DateTimeOffset min, DateTimeOffset max,
+        private static void DrawSeries(Graphics g, List<HistoryRow> rows, DateTimeOffset min ago, DateTimeOffset max,
             int left, float width, float height, int bottom, bool five, Color color)
         {
             PointF? previous = null;
             DateTimeOffset previousTime = DateTimeOffset.MinValue;
-            double duration = Math.Max(1, (max - min).TotalSeconds);
+            double duration = Math.Max(1, (max - min ago).TotalSeconds);
             using (Pen pen = new Pen(color, 1.8f))
             using (SolidBrush brush = new SolidBrush(color))
             {
                 foreach (HistoryRow row in rows)
                 {
                     double? amount = five ? row.Five : row.Week;
-                    if (!amount.HasValue || row.Utc < min || row.Utc > max) { previous = null; continue; }
-                    float x = left + (float)((row.Utc - min).TotalSeconds / duration) * width;
+                    if (!amount.HasValue || row.Utc < min ago || row.Utc > max) { previous = null; continue; }
+                    float x = left + (float)((row.Utc - min ago).TotalSeconds / duration) * width;
                     float y = bottom - (float)(amount.Value / 100.0) * height;
                     PointF point = new PointF(x, y);
                     if (previous.HasValue && row.Utc - previousTime <= TimeSpan.FromMinutes(30))
