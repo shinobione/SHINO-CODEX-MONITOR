@@ -40,7 +40,8 @@ class StableAndPreviewReleaseIdentityTests(unittest.TestCase):
         self.assertIn('SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip', candidate)
         self.assertIn("'README-PREVIEW-V5.1.txt'", candidate)
         self.assertNotIn("'INSTALLER-V5.0.bat'", candidate)
-        self.assertNotIn('INSTALLER-V5.0.ps1') and self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
+        self.assertNotIn('INSTALLER-V5.0.ps1', candidate)
+        self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
 
     def test_http_user_agents_derive_running_assembly_version(self):
         self.assertIn('typeof(ReleaseUpdater).Assembly.GetName().Version.ToString(3)', RELEASE)
