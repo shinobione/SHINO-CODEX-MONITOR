@@ -7,7 +7,7 @@ $target = Join-Path $root 'CODEX-PERISCOPE.ico'
 $images = New-Object 'System.Collections.Generic.List[byte[]]'
 $sizes = @(16, 32, 48, 256)
 foreach ($size in $sizes) {
-    $bmp = New-Object System.Drawing.Bitmap($size, $size)
+    $bmp = [System.Drawing.Bitmap]::new([int]$size, [int]$size)
     $gfx = [System.Drawing.Graphics]::FromImage($bmp)
     try {
         $gfx.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -16,9 +16,9 @@ foreach ($size in $sizes) {
         $teal = [System.Drawing.ColorTranslator]::FromHtml('#29D8C3')
         $muted = [System.Drawing.ColorTranslator]::FromHtml('#438C99')
         $rect = [System.Drawing.RectangleF]::new([float]($size * 0.09), [float]($size * 0.09), [float]($size * 0.82), [float]($size * 0.82))
-        $bg = New-Object System.Drawing.SolidBrush($navy)
-        $pen = New-Object System.Drawing.Pen($muted, [Math]::Max(1.0, $size * 0.042))
-        $active = New-Object System.Drawing.Pen($teal, [Math]::Max(1.5, $size * 0.067))
+        $bg = [System.Drawing.SolidBrush]::new($navy)
+        $pen = [System.Drawing.Pen]::new($muted, [single][Math]::Max(1.0, $size * 0.042))
+        $active = [System.Drawing.Pen]::new($teal, [single][Math]::Max(1.5, $size * 0.067))
         try {
             $gfx.FillEllipse($bg, $rect)
             $gfx.DrawEllipse($pen, $rect)
@@ -27,18 +27,18 @@ foreach ($size in $sizes) {
             $gfx.DrawArc($active, $rect, 220, 112)
             $cx = $size / 2.0; $cy = $size / 2.0
             $gfx.DrawLine($active, $cx, $cy, $size * 0.79, $size * 0.24)
-            $blip = New-Object System.Drawing.SolidBrush($teal)
+            $blip = [System.Drawing.SolidBrush]::new($teal)
             try { $gfx.FillEllipse($blip, ($size * 0.69), ($size * 0.21), ($size * 0.13), ($size * 0.13)) }
             finally { $blip.Dispose() }
         }
         finally { $bg.Dispose(); $pen.Dispose(); $active.Dispose() }
-        $ms = New-Object System.IO.MemoryStream
+        $ms = [System.IO.MemoryStream]::new()
         try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); $images.Add($ms.ToArray()) }
         finally { $ms.Dispose() }
     } finally { $gfx.Dispose(); $bmp.Dispose() }
 }
 $stream = [System.IO.File]::Create($target)
-$writer = New-Object System.IO.BinaryWriter($stream)
+$writer = [System.IO.BinaryWriter]::new($stream)
 try {
     $writer.Write([uint16]0); $writer.Write([uint16]1); $writer.Write([uint16]$images.Count)
     $offset = 6 + 16 * $images.Count
