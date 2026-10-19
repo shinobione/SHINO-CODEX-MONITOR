@@ -52,6 +52,8 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("IsRootConfirmed", READER)
         self.assertIn("duration_ms", READER)
         self.assertIn("ReadFirstMetadataLine", READER)
+        self.assertIn("RedactedDiagnostics", READER)
+        self.assertIn("Copier le diagnostic des tours", FORM)
         self.assertIn("tray.ShowBalloonTip(5500", FORM)
 
     def test_options_and_preserved_quota_collector(self):
@@ -65,7 +67,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("'LiveTaskMonitor.cs'", "'ActivityGlyph.cs'",
                       "'LiveTaskTests.cs'"):
             self.assertIn(value, BUILD)
-        self.assertEqual(TESTS.count('Check("'), 44)
+        self.assertEqual(TESTS.count('Check("'), 46)
         self.assertIn("--live-task-self-test", CI)
         self.assertIn("44/44", CI)
 
