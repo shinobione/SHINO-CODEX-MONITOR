@@ -541,7 +541,7 @@ namespace ShinoCodexMonitor
                 string text = SourceHealth.Build(null, "Unavailable", null, 1,
                     "Access denied (401/403)", now.AddMinutes(2), now);
                 Assert(text.Contains("Codex CLI / account/rateLimits/read") &&
-                    text.Contains("Status: Unavailable") && text.Contains("Accès refusé") &&
+                    text.Contains("Status: Unavailable") && text.Contains("Access denied") &&
                     text.Contains("Last valid reading: None") &&
                     !text.Contains("% remaining"));
             });
