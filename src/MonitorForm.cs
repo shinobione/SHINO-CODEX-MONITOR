@@ -880,7 +880,7 @@ namespace ShinoCodexMonitor
                 if (IsDisposed || Disposing) return;
                 DialogResult yes = MessageBox.Show(
                     "Official archive downloaded and SHA-256 verified.\n" +
-                    "Version : " + latest.Tag + "\n" +
+                    "Version: " + latest.Tag + "\n" +
                     "Size: " + asset.Size + " bytes\n" +
                     "GitHub digest: " + asset.Sha256 + "\n\n" +
                     "Install this version now? The widget will close.\n" +
@@ -1002,7 +1002,7 @@ namespace ShinoCodexMonitor
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "None";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
+            return "Version: " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source: Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "CLI binary: " + binaryPath + "\n" +
@@ -1443,7 +1443,7 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports normal usage is blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Last sample is STALE");
             tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
-                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (Windows local time)" : "Reset unavailable or unverified");
+                "Reset: " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (Windows local time)" : "Reset unavailable or unverified");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
         {
