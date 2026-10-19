@@ -240,3 +240,9 @@ Le widget ne confond plus les deux :
 Codex Desktop inactif » mais ne fournissent pas une détection garantie de
 l'onglet Desktop actif. L'intégration d'une autre source devra être examinée
 avant usage, sans lire de secrets ni écrire dans les données Codex.
+
+### V5.1 — Une commande principale, sa durée totale
+
+Le lecteur ne sélectionne plus les sessions Codex enfant `thread_source=subagent` comme activité principale. La métadonnée `thread_source=user` identifie le tour utilisateur dans les formats effectivement observés. Un champ absent ou non reconnu n'est pas considéré comme une preuve d'activité principale. Le collecteur tient compte du `duration_ms` d'un `task_complete` s'il est cohérent avec les horodatages : 638000 ms = 10:38.
+
+Afin de ne pas perdre les débuts de tours longs, les métadonnées sont relues en tête des fichiers et un repli borné peut examiner jusqu'à 16 MiB du fichier racine le plus récent. Les métadonnées conservées en mémoire sont limitées, filtrées, sans instruction de conversation ou secret. L'état reste indicatif : Codex Desktop peut gérer des tours sans les exposer dans les journaux inspectés. Une comparaison réelle avec l'interface Desktop et sa durée affichée est indispensable avant Release.
