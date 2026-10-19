@@ -6,7 +6,7 @@ READER = (ROOT / "src" / "LiveTaskMonitor.cs").read_text(encoding="utf-8")
 VIEW = (ROOT / "src" / "ActivityGlyph.cs").read_text(encoding="utf-8")
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
 TESTS = (ROOT / "src" / "LiveTaskTests.cs").read_text(encoding="utf-8")
-BUILD = (ROOT / "BUILD-PREVIEW-V5.1.ps1").read_text(encoding="utf-8-sig")
+BUILD = (ROOT / "BUILD-RELEASE-V5.1.ps1").read_text(encoding="utf-8-sig")
 CI = (ROOT / ".github/workflows/build-windows.yml").read_text(encoding="utf-8")
 PREFS = (ROOT / "src" / "Models.cs").read_text(encoding="utf-8")
 
