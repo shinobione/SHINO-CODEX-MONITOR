@@ -146,7 +146,7 @@ namespace ShinoCodexMonitor
     {
         internal static string State(DateTimeOffset? lastSuccess, int failures, int refreshSeconds, DateTimeOffset now)
         {
-            if (!lastSuccess.HasValue) return "Indisponible";
+            if (!lastSuccess.HasValue) return "Unavailable";
             double age = (now - lastSuccess.Value).TotalSeconds;
             if (age < -5 || age >= refreshSeconds * 2) return "Stale data";
             if (failures > 0) return "Unverified";
