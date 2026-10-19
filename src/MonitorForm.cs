@@ -1384,7 +1384,7 @@ namespace ShinoCodexMonitor
                 if (snapshot.Week != null && (!remaining.HasValue || snapshot.Week.Remaining < remaining.Value))
                 {
                     remaining = snapshot.Week.Remaining;
-                    window = "7 j";
+                    window = "7d";
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
@@ -1414,7 +1414,7 @@ namespace ShinoCodexMonitor
                 trayIconSignature = signature;
                 if (previous != null) previous.Dispose();
             }
-            catch { /* Le glyph statique reste disponible même si GDI+ échoue. */ }
+            catch { /* Keep the static glyph if GDI+ fails. */ }
         }
         private void DrawMeter(Meter meter, QuotaWindow data, string kind, bool live, string state, bool blocked)
         {
@@ -1476,10 +1476,10 @@ namespace ShinoCodexMonitor
                 CultureInfo english = CultureInfo.GetCultureInfo("en-US");
                 string month = local.ToString("MMM", english).TrimEnd('.');
                 month = char.ToUpperInvariant(month[0]) + month.Substring(1);
-                absolute = "le " + local.Day + " " + month + " " + local.ToString("HH:mm");
+                absolute = "on " + month + " " + local.Day + " " + local.ToString("HH:mm");
             }
             string relative = left.TotalDays >= 1 ?
-                "in " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
+                "in " + (int)Math.Floor(left.TotalDays) + "d " + left.Hours + "h" :
                 "in " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
             if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
