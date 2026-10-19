@@ -53,7 +53,7 @@ namespace ShinoCodexMonitor
             if (root == null) throw new InvalidDataException("Reponse GitHub invalide.");
             object raw = Json.Get(root, "assets");
             object[] assets = raw as object[];
-            if (assets == null || assets.Length > 30) throw new InvalidDataException("Liste d'assets absente ou invalide.");
+            if (assets == null || assets.Length > 30) throw new InvalidDataException("Asset list missing or invalid.");
             string name = AssetFile(release.Number);
             ReleaseAsset chosen = null;
             foreach (object x in assets)
@@ -84,7 +84,7 @@ namespace ShinoCodexMonitor
         }
         internal static void VerifyAssetFile(ReleaseAsset asset, string zip)
         {
-            if (asset == null || !File.Exists(zip)) throw new InvalidDataException("Archive absente.");
+            if (asset == null || !File.Exists(zip)) throw new InvalidDataException("Archive missing.");
             FileInfo fi = new FileInfo(zip);
             if (fi.Length != asset.Size || fi.Length > MaxZipBytes || fi.Length < 1)
                 throw new InvalidDataException("Telechargement incomplet ou taille inattendue.");
@@ -135,7 +135,7 @@ namespace ShinoCodexMonitor
                             if (copied > e.Length || copied > MaxExpandedBytes) throw new InvalidDataException("Invalid ZIP archive.");
                             output.Write(buffer, 0, n);
                         }
-                        if (copied != e.Length) throw new InvalidDataException("Fichier ZIP tronque.");
+                        if (copied != e.Length) throw new InvalidDataException("Truncated ZIP entry.");
                     }
                 }
             }
@@ -203,7 +203,7 @@ namespace ShinoCodexMonitor
                                     continue;
                                 }
                                 if (response.StatusCode != HttpStatusCode.OK) throw new WebException("Invalid download response.");
-                                if (response.ContentLength > MaxZipBytes) throw new InvalidDataException("Fichier trop volumineux.");
+                                if (response.ContentLength > MaxZipBytes) throw new InvalidDataException("File too large.");
                                 using (Stream input = response.GetResponseStream())
                                 {
                                     if (input == null) throw new IOException("Telechargement vide.");
