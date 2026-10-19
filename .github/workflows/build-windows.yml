@@ -53,7 +53,12 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $assembly = [IO.File]::ReadAllText((Join-Path $PWD 'src\AssemblyInfo.cs'))
-          if ($assembly.Contains('AssemblyVersion("5.1.0.0")')) {
+          if ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
+              $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
+            & .\BUILD-RELEASE-V5.1.ps1
+          }
+          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
+                  $assembly.Contains('5.1.0-preview.1')) {
             & .\BUILD-PREVIEW-V5.1.ps1
           }
           else {
@@ -98,8 +103,16 @@ jobs:
               !$content.Contains('Installer: NOT EXECUTED')) {
             throw 'Live download smoke report invalid.'
           }
+      - name: Upload stable V5.1 installer ZIP (validated; no installation)
+        if: hashFiles('INSTALLER-V5.1.ps1') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS-PR
+          path: dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload unsigned V5.1 preview executable (NO INSTALL)
-        if: hashFiles('src/LiveTaskTests.cs') != ''
+        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') != ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-V5.1.0-PREVIEW-UNSIGNED-EXE
@@ -107,7 +120,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Upload V5.1 versioned portable ZIP (NO INSTALL)
-        if: hashFiles('src/LiveTaskTests.cs') != ''
+        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') != ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-V5.1.0-PREVIEW-WINDOWS-ZIP
@@ -115,7 +128,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Upload V5.0 stable artifact (legacy branch only)
-        if: hashFiles('src/LiveTaskTests.cs') == ''
+        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') == ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-v5.0-Windows
