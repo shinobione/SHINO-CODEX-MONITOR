@@ -383,23 +383,23 @@ namespace ShinoCodexMonitor
             Check("Quota and update check 70", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 Assert(MonitorForm.ResetLabel(now.AddMinutes(94), "five", "relative", "Circular", true, now) ==
-                    "Reset dans 1h 34min");
+                    "Reset in 1h 34min");
             });
             Check("Quota and update check 71", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 string label = MonitorForm.ResetLabel(now.AddDays(5), "week", "absolute", "Circular", true, now);
-                Assert(label.StartsWith("Reset on Oct 22 ") && !label.Contains("bloqué"));
+                Assert(label.StartsWith("Reset on Oct 22 ") && !label.Contains("blocked"));
             });
             Check("Quota and update check 72", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
-                Assert(MonitorForm.ResetLabel(now.AddMinutes(90), "five", "both", "Circular", true, now).StartsWith("Reset dans "));
-                Assert(MonitorForm.ResetLabel(now.AddDays(5), "week", "both", "Circular", true, now).StartsWith("Reset le "));
+                Assert(MonitorForm.ResetLabel(now.AddMinutes(90), "five", "both", "Circular", true, now).StartsWith("Reset in "));
+                Assert(MonitorForm.ResetLabel(now.AddDays(5), "week", "both", "Circular", true, now).StartsWith("Reset on "));
             });
             Check("Quota and update check 73", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 DateTimeOffset reset = now.AddMinutes(75);
                 Assert(MonitorForm.ResetLabel(reset, "five", "absolute", "Micro", true, now).StartsWith("Reset at "));
-                Assert(MonitorForm.ResetLabel(reset, "five", "relative", "Micro", true, now) == "Reset dans 1h 15min");
+                Assert(MonitorForm.ResetLabel(reset, "five", "relative", "Micro", true, now) == "Reset in 1h 15min");
             });
             Check("Quota and update check 74", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -410,13 +410,13 @@ namespace ShinoCodexMonitor
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 Assert(MonitorForm.ResetLabel(null, "five", "relative", "Circular", true, now) == "Reset not provided");
                 Assert(MonitorForm.ResetLabel(now.AddSeconds(-1), "five", "relative", "Circular", true, now) ==
-                    "Reset attendu · vérification...");
+                    "Reset expected · verifying...");
             });
             Check("Quota and update check 76", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 Assert(MonitorForm.ResetLabel(now.AddHours(2), "five", "absolute", "Circular", false, now) ==
-                    "Ancienne mesure · reset non vérifié");
-                Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
+                    "Old sample · reset unverified");
+                Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · in "));
             });
             Check("Quota and update check 77", delegate {
                 PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v5.0.0\"}");
@@ -533,7 +533,7 @@ namespace ShinoCodexMonitor
                 Snapshot snap = new Snapshot { CapturedUtc = now, UsageAllowed = false,
                     Five = new QuotaWindow { Minutes = 300, Remaining = 0, ResetUtc = now.AddHours(1) } };
                 string text = SourceHealth.Build(snap, "Direct", now, 0, "", now.AddMinutes(1), now);
-                Assert(text.Contains("Usage ordinaire signalé bloqué") && text.Contains("0 % restants") &&
+                Assert(text.Contains("Usage ordinaire signalé blocked") && text.Contains("0 % restants") &&
                     text.Contains("7 jours : Fenêtre non communiquée"));
             });
             Check("Quota and update check 98", delegate {
