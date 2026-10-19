@@ -15,6 +15,11 @@ namespace ShinoCodexMonitor
     {
         internal string Id = "";
         internal string SessionKey = ""; // rollout filename only; never path, content or credentials
+        internal string ThreadSource = "Inconnue";
+        internal string Originator = "Non communiqué";
+        internal bool IsSubagent;
+        internal bool IsRootConfirmed;
+        internal long? RecordedDurationMs;
         internal string Workspace = "Projet non communiqué";
         internal string Model = "Non communiqué";
         internal string Effort = "Non communiqué";
@@ -45,7 +50,9 @@ namespace ShinoCodexMonitor
         {
             DateTimeOffset end = FinishedUtc ?? (Phase == LiveTaskPhase.Active ? now : LastWriteUtc);
             if (end < StartedUtc) return "—";
-            TimeSpan span = end - StartedUtc;
+            TimeSpan span = FinishedUtc.HasValue && RecordedDurationMs.HasValue &&
+                RecordedDurationMs.Value >= 0 && RecordedDurationMs.Value <= 86400000L ?
+                TimeSpan.FromMilliseconds(RecordedDurationMs.Value) : end - StartedUtc;
             string prefix = Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "";
             if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " j " + span.Hours + " h";
             if (span.TotalHours >= 1) return prefix + ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
@@ -242,9 +249,18 @@ namespace ShinoCodexMonitor
                 {
                     try
                     {
-                        LiveTask task = ParseLines(ReadTail(info.FullName),
+                        // session_meta appears at the BEGINNING of a rollout, not
+                        // necessarily inside its last 512 KiB. Without it we could
+                        // mistake a 2-second subagent for the user's 10-minute turn.
+                        string sessionMeta = ReadFirstMetadataLine(info.FullName);
+                        IEnumerable<string> records = ReadTail(info.FullName);
+                        if (sessionMeta != null) records = new string[] { sessionMeta }.Concat(records);
+                        LiveTask task = ParseLines(records,
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
                         if (task != null) task.SessionKey = info.Name;
+                        // Only source-confirmed user/root turns qualify for the
+                        // one-click activity glyph. Unknown sources remain unknown.
+                        if (task != null && !task.IsRootConfirmed) continue;
                         if (task != null && (task.Phase == LiveTaskPhase.Active ||
                             (task.Phase == LiveTaskPhase.Unconfirmed &&
                             now - task.LastWriteUtc < TimeSpan.FromMinutes(30)) ||
@@ -264,6 +280,32 @@ namespace ShinoCodexMonitor
             catch (UnauthorizedAccessException) { report.Message = "Indisponible · accès au dossier refusé"; }
             catch (IOException) { report.Message = "À vérifier · lecture des sessions interrompue"; }
             return report;
+        }
+
+        private static string ReadFirstMetadataLine(string path)
+        {
+            try
+            {
+                using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete))
+                using (StreamReader reader = new StreamReader(stream, new UTF8Encoding(false), true, 4096))
+                {
+                    // The first record contains session metadata; cap memory to 1 MiB.
+                    // No prompts, chat text or authentication secrets are persisted.
+                    StringBuilder line = new StringBuilder();
+                    int ch;
+                    while (line.Length < 1048576 && (ch = reader.Read()) >= 0)
+                    {
+                        if (ch == '\n') break;
+                        if (ch != '\r') line.Append((char)ch);
+                    }
+                    if (line.Length == 0 || line.Length >= 1048576) return null;
+                    string candidate = line.ToString();
+                    return candidate.Contains("\"session_meta\"") ? candidate : null;
+                }
+            }
+            catch (IOException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
         }
 
         private static IEnumerable<string> ReadTail(string path)
@@ -294,6 +336,10 @@ namespace ShinoCodexMonitor
             System.Web.Script.Serialization.JavaScriptSerializer serializer =
                 new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
             string workspace = "Projet non communiqué";
+            string originator = "Non communiqué";
+            string threadSource = "Inconnue";
+            bool isSubagent = false;
+            bool isRoot = false;
             foreach (string line in lines)
             {
                 if (string.IsNullOrEmpty(line) || line.Length > 1048576) continue;
@@ -314,7 +360,27 @@ namespace ShinoCodexMonitor
                         string name = normalized.Substring(normalized.LastIndexOf('/') + 1);
                         workspace = Clean(name, "Projet non communiqué");
                     }
-                    if (last != null) last.Workspace = workspace;
+                    originator = Clean(Json.String(Json.Get(payload, "originator")), originator);
+                    object threadSourceRaw = Json.Get(payload, "thread_source");
+                    string kind = Json.String(threadSourceRaw as string);
+                    Dictionary<string, object> kindObject = Json.Object(threadSourceRaw);
+                    if (kindObject != null && kindObject.Count > 0)
+                        kind = kindObject.Keys.FirstOrDefault();
+                    threadSource = Clean(kind, threadSource);
+                    string parentId = Json.String(Json.Get(payload, "parent_thread_id"));
+                    isSubagent = !string.IsNullOrWhiteSpace(parentId) ||
+                        threadSource.IndexOf("subagent", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        threadSource.IndexOf("sub_agent", StringComparison.OrdinalIgnoreCase) >= 0;
+                    isRoot = !isSubagent &&
+                        string.Equals(threadSource, "user", StringComparison.OrdinalIgnoreCase);
+                    if (last != null)
+                    {
+                        last.Workspace = workspace;
+                        last.Originator = originator;
+                        last.ThreadSource = threadSource;
+                        last.IsSubagent = isSubagent;
+                        last.IsRootConfirmed = isRoot;
+                    }
                     continue;
                 }
                 if (type == "event_msg")
@@ -337,6 +403,8 @@ namespace ShinoCodexMonitor
                             catch (ArgumentOutOfRangeException) { }
                         }
                         last = new LiveTask { Id = Clean(turnId, ""), Workspace = workspace,
+                            ThreadSource = threadSource, Originator = originator,
+                            IsSubagent = isSubagent, IsRootConfirmed = isRoot,
                             StartedUtc = eventTime, Phase = LiveTaskPhase.Active, LastWriteUtc = fileWriteUtc };
                     }
                     else if (last != null && (string.IsNullOrEmpty(turnId) || turnId == last.Id))
@@ -345,6 +413,12 @@ namespace ShinoCodexMonitor
                         {
                             last.Phase = Json.Get(payload, "error") != null ? LiveTaskPhase.Failed : LiveTaskPhase.Completed;
                             last.FinishedUtc = eventTime == DateTimeOffset.MinValue ? (DateTimeOffset?)null : eventTime;
+                            long? duration = Json.Long(Json.Get(payload, "duration_ms"));
+                            if (duration.HasValue && duration.Value >= 0 && duration.Value <= 86400000L &&
+                                last.FinishedUtc.HasValue &&
+                                Math.Abs(((last.FinishedUtc.Value - last.StartedUtc).TotalMilliseconds) -
+                                    duration.Value) <= 120000)
+                                last.RecordedDurationMs = duration;
                         }
                         else if (ev == "turn_aborted" || ev == "task_aborted")
                         {
