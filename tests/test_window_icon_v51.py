@@ -3,7 +3,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
-BUILD = (ROOT / "BUILD-RELEASE-V5.1.ps1").read_text(encoding="utf-8-sig")
+BUILD = (ROOT / "BUILD-PERISCOPE-V5.2.ps1").read_text(encoding="utf-8-sig")
 STORE = (ROOT / "src" / "LocalStore.cs").read_text(encoding="utf-8")
 
 class WindowIconV51Audit(unittest.TestCase):
@@ -13,7 +13,7 @@ class WindowIconV51Audit(unittest.TestCase):
         self.assertIn("tray = new NotifyIcon { Icon = originalTrayIcon", FORM)
         self.assertLess(FORM.index("Icon = originalTrayIcon ?? SystemIcons.Application;"),
                         FORM.index("tray = new NotifyIcon"))
-        self.assertIn("('/win32icon:' + (Join-Path $root 'SHINO-CODEX.ico'))", BUILD)
+        self.assertIn("('/win32icon:' + (Join-Path $root 'CODEX-PERISCOPE.ico'))", BUILD)
 
     def test_taskbar_visibility_remains_explicit_user_preference(self):
         self.assertIn("ShowInTaskbar = settings.InTaskbar && settings.Pinned;", FORM)
