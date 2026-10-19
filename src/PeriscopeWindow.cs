@@ -50,6 +50,13 @@ namespace ShinoCodexMonitor
                 SendMessage(Handle,0x0080,IntPtr.Zero,smallIcon);
             }
         }
+        internal static float ScaleFor(Control control)
+        {
+            while (control != null && !control.IsHandleCreated) control=control.Parent;
+            if (control == null) return 1;
+            try { uint dpi=GetDpiForWindow(control.Handle); return dpi == 0 ? 1 : dpi/96f; }
+            catch (EntryPointNotFoundException) { return 1; }
+        }
         protected override void OnHandleDestroyed(EventArgs e)
         {
             base.OnHandleDestroyed(e);

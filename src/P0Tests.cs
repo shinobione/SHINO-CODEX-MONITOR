@@ -182,17 +182,19 @@ namespace ShinoCodexMonitor
             string folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"p0-qa"); Directory.CreateDirectory(folder);
             foreach (string layout in new [] {"Circular","Vertical","Compact","Micro"}) using (Form host=new Form()) using (MissionDeck deck=new MissionDeck()) {
                 int width=layout == "Vertical" ? 327 : layout == "Compact" ? 642 : layout == "Micro" ? 468 : 512;
-                host.ShowInTaskbar=false; host.StartPosition=FormStartPosition.Manual; host.Location=new Point(-32000,-32000); host.ClientSize=new Size(width,110);
+                int height=layout == "Vertical" ? 110 : layout == "Compact" ? 96 : layout == "Micro" ? 92 : 100;
+                host.ShowInTaskbar=false; host.StartPosition=FormStartPosition.Manual; host.Location=new Point(-32000,-32000); host.ClientSize=new Size(width,height);
                 deck.Dock=DockStyle.Fill; host.Controls.Add(deck); host.Show();
                 foreach (int count in new [] {1,2,3}) {
                     LiveTask[] tasks=Enumerable.Range(1,count).Select(i => Task("T"+i,"source-"+i,20+i)).ToArray();
                     // Fresh tracker per scenario avoids turning disappeared fixtures into fake completions.
                     deck.UpdateReport(null,Now); deck.UpdateReport(Report(Now,tasks),Now); deck.PerformLayout();
                     Assert(deck.Count == count && deck.Cards.Count() == count,"Layout lost task cards");
+                    Assert(deck.Cards.All(c => c.Controls.OfType<Label>().All(label => label.Bottom <= c.Height)),"Card text clips at actual activity height");
                     if (count == 2) { MissionCard[] cards=deck.Cards.ToArray(); Assert(Math.Abs(cards[0].Width-cards[1].Width)<=1,"Cards unequal"); }
-                    using (Bitmap bitmap=new Bitmap(width,140)) {
-                        deck.DrawToBitmap(bitmap,new Rectangle(0,0,width,110));
-                        using (Graphics g=Graphics.FromImage(bitmap)) { g.FillRectangle(Brushes.Black,0,110,width,30); g.DrawString("SYNTHETIC TEST DATA · "+layout+" · "+count+" local turns",SystemFonts.DefaultFont,Brushes.Gold,5,116); }
+                    using (Bitmap bitmap=new Bitmap(width,height+30)) {
+                        deck.DrawToBitmap(bitmap,new Rectangle(0,0,width,height));
+                        using (Graphics g=Graphics.FromImage(bitmap)) { g.FillRectangle(Brushes.Black,0,height,width,30); g.DrawString("SYNTHETIC TEST DATA · "+layout+" · "+count+" local turns",SystemFonts.DefaultFont,Brushes.Gold,5,height+6); }
                         bitmap.Save(Path.Combine(folder,"missions-"+layout+"-"+count+".png"));
                     }
                 }

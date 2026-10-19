@@ -98,12 +98,16 @@ namespace ShinoCodexMonitor
         }
         protected override void OnLayout(LayoutEventArgs e)
         {
-            base.OnLayout(e); bool wide=Width >= 300;
-            title.SetBounds(6,2,Math.Max(1,Width-12),20);
-            Radar.SetBounds(6,25,wide ? 30 : 24,wide ? 30 : 24);
-            status.SetBounds(wide ? 46 : 34,23,Math.Max(1,(wide ? 190 : Width)-40),17);
-            elapsed.SetBounds(wide ? 46 : 34,40,Math.Max(1,(wide ? 190 : Width)-40),17);
-            metadata.SetBounds(wide ? 212 : 6,wide ? 26 : 57,Math.Max(1,Width-(wide ? 218 : 12)),wide ? 38 : 18);
+            base.OnLayout(e); if (title == null) return;
+            float scale=PeriscopeWindow.ScaleFor(this);
+            Func<int,int> unit=value => (int)Math.Round(value*scale);
+            bool wide=Width >= unit(300), tight=Height < unit(74);
+            title.SetBounds(unit(6),unit(2),Math.Max(1,Width-unit(12)),unit(tight ? 17 : 20));
+            Radar.SetBounds(unit(6),unit(tight ? 22 : 25),unit(wide ? 30 : 24),unit(wide ? 30 : 24));
+            status.SetBounds(unit(wide ? 46 : 34),unit(tight ? 19 : 23),Math.Max(1,(wide ? unit(190) : Width)-unit(40)),unit(tight ? 15 : 17));
+            elapsed.SetBounds(unit(wide ? 46 : 34),unit(tight ? 34 : 40),Math.Max(1,(wide ? unit(190) : Width)-unit(40)),unit(tight ? 15 : 17));
+            int metaTop=unit(wide ? 26 : tight ? 50 : 56);
+            metadata.SetBounds(unit(wide ? 212 : 6),metaTop,Math.Max(1,Width-unit(wide ? 218 : 12)),Math.Max(1,Math.Min(unit(wide ? 38 : 18),Height-metaTop)));
         }
         protected override void Dispose(bool disposing) { if (disposing) tooltip.Dispose(); base.Dispose(disposing); }
     }
@@ -146,10 +150,12 @@ namespace ShinoCodexMonitor
         private bool InViewport(MissionCard card) { return viewport.Visible && viewport.ClientRectangle.IntersectsWith(card.Bounds); }
         private void Arrange()
         {
-            if (viewport == null) return;
-            int columns=cards.Count == 2 || (cards.Count > 2 && viewport.ClientSize.Width >= 440) ? 2 : 1;
+            if (viewport == null || heading == null || cards == null) return;
+            float scale=PeriscopeWindow.ScaleFor(this);
+            heading.Height=(int)Math.Round(24*scale);
+            int columns=cards.Count == 2 || (cards.Count > 2 && viewport.ClientSize.Width >= 440*scale) ? 2 : 1;
             int rows=(cards.Count+columns-1)/columns;
-            int height=cards.Count > 2 ? 76 : Math.Max(76,viewport.ClientSize.Height);
+            int height=cards.Count > 2 ? (int)Math.Round(76*scale) : Math.Max((int)Math.Round(64*scale),viewport.ClientSize.Height);
             int width=Math.Max(1,(viewport.ClientSize.Width-(rows*height > viewport.ClientSize.Height ? SystemInformation.VerticalScrollBarWidth : 0))/columns);
             int i=0; Point offset=viewport.AutoScrollPosition;
             foreach (MissionCard card in cards.Values.OrderBy(c => c.Mission.Number)) {
@@ -157,6 +163,7 @@ namespace ShinoCodexMonitor
             }
             viewport.AutoScrollMinSize=new Size(0,rows*height);
         }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Arrange(); }
         internal void ConfirmCompletion(LiveTask task)
         {
             foreach (MissionCard card in cards.Values)
