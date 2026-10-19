@@ -8,24 +8,24 @@ HASHES = __import__('json').loads((ROOT/'tests'/'core-sha256.json').read_text(en
 
 class ReleaseStaticTests(unittest.TestCase):
     def test_core_unchanged(self):
-        # Core quota collector remains identical; task-state accent intentionally updates QuotaTrayIcon in V5.1.
-        for name in ('WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','HistoryWindow.cs','AlertRules.cs'):
+        # Unchanged core math stays hash-locked; translated diagnostics are separately guarded by V5.2 tests.
+        for name in ('WakeGuard.cs','AlertRules.cs'):
             a = (ROOT/'src'/name).read_bytes()
             self.assertEqual(hashlib.sha256(a).hexdigest(), HASHES[name], name)
     def test_version(self):
-        self.assertIn('5.1.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
-        self.assertIn('V5.1.0', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
+        self.assertIn('5.2.0.0', (ROOT/'src'/'AssemblyInfo.cs').read_text(encoding='utf-8'))
+        self.assertIn('V5.2.0', (ROOT/'src'/'MonitorForm.cs').read_text(encoding='utf-8'))
         self.assertIn('SHINO // CODEX V5.1.0 —', (ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8'))
     def test_self_tests_count(self):
         s=(ROOT/'src'/'SelfTests.cs').read_text(encoding='utf-8')
         self.assertEqual(len(re.findall(r'\bCheck\(', s)) - 1,98)
     def test_winexe(self):
-        s=(ROOT/'BUILD-RELEASE-V5.1.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'BUILD-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('/target:winexe',s)
-        self.assertIn('Autotests Windows incomplets',s)
+        self.assertIn('Windows self-tests incomplete.',s)
         self.assertIn("'98/98'",s)
     def test_integrity_before_install(self):
-        s=(ROOT/'INSTALLER-V5.1.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'INSTALL-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
         self.assertLess(s.index('Get-FileHash'), s.index('New-Item -ItemType Directory -Path $destination'))
         self.assertLess(s.index('98/98'), s.index('New-Item -ItemType Directory -Path $destination'))
         self.assertIn('File]::Replace',s)
@@ -54,11 +54,11 @@ class ReleaseStaticTests(unittest.TestCase):
                 self.assertNotIn(f.name.lower(),('history.jsonl','settings.json','auth.json','token.json'))
                 self.assertNotEqual(f.suffix.lower(),'.exe')
     def test_uninstall_requires_confirmation(self):
-        s=(ROOT/'DESINSTALLER-V5.1.ps1').read_text(encoding='utf-8-sig')
-        self.assertIn("-cne 'OUI'",s)
+        s=(ROOT/'UNINSTALL-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn("-cne 'YES'",s)
         self.assertNotIn('Remove-Item -LiteralPath $env:LOCALAPPDATA',s)
     def test_compiler_sources_present(self):
-        s=(ROOT/'BUILD-RELEASE-V5.0.ps1').read_text(encoding='utf-8-sig')
+        s=(ROOT/'BUILD-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
         for p in ROOT.joinpath('src').glob('*.cs'):
             self.assertIn(p.name,s)
 
