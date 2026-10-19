@@ -57,10 +57,6 @@ jobs:
               $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
             & .\BUILD-RELEASE-V5.1.ps1
           }
-          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
-                  $assembly.Contains('5.1.0-preview.1')) {
-            & .\BUILD-PREVIEW-V5.1.ps1
-          }
           else {
             & .\BUILD-RELEASE-V5.0.ps1
           }
@@ -109,22 +105,6 @@ jobs:
         with:
           name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS-PR
           path: dist/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip
-          if-no-files-found: error
-          retention-days: 30
-      - name: Upload unsigned V5.1 preview executable (NO INSTALL)
-        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: SHINO-CODEX-MONITOR-V5.1.0-PREVIEW-UNSIGNED-EXE
-          path: bin/SHINO-CODEX-MONITOR.exe
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload V5.1 versioned portable ZIP (NO INSTALL)
-        if: hashFiles('INSTALLER-V5.1.ps1') == '' && hashFiles('src/LiveTaskTests.cs') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: SHINO-CODEX-MONITOR-V5.1.0-PREVIEW-WINDOWS-ZIP
-          path: dist/SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip
           if-no-files-found: error
           retention-days: 30
       - name: Upload V5.0 stable artifact (legacy branch only)
