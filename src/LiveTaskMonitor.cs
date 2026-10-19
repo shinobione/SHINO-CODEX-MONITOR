@@ -209,6 +209,11 @@ namespace ShinoCodexMonitor
         internal const int ActivityMaxAgeSeconds = 90;
         private const int TailBytes = 524288;
         private const int MaxFiles = 12;
+        private const int DiscoveryFiles = 48;
+        // Immutable, sanitized metadata only; never keep the original session_meta,
+        // system prompt, instructions, auth or response content in this cache.
+        private static readonly Dictionary<string, string> HeaderCache =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         internal static string SessionRoot()
         {
@@ -245,21 +250,26 @@ namespace ShinoCodexMonitor
                             candidates.Add(info);
                     }
                 }
-                foreach (FileInfo info in candidates.OrderByDescending(f => f.LastWriteTimeUtc).Take(MaxFiles))
+                int checkedRoots = 0;
+                int ignoredChildren = 0;
+                int unknownHeaders = 0;
+                foreach (FileInfo info in candidates.OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Take(DiscoveryFiles))
                 {
                     try
                     {
-                        // session_meta appears at the BEGINNING of a rollout, not
-                        // necessarily inside its last 512 KiB. Without it we could
-                        // mistake a 2-second subagent for the user's 10-minute turn.
+                        // Root session may have less recent disk activity than 12 subagents.
+                        // Inspect metadata FIRST, then parse a bounded tail only for roots.
                         string sessionMeta = ReadFirstMetadataLine(info.FullName);
-                        IEnumerable<string> records = ReadTail(info.FullName);
-                        if (sessionMeta != null) records = new string[] { sessionMeta }.Concat(records);
-                        LiveTask task = ParseLines(records,
+                        if (sessionMeta == null) { unknownHeaders++; continue; }
+                        string threadKind = HeaderThreadKind(sessionMeta);
+                        if (threadKind == "subagent") { ignoredChildren++; continue; }
+                        if (threadKind != "user") { unknownHeaders++; continue; }
+                        if (++checkedRoots > MaxFiles) break;
+                        LiveTask task = ParseLines(
+                            new string[] { sessionMeta }.Concat(ReadTail(info.FullName)),
                             new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
                         if (task != null) task.SessionKey = info.Name;
-                        // Only source-confirmed user/root turns qualify for the
-                        // one-click activity glyph. Unknown sources remain unknown.
                         if (task != null && !task.IsRootConfirmed) continue;
                         if (task != null && (task.Phase == LiveTaskPhase.Active ||
                             (task.Phase == LiveTaskPhase.Unconfirmed &&
@@ -274,24 +284,45 @@ namespace ShinoCodexMonitor
                 report.Tasks.Sort(delegate(LiveTask x, LiveTask y) {
                     return y.LastWriteUtc.CompareTo(x.LastWriteUtc);
                 });
-                if (report.Tasks.Count > 0)
-                    report.Message = "Sessions locales · lecture seule · statut indicatif";
+                report.Message = "Tours principaux locaux · " + checkedRoots +
+                    " inspecté(s), " + ignoredChildren + " sous-agent(s) ignoré(s)" +
+                    (unknownHeaders > 0 ? " · " + unknownHeaders + " source(s) non classée(s)" : "");
+                if (report.Tasks.Count == 0)
+                    report.Message += " · tour actuel non vérifiable";
             }
             catch (UnauthorizedAccessException) { report.Message = "Indisponible · accès au dossier refusé"; }
             catch (IOException) { report.Message = "À vérifier · lecture des sessions interrompue"; }
             return report;
         }
 
+        private static string HeaderThreadKind(string sanitizedMeta)
+        {
+            try
+            {
+                Dictionary<string, object> root = Json.Object(Json.Serializer.DeserializeObject(sanitizedMeta));
+                Dictionary<string, object> payload = Json.Object(Json.Get(root, "payload"));
+                if (payload == null) return "unknown";
+                string kind = Json.String(Json.Get(payload, "thread_source"));
+                if (kind == "subagent") return "subagent";
+                if (!string.IsNullOrEmpty(Json.String(Json.Get(payload, "parent_thread_id"))))
+                    return "subagent";
+                return string.Equals(kind, "user", StringComparison.OrdinalIgnoreCase) ? "user" : "unknown";
+            }
+            catch (ArgumentException) { return "unknown"; }
+        }
+
         private static string ReadFirstMetadataLine(string path)
         {
+            string cached;
+            if (HeaderCache.TryGetValue(path, out cached)) return cached;
             try
             {
                 using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                     FileShare.ReadWrite | FileShare.Delete))
                 using (StreamReader reader = new StreamReader(stream, new UTF8Encoding(false), true, 4096))
                 {
-                    // The first record contains session metadata; cap memory to 1 MiB.
-                    // No prompts, chat text or authentication secrets are persisted.
+                    // Bounded first-record read, once per source file, regardless of
+                    // the amount of reasoning/tool output appended over 10+ minutes.
                     StringBuilder line = new StringBuilder();
                     int ch;
                     while (line.Length < 1048576 && (ch = reader.Read()) >= 0)
@@ -300,12 +331,35 @@ namespace ShinoCodexMonitor
                         if (ch != '\r') line.Append((char)ch);
                     }
                     if (line.Length == 0 || line.Length >= 1048576) return null;
-                    string candidate = line.ToString();
-                    return candidate.Contains("\"session_meta\"") ? candidate : null;
+                    Dictionary<string, object> root = Json.Object(Json.Serializer.DeserializeObject(line.ToString()));
+                    if (root == null || Json.String(Json.Get(root, "type")) != "session_meta") return null;
+                    Dictionary<string, object> payload = Json.Object(Json.Get(root, "payload"));
+                    if (payload == null) return null;
+
+                    // Preserve ONLY narrow metadata. The raw session header may
+                    // contain confidential system instructions; discard immediately.
+                    Dictionary<string, object> clean = new Dictionary<string, object>();
+                    foreach (string field in new [] { "thread_source", "originator", "parent_thread_id", "cwd" })
+                    {
+                        object value = Json.Get(payload, field);
+                        if (value is string)
+                        {
+                            string raw = (string)value;
+                            if (raw.Length <= 1024) clean[field] = raw;
+                        }
+                    }
+                    // Non-string thread_source is deliberately not trusted as root.
+                    string safe = Json.Serializer.Serialize(new Dictionary<string, object> {
+                        { "type", "session_meta" }, { "payload", clean }
+                    });
+                    if (HeaderCache.Count >= 256) HeaderCache.Clear();
+                    HeaderCache[path] = safe;
+                    return safe;
                 }
             }
             catch (IOException) { return null; }
             catch (UnauthorizedAccessException) { return null; }
+            catch (ArgumentException) { return null; }
         }
 
         private static IEnumerable<string> ReadTail(string path)
