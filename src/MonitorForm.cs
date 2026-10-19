@@ -114,7 +114,7 @@ namespace ShinoCodexMonitor
             taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
             taskRule.BackColor = UiColors.Track;
             taskHeading = TextLabel("ACTIVITÉ CODEX", 8, UiColors.Text, true);
-            taskSource = TextLabel("LOCAL · INDICATIF", 7, UiColors.Muted, false);
+            taskSource = TextLabel("LOCAL · PARTIEL", 7, UiColors.Muted, false);
             taskSource.TextAlign = ContentAlignment.MiddleRight;
             taskBadge = TextLabel("À VÉRIFIER", 8, UiColors.Muted, true);
             taskBadge.TextAlign = ContentAlignment.MiddleRight;
@@ -1024,8 +1024,8 @@ namespace ShinoCodexMonitor
                 InvalidateForWake("Interruption de l'horloge d'interface (> 15 s)");
             lastHeartbeatUtc = nowUtc;
             runtime.Sample(nowUtc);
-            if (taskReport != null && taskReport.ActiveCount > 0)
-                UpdateTaskSurface(nowUtc);
+            // Also expire green terminal glyphs and stale scans while Codex is idle.
+            if (taskReport != null) UpdateTaskSurface(nowUtc);
             PollTasks(nowUtc);
             // The reset countdown is displayed in whole minutes. Avoid repainting every second.
             if (nowUtc >= lastUiPaintUtc.AddSeconds(10) || lastUiPaintUtc == DateTimeOffset.MinValue)
@@ -1114,50 +1114,64 @@ namespace ShinoCodexMonitor
 
         private void UpdateTaskSurface(DateTimeOffset now)
         {
-            LiveTask task = taskReport == null ? null : taskReport.Featured;
-            LiveTaskPhase phase = task == null ? LiveTaskPhase.Unknown : task.Phase;
+            TaskDisplay display = taskReport == null ? new TaskDisplay() : taskReport.DisplayAt(now);
+            LiveTask task = display.Primary;
+            // These icons describe the OBSERVED local rollout, never all Codex Desktop tasks.
+            LiveTaskPhase phase = task == null ? LiveTaskPhase.Unknown :
+                display.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
+                display.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
+                task.Phase;
             taskGlyph.SetPhase(phase);
             if (task == null)
             {
-                taskName.Text = taskReport == null ? "Lecture des tâches locales…" :
-                    "Aucune tâche locale récente confirmée";
-                taskBadge.Text = "—";
-                taskMeta.Text = "Modèle : —   ·   Effort : —";
-                taskExtra.Text = taskReport == null ? "En attente du premier relevé" :
-                    taskReport.Message;
+                taskName.Text = taskReport == null ? "Recherche d'événements locaux…" :
+                    "État actuel de Codex non vérifiable";
+                taskBadge.Text = "NON VÉRIFIÉ";
+                taskMeta.Text = "Aucune tâche active confirmée dans les journaux";
+                if (display.LastTerminal != null)
+                {
+                    LiveTask last = display.LastTerminal;
+                    taskExtra.Text = "Dernier tour local : " + last.Workspace + " · " +
+                        (last.Phase == LiveTaskPhase.Completed ? "terminé" :
+                            last.Phase == LiveTaskPhase.Failed ? "échec" : "interrompu") +
+                        " à " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
+                }
+                else
+                    taskExtra.Text = taskReport == null ? "En attente du premier relevé" :
+                        display.Detail + " · source partielle";
             }
             else
             {
                 taskName.Text = task.Workspace == "Projet non communiqué" ?
-                    "Session Codex" : task.Workspace;
+                    "Session Codex locale" : task.Workspace;
                 string duration = task.Duration(now);
-                taskBadge.Text = phase == LiveTaskPhase.Active ? "● LIVE " + duration :
-                    phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
-                    phase == LiveTaskPhase.Failed ? "× ÉCHEC " + duration :
-                    phase == LiveTaskPhase.Interrupted ? "■ STOP " + duration : "? À VÉRIFIER";
+                taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVÉ " + duration :
+                    display.Kind == TaskDisplayKind.Uncertain ? "? À VÉRIFIER" :
+                    task.Phase == LiveTaskPhase.Completed ? "✓ TOUR FINI" :
+                    task.Phase == LiveTaskPhase.Failed ? "× TOUR ÉCHEC" : "■ TOUR ARRÊTÉ";
                 taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " + task.Effort;
-                int otherActive = taskReport.ActiveCount - (phase == LiveTaskPhase.Active ? 1 : 0);
-                if (otherActive > 0)
-                    taskExtra.Text = "+" + otherActive + " autre(s) tâche(s) active(s) · " +
-                        "source : sessions locales indicatives";
-                else if (phase == LiveTaskPhase.Unconfirmed)
-                    taskExtra.Text = "Sans activité récente : état à vérifier · journaux locaux";
+                int otherActive = taskReport.ActiveCount -
+                    (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
+                if (display.Kind == TaskDisplayKind.ObservedActive)
+                    taskExtra.Text = "Durée : " + duration + " · activité dans un journal local, onglet non identifié" +
+                        (otherActive > 0 ? " · +" + otherActive + " autres" : "");
+                else if (display.Kind == TaskDisplayKind.Uncertain)
+                    taskExtra.Text = "Dernier journal : " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
+                        " · statut actuel non vérifié";
                 else
-                {
-                    TimeSpan age = now - task.LastWriteUtc;
-                    string lag = age.TotalSeconds < 0 ? "horloge à vérifier" :
-                        age.TotalMinutes < 1 ? "moins d'1 min" :
-                        ((int)age.TotalMinutes) + " min";
-                    taskExtra.Text = "Dernier journal : " + lag + " · données locales indicatives";
-                }
+                    taskExtra.Text = "Dernier tour local, pas l'état global de Codex · " +
+                        task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
+                        " · " + duration;
             }
             taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
-            tooltip.SetToolTip(taskDock, task == null ?
-                (taskReport == null ? "Lecture locale non terminée" : taskReport.Message) :
-                task.PhaseLabel + " · " + task.Workspace + " · " + task.Source);
+            string description = taskReport == null ? "Lecture locale non terminée" :
+                display.Detail + " · source : fichiers JSONL locaux, ne suit pas forcément l'onglet actif";
+            tooltip.SetToolTip(taskDock, description);
+            tooltip.SetToolTip(taskGlyph, description);
+            tooltip.SetToolTip(taskBadge, description);
         }
 
         private static string SafeError(Exception error)
@@ -1289,9 +1303,14 @@ namespace ShinoCodexMonitor
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
-            LiveTaskPhase livePhase = taskReport == null || taskReport.Featured == null ?
-                LiveTaskPhase.Unknown : taskReport.Featured.Phase;
-            int activeTasks = taskReport == null ? 0 : taskReport.ActiveCount;
+            TaskDisplay taskDisplay = taskReport == null ? new TaskDisplay() :
+                taskReport.DisplayAt(DateTimeOffset.UtcNow);
+            LiveTaskPhase livePhase = taskDisplay.Primary == null ? LiveTaskPhase.Unknown :
+                taskDisplay.Kind == TaskDisplayKind.ObservedActive ? LiveTaskPhase.Active :
+                taskDisplay.Kind == TaskDisplayKind.Uncertain ? LiveTaskPhase.Unconfirmed :
+                taskDisplay.Primary.Phase;
+            int activeTasks = taskDisplay.Kind == TaskDisplayKind.ObservedActive ?
+                taskReport.ActiveCount : 0;
             tray.Text = current && rounded >= 0 ?
                 "SHINO // CODEX · " + window + " : " + rounded + "% restants" :
                 "SHINO // CODEX · " + (blocked ? "Usage bloqué" : state);
