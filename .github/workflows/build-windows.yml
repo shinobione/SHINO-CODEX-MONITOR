@@ -1,4 +1,4 @@
-name: Build Windows - SHINO Codex Monitor
+name: Build Windows - Codex Periscope and legacy
 
 on:
   push:
@@ -53,7 +53,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $assembly = [IO.File]::ReadAllText((Join-Path $PWD 'src\AssemblyInfo.cs'))
-          if ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
+          if ($assembly.Contains('AssemblyVersion("5.2.0.0")')) {
+            & .\BUILD-PERISCOPE-V5.2.ps1
+          }
+          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
               $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
             & .\BUILD-RELEASE-V5.1.ps1
           }
@@ -99,8 +102,16 @@ jobs:
               !$content.Contains('Installer: NOT EXECUTED')) {
             throw 'Live download smoke report invalid.'
           }
+      - name: Upload V5.2 Codex Periscope portable preview (NO INSTALL)
+        if: hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODEX-PERISCOPE-V5.2-PREVIEW-WINDOWS
+          path: dist/CODEX_PERISCOPE_V5_2_PREVIEW_WINDOWS.zip
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload stable V5.1 installer ZIP (validated; no installation)
-        if: hashFiles('INSTALLER-V5.1.ps1') != ''
+        if: hashFiles('BUILD-PERISCOPE-V5.2.ps1') == '' && hashFiles('INSTALLER-V5.1.ps1') != ''
         uses: actions/upload-artifact@v4
         with:
           name: SHINO-CODEX-MONITOR-V5.1.0-STABLE-WINDOWS-PR
