@@ -545,7 +545,7 @@ namespace ShinoCodexMonitor
                     text.Contains("Dernier relevé valide : Aucun") &&
                     !text.Contains("% restants"));
             });
-            report.Insert(0, "SHINO // CODEX V5.1.0 PREVIEW — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            report.Insert(0, "SHINO // CODEX V5.1.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
             return report.ToString();
         }
     }
