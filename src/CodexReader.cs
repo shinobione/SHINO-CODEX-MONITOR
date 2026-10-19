@@ -123,7 +123,7 @@ namespace ShinoCodexMonitor
                 stdin.WriteLine("{\"method\":\"account/rateLimits/read\",\"id\":2}");
                 stdin.Flush();
                 Dictionary<string, object> response = WaitForId(stdout, 2, 60);
-                CheckRpcError(response, "Lecture des quotas");
+                CheckRpcError(response, "Read quotas");
                 return QuotaParser.Parse(Json.Get(response, "result"));
             }
             catch (Exception error)
@@ -145,7 +145,7 @@ namespace ShinoCodexMonitor
         }
         private static string SafeMessage(Exception e)
         {
-            string m = e.Message ?? "Erreur inconnue";
+            string m = e.Message ?? "Unknown error";
             // Never record CLI output, RPC bodies or secrets in logs/UI.
             if (m.IndexOf("401", StringComparison.OrdinalIgnoreCase) >= 0 || m.IndexOf("403", StringComparison.OrdinalIgnoreCase) >= 0)
                 return "Codex access denied (401/403).";
