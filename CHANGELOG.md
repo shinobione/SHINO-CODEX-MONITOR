@@ -1,6 +1,16 @@
 # SHINO // CODEX MONITOR — Change log
 
-## V5.1.0-preview.1 — Live Task Monitor (PR #11, non publiée)
+## V5.1.0 — Live Task Monitor (Release stable)
+
+- Version **5.1.0.0** du widget et **5.1.0** de l'assembly informationnelle ; compilation Windows et publication vérifiées.
+- **Installateur dédié V5.1** : SHA-256 et version contrôlés, sauvegarde de l'ancien EXE, conservation des préférences/historique, tests 98 + 46 avant remplacement.
+- Archive stable `SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip` compatible avec le mécanisme de mise à jour sécurisé ; validation locale de l'installateur sans installation.
+- Publication par workflow GitHub Actions sur `main`, tag GitHub `v5.1.0`, build et tests de la version fusionnée avant mise en ligne.
+- Confirmation utilisateur du fonctionnement de la Preview avant demande explicite de publication (19 octobre 2026).
+- **Limitations documentées :** sessions Codex JSONL non garanties, événements parfois absents, notifications dépendantes de Windows ; le monitor ne prétend pas identifier l'onglet Codex Desktop actif dans tous les cas.
+
+### Historique de développement : V5.1.0-preview.1 (PR #11)
+
 
 - **Version distincte :** assembly 5.1.0.0, libellé V5.1.0 / PREVIEW ; script `BUILD-PREVIEW-V5.1.ps1` et ZIP portable preview dédiés. Aucun installateur V5.0 utilisé pour cette candidate ; ancien builder bloqué si version inadéquate.
 - **Un widget unique :** quotas 5 h / 7 j, resets, source et fraîcheur en haut ; bandeau « Activité Codex » sous les jauges, quatre dispositions et Tray conservés.
