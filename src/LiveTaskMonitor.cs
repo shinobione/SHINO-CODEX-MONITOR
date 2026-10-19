@@ -92,10 +92,10 @@ namespace ShinoCodexMonitor
             }
         }
 
-        internal string RedactedDiagnosticss(DateTimeOffset now)
+        internal string RedactedDiagnostics(DateTimeOffset now)
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine("CODEX PERISCOPE V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
+            text.AppendLine("CODEX PERISCOPE V5.2 — LOCAL TURN DIAGNOSTICS (READ ONLY)");
             text.AppendLine("Sample (UTC): " +
                 (CheckedUtc == DateTimeOffset.MinValue ? "none" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
@@ -108,15 +108,15 @@ namespace ShinoCodexMonitor
             foreach (LiveTask task in Tasks.OrderByDescending(t => t.StartedUtc).Take(6))
             {
                 // No session UUID, full path, cwd, user message, command or token.
-                text.AppendLine("Tour #" + (++i) + " : " +
+                text.AppendLine("Turn #" + (++i) + " : " +
                     task.Phase + " ; source=" + task.ThreadSource +
                     " ; started (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
                     " ; finished (UTC)=" +
                     (task.FinishedUtc.HasValue ?
-                        task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
+                        task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "not provided") +
                     " ; duration=" + task.Duration(now) +
                     " ; duration_ms=" + (task.RecordedDurationMs.HasValue ?
-                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
+                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "not provided") +
                     " ; age (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
             if (i == 0) text.AppendLine("No observable root turns.");
