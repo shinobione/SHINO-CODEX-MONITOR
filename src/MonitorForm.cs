@@ -1172,6 +1172,8 @@ namespace ShinoCodexMonitor
             tooltip.SetToolTip(taskDock, description);
             tooltip.SetToolTip(taskGlyph, description);
             tooltip.SetToolTip(taskBadge, description);
+            // Stop animation when observation expires, even if no new file arrives.
+            UpdateTaskMotion();
         }
 
         private static string SafeError(Exception error)
