@@ -1,6 +1,6 @@
 # SHINO // CODEX MONITOR — Roadmap
 
-**Mise à jour : 19 octobre 2026 · V5.1.0 publication autorisée et en cours.**
+**Mise à jour : 19 octobre 2026 · V5.1.0 publiée officiellement : [Release v5.1.0](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0).**
 
 Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Codex de l'abonnement ChatGPT** et, si observables, les *tours principaux* Codex. Ni chat classique, ni facturation API, ni autre projet SHINO.
 
@@ -10,7 +10,7 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 |---|---|---|
 | **V5.0.0** | **Release stable publiée** | Quotas 5h / 7j s'ils sont exposés, resets, fraîcheur, origine Codex CLI, fenêtre épinglable, tray et historique local. |
 | **V5.1.0-preview.1** | **Preview validée par l'utilisateur** | Widget unique avec activité Codex, icône animée en cours, coche à fin confirmée, durée/modèle/effort si exposés, journaux locaux lus en lecture seule. Menus et identité de version rationalisés ; ZIP portable distinct de V5.0. |
-| **V5.1.0 stable** | **Publication autorisée le 19/10/2026** | Packaging V5.1 dédié, CI Windows, GitHub Release après fusion ; ne déclarer publiée qu'après confirmation de GitHub. |
+| **V5.1.0 stable** | **Publiée le 19/10/2026** | [ZIP Windows officiel](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/download/v5.1.0/SHINO_CODEX_MONITOR_V5_1_WINDOWS.zip), installateur dédié, CI de `main` verte ; tests terrain complémentaires restant dans la roadmap. |
 | **V5.2 (hypothèse)** | **À étudier** | Si possible, intégration **documentée** aux événements Codex Desktop / app-server afin de synchroniser le tour visible à l'écran, sans attachement clandestin, jetons, cookies ni endpoints privés. |
 
 ## V5.1 — Critères avant fusion/publication
@@ -38,8 +38,8 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 
 ## Actions prioritaires
 
-1. Publier la V5.1.0 après CI de la branche fusionnée, avec ZIP Windows versionné et installateur sans administrateur.
+1. **Publié :** V5.1.0 sur GitHub, tag `v5.1.0`, ZIP avec SHA-256 publié ; [workflow de publication](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39255792594) et [CI de `main`](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39255792674) réussis.
 2. Valider sur la machine utilisateur la corrélation du **tour utilisateur complet** (non un sous-agent), puis traiter les erreurs documentées dans la même PR.
 3. Après publication, tester l'assistant de mise à jour V5.0 → V5.1 sur le PC Windows et documenter les écarts.
 
-Référence : [PR #11](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/11) · [CHANGELOG.md](CHANGELOG.md) · [README.md](README.md).
+Références : [Release V5.1.0](https://github.com/shinobione/SHINO-CODEX-MONITOR/releases/tag/v5.1.0) · [PR #11 fusionnée](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/11) · [CHANGELOG.md](CHANGELOG.md) · [README.md](README.md).
