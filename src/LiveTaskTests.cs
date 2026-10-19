@@ -178,6 +178,12 @@ namespace ShinoCodexMonitor
                 done.SessionKey = "rollout-A.jsonl";
                 Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-5), done),
                     Report(Now, done)).Count == 0);
+                // A terminal timestamp in the future is never a confirmed alert.
+                LiveTask impossible = new LiveTask { Phase = LiveTaskPhase.Completed,
+                    SessionKey = "rollout-future.jsonl", StartedUtc = Now.AddSeconds(-8),
+                    FinishedUtc = Now.AddSeconds(10) };
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10)),
+                    Report(Now, impossible)).Count == 0);
             });
             Check("Notification : jamais lors du tout premier scan", delegate {
                 LiveTask done = Parse(Now, Event("task_started", "", 5),
@@ -192,6 +198,15 @@ namespace ShinoCodexMonitor
                 old.SessionKey = done.SessionKey = "rollout-A.jsonl";
                 Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-70), old),
                     Report(Now, done)).Count == 0);
+                // Same-session ACTIVE snapshot is not enough: an old terminal
+                // event predating the last scan must not generate a new toast.
+                LiveTask recentlySeen = Parse(Now, Event("task_started", "stale", 80));
+                LiveTask staleFinish = Parse(Now, Event("task_started", "stale", 80),
+                    Event("task_complete", "stale", 40));
+                recentlySeen.SessionKey = staleFinish.SessionKey = "rollout-stale.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(
+                    Report(Now.AddSeconds(-20), recentlySeen),
+                    Report(Now, staleFinish)).Count == 0);
             });
             Check("Notification : aucun faux positif après activité non confirmée", delegate {
                 LiveTask old = Parse(Now.AddSeconds(-120), Event("task_started", "", 140));
