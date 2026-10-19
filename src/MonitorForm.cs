@@ -1460,9 +1460,9 @@ namespace ShinoCodexMonitor
             if (!last.HasValue) return "No reading";
             TimeSpan age = now - last.Value;
             if (age.TotalSeconds < -5) return "Check system clock";
-            if (age.TotalSeconds < 60) return "Read less than 1 min agoute ago";
+            if (age.TotalSeconds < 60) return "Read less than 1 minute ago";
             if (age.TotalHours < 1) return "Read " + (int)age.TotalMinutes + " min ago";
-            return "Read " + (int)age.TotalHours + " h";
+            return "Read " + (int)age.TotalHours + " h ago";
         }
         private Color QuotaColor(int p)
         {
@@ -1483,13 +1483,13 @@ namespace ShinoCodexMonitor
             if (kind == "five") absolute = "at " + local.ToString("HH:mm");
             else
             {
-                CultureInfo fr = CultureInfo.GetCultureInfo("fr-FR");
-                string month = local.ToString("MMM", fr).TrimEnd('.');
+                CultureInfo english = CultureInfo.GetCultureInfo("en-US");
+                string month = local.ToString("MMM", english).TrimEnd('.');
                 month = char.ToUpperInvariant(month[0]) + month.Substring(1);
-                absolute = "le " + local.Day + " " + month + " " + local.ToString("HH:mm");
+                absolute = "on " + month + " " + local.Day + " at " + local.ToString("HH:mm");
             }
             string relative = left.TotalDays >= 1 ?
-                "in " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
+                "in " + (int)Math.Floor(left.TotalDays) + "d " + left.Hours + "h" :
                 "in " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
             if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
