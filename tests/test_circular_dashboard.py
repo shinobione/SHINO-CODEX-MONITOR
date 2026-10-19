@@ -47,7 +47,7 @@ class CircularLayoutAudit(unittest.TestCase):
     def test_menu_has_five_color_options(self):
         for label in ('76–100 %','51–75 %','26–50 %','11–25 %','0–10 %'):
             self.assertIn(label,FORM)
-        self.assertIn('Circulaire · 2 roues',FORM)
+        self.assertIn('Circular · 2 gauges',FORM)
 
 if __name__=='__main__':
     unittest.main()
