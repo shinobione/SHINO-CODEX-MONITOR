@@ -30,7 +30,10 @@ namespace ShinoCodexMonitor
     internal sealed class MonitorForm : Form
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string RunName = "SHINO_CODEX_MONITOR_V4";
+        private const string RunName = "CODEX_PERISCOPE";
+        private static readonly string[] LegacyRunNames = {
+            "SHINO_CODEX_MONITOR_V4", "SHINO_CODEX_MONITOR"
+        };
         private readonly LocalStore store;
         private readonly Preferences settings;
         private readonly NotifyIcon tray;
@@ -710,8 +713,8 @@ namespace ShinoCodexMonitor
                 });
             autostart.CheckOnClick = true;
             application.DropDownItems.Add(new ToolStripSeparator());
-            Menu(application, "Diagnostics", delegate { ShowDiagnostics(); });
-            Menu(application, "Copy diagnostics", delegate { CopyDiagnostics(); });
+            Menu(application, "Diagnostics", delegate { ShowDiagnostic(); });
+            Menu(application, "Copy diagnostics", delegate { CopyDiagnostic(); });
             application.DropDownOpening += delegate { autostart.Checked = StartupEnabled(); };
 
             context.Items.Add(new ToolStripSeparator());
@@ -913,52 +916,89 @@ namespace ShinoCodexMonitor
         }
         private static string StartupValue()
         {
-            try
-            {
+            try {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
                     return key == null ? null : key.GetValue(RunName) as string;
-            }
-            catch { return null; }
+            } catch { return null; }
         }
         private static bool StartupEnabled()
         {
             string value = StartupValue();
-            if (string.IsNullOrEmpty(value)) return false;
-            return string.Equals(value.Trim().Trim('"'), Application.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(value) &&
+                string.Equals(value.Trim().Trim('"'), Application.ExecutablePath,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+        private static bool IsLegacyMonitorCommand(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command)) return false;
+            string path = command.Trim().Trim('"');
+            if (path.IndexOf('"') >= 0 || path.IndexOf('\r') >= 0 || path.IndexOf('\n') >= 0)
+                return false;
+            string filename = Path.GetFileName(path);
+            return filename.Equals("SHINO-CODEX-MONITOR.exe", StringComparison.OrdinalIgnoreCase) ||
+                filename.Equals("CODEX-PERISCOPE.exe", StringComparison.OrdinalIgnoreCase);
         }
         private void EnableStartup()
         {
             try
             {
-                string current = StartupValue();
-                if (!string.IsNullOrEmpty(current) && !StartupEnabled())
+                using (RegistryKey read = Registry.CurrentUser.OpenSubKey(RunKey))
                 {
-                    DialogResult replace = MessageBox.Show(
-                        "An older autostart path is still registered.\n\nReplace it with this version?",
-                        "Windows startup", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (replace != DialogResult.Yes) return;
-                }
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
-                {
-                    if (key != null && key.GetValue("SHINO_CODEX_MONITOR") != null)
+                    if (read != null)
                     {
-                        DialogResult decision = MessageBox.Show(
-                            "A legacy startup entry was detected. Running both may start two widgets.\n\nKeep the legacy entry unchanged?",
-                            "Windows startup", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                        if (decision != DialogResult.Yes) return;
+                        string current = read.GetValue(RunName) as string;
+                        if (!string.IsNullOrEmpty(current) && !StartupEnabled() &&
+                            MessageBox.Show(this,
+                                "Codex Periscope is registered to start from another location.\n\n" +
+                                "Replace the existing entry with this executable?",
+                                "Windows startup", MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question) != DialogResult.Yes) return;
+                        bool legacyFound = false;
+                        foreach (string name in LegacyRunNames)
+                        {
+                            string value = read.GetValue(name) as string;
+                            if (string.IsNullOrEmpty(value)) continue;
+                            if (!IsLegacyMonitorCommand(value))
+                            {
+                                MessageBox.Show(this,
+                                    "An unrecognized legacy startup entry was found. It will not be changed.",
+                                    "Windows startup", MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                                return;
+                            }
+                            legacyFound = true;
+                        }
+                        if (legacyFound && MessageBox.Show(this,
+                            "A previous Codex Monitor startup entry was found.\n\n" +
+                            "Replace it so only Codex Periscope starts with Windows?",
+                            "Windows startup migration", MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question) != DialogResult.Yes) return;
                     }
                 }
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey))
+                {
                     key.SetValue(RunName, "\"" + Application.ExecutablePath + "\"", RegistryValueKind.String);
+                    foreach (string legacyName in LegacyRunNames)
+                    {
+                        string legacy = key.GetValue(legacyName) as string;
+                        if (IsLegacyMonitorCommand(legacy)) key.DeleteValue(legacyName, false);
+                    }
+                }
             }
-            catch (Exception e) { MessageBox.Show(e.Message, "Windows startup"); }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
         private void DisableStartup()
         {
-            try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true)) if (key != null) key.DeleteValue(RunName, false); }
-            catch (Exception e) { MessageBox.Show(e.Message, "Windows startup"); }
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                {
+                    if (key != null && StartupEnabled()) key.DeleteValue(RunName, false);
+                }
+            }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
-        private string DiagnosticsText()
+        private string DiagnosticText()
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "None";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
@@ -990,13 +1030,13 @@ namespace ShinoCodexMonitor
             MessageBox.Show(this, report, "CODEX PERISCOPE — Data status",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        private void ShowDiagnostics()
+        private void ShowDiagnostic()
         {
-            MessageBox.Show(this, DiagnosticsText(), "CODEX PERISCOPE — Diagnostics", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, DiagnosticText(), "CODEX PERISCOPE — Diagnostics", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        private void CopyDiagnostics()
+        private void CopyDiagnostic()
         {
-            try { Clipboard.SetText(DiagnosticsText()); }
+            try { Clipboard.SetText(DiagnosticText()); }
             catch (Exception e) { MessageBox.Show(this, "Copy failed: " + e.Message, "Diagnostics"); }
         }
         private void DispatchSystemEvent(Action action)
