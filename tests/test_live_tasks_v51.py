@@ -43,8 +43,13 @@ class LiveTaskV51Audit(unittest.TestCase):
 
     def test_notification_requires_observed_transition(self):
         self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)
-        self.assertIn("t.Id == current.Id && t.Phase == LiveTaskPhase.Active", FORM)
-        self.assertIn("tray.ShowBalloonTip(4000)", FORM)
+        self.assertIn("TaskNotificationRules.NewTerminals(taskReport, fresh)", FORM)
+        self.assertIn("Tester la notification Windows", FORM)
+        self.assertIn("ShowBalloonTip(6500", FORM)
+        self.assertIn("SessionKey", READER)
+        self.assertIn("string.IsNullOrEmpty(a.Id)", READER)
+        self.assertIn("briefTurn", READER)
+        self.assertIn("tray.ShowBalloonTip(5500", FORM)
 
     def test_options_and_preserved_quota_collector(self):
         for value in ("TaskAnimations", "TaskAlerts"):
@@ -57,9 +62,9 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("'LiveTaskMonitor.cs'", "'ActivityGlyph.cs'",
                       "'LiveTaskTests.cs'"):
             self.assertIn(value, BUILD)
-        self.assertEqual(TESTS.count('Check("'), 16)
+        self.assertEqual(TESTS.count('Check("'), 25)
         self.assertIn("--live-task-self-test", CI)
-        self.assertIn("16/16", CI)
+        self.assertIn("25/25", CI)
 
 
 if __name__ == "__main__":
