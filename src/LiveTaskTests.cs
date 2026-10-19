@@ -396,7 +396,7 @@ namespace ShinoCodexMonitor
                     diagnostic.Contains("No primary turn observed."));
             });
             report.Insert(0, "CODEX PERISCOPE TASKS — " + passed + "/" + total +
-                " tests simulés réussis\r\n");
+                " simulated tests passed\r\n");
             return report.ToString();
         }
     }
