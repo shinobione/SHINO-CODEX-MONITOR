@@ -12,11 +12,11 @@ namespace ShinoCodexMonitor
 {
     internal static class UiColors
     {
-        internal static readonly Color Background = ColorTranslator.FromHtml("#111926");
+        internal static readonly Color Background = ColorTranslator.FromHtml("#101D2C");
         internal static readonly Color Text = ColorTranslator.FromHtml("#D7E6EF");
         internal static readonly Color Muted = ColorTranslator.FromHtml("#8BA0B1");
         internal static readonly Color Track = ColorTranslator.FromHtml("#29394C");
-        internal static readonly Color Five = ColorTranslator.FromHtml("#51D7AF");
+        internal static readonly Color Five = ColorTranslator.FromHtml("#49DAB9");
         internal static readonly Color Week = ColorTranslator.FromHtml("#E5B64D");
         internal static readonly Color Warning = ColorTranslator.FromHtml("#FFB65D");
     }
@@ -30,7 +30,10 @@ namespace ShinoCodexMonitor
     internal sealed class MonitorForm : Form
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string RunName = "SHINO_CODEX_MONITOR_V4";
+        private const string RunName = "CODEX_PERISCOPE";
+        private static readonly string[] LegacyRunNames = {
+            "SHINO_CODEX_MONITOR_V4", "SHINO_CODEX_MONITOR"
+        };
         private readonly LocalStore store;
         private readonly Preferences settings;
         private readonly NotifyIcon tray;
@@ -57,7 +60,7 @@ namespace ShinoCodexMonitor
         private readonly HashSet<string> alerted = new HashSet<string>();
         private int failures;
         private string lastError = "";
-        private string binaryPath = "Non trouvé";
+        private string binaryPath = "Not found";
         private bool exiting;
         private readonly RuntimeMetrics runtime = new RuntimeMetrics();
         private DateTimeOffset lastHeartbeatUtc = DateTimeOffset.MinValue;
@@ -68,7 +71,7 @@ namespace ShinoCodexMonitor
         private bool suspended;
         private bool suppressNextAlert;
         private int wakeRefreshes;
-        private string lastWakeReason = "Aucune";
+        private string lastWakeReason = "None";
         private Point? dragMouse, dragOrigin;
         private Point? resizeMouse;
         private int resizeOriginalWidth;
@@ -94,7 +97,7 @@ namespace ShinoCodexMonitor
         {
             store = new LocalStore();
             settings = store.Load();
-            Text = "SHINO // CODEX MONITOR V5.1.0";
+            Text = "CODEX PERISCOPE — V5.2.0 PREVIEW";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
             FormBorderStyle = FormBorderStyle.None;
@@ -104,25 +107,25 @@ namespace ShinoCodexMonitor
             AutoScaleMode = AutoScaleMode.Dpi;
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
-            header = TextLabel("● SHINO // CODEX", 12, UiColors.Five, true);
-            version = TextLabel("MONITOR / V5.1.0", 8, UiColors.Muted, false);
+            header = TextLabel("◉ CODEX PERISCOPE", 11, UiColors.Five, true);
+            version = TextLabel("RADAR / V5.2.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
             close.Click += delegate { Hide(); };
             Controls.Add(header); Controls.Add(version); Controls.Add(close);
             // One window, always-visible task telemetry: no popup or detail window.
-            taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
+            taskDock.BackColor = ColorTranslator.FromHtml("#152A36");
             taskRule.BackColor = UiColors.Track;
-            taskHeading = TextLabel("ACTIVITÉ CODEX", 8, UiColors.Text, true);
-            taskSource = TextLabel("LOCAL · PARTIEL", 7, UiColors.Muted, false);
+            taskHeading = TextLabel("CODEX ACTIVITY RADAR", 8, UiColors.Text, true);
+            taskSource = TextLabel("LOCAL · PARTIAL", 7, UiColors.Muted, false);
             taskSource.TextAlign = ContentAlignment.MiddleRight;
-            taskBadge = TextLabel("À VÉRIFIER", 8, UiColors.Muted, true);
+            taskBadge = TextLabel("UNVERIFIED", 8, UiColors.Muted, true);
             taskBadge.TextAlign = ContentAlignment.MiddleRight;
-            taskName = TextLabel("Recherche de sessions locales…", 9, UiColors.Text, true);
+            taskName = TextLabel("Checking local sessions…", 9, UiColors.Text, true);
             taskName.AutoEllipsis = true;
-            taskMeta = TextLabel("Modèle : —   ·   Effort : —", 8, UiColors.Muted, false);
+            taskMeta = TextLabel("Model: —   ·   Effort: —", 8, UiColors.Muted, false);
             taskMeta.AutoEllipsis = true;
-            taskExtra = TextLabel("Aucune activité encore vérifiée", 7, UiColors.Muted, false);
+            taskExtra = TextLabel("No activity verified yet", 7, UiColors.Muted, false);
             taskExtra.AutoEllipsis = true;
             taskDock.Controls.Add(taskRule);
             taskDock.Controls.Add(taskHeading);
@@ -133,11 +136,11 @@ namespace ShinoCodexMonitor
             taskDock.Controls.Add(taskMeta);
             taskDock.Controls.Add(taskExtra);
             Controls.Add(taskDock);
-            five = BuildMeter("QUOTA 5 HEURES");
-            week = BuildMeter("QUOTA 7 JOURS");
+            five = BuildMeter("5-HOUR QUOTA");
+            week = BuildMeter("WEEKLY QUOTA");
             status = TextLabel("● Initialisation Codex...", 8, UiColors.Muted, false);
             Controls.Add(status);
-            statusAge = TextLabel("En attente", 8, UiColors.Muted, false);
+            statusAge = TextLabel("Waiting", 8, UiColors.Muted, false);
             statusAge.TextAlign = ContentAlignment.MiddleRight;
             Controls.Add(statusAge);
             statusDivider = new Panel { BackColor = UiColors.Track };
@@ -145,14 +148,14 @@ namespace ShinoCodexMonitor
             resizeGrip = TextLabel("◢", 11, UiColors.Muted, true);
             resizeGrip.Cursor = Cursors.SizeNWSE;
             resizeGrip.TextAlign = ContentAlignment.MiddleCenter;
-            tooltip.SetToolTip(resizeGrip, "Glisser pour redimensionner les roues");
+            tooltip.SetToolTip(resizeGrip, "Drag to resize gauges");
             Controls.Add(resizeGrip);
             originalTrayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             // WinForms Form.Icon is independent of NotifyIcon.Icon. When omitted,
             // Windows may show the generic multicolour WinForms squares in the taskbar.
             // Reuse the exact executable icon embedded by /win32icon in the build.
             Icon = originalTrayIcon ?? SystemIcons.Application;
-            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "SHINO // CODEX MONITOR " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
+            tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "CODEX PERISCOPE " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
             };
@@ -198,7 +201,7 @@ namespace ShinoCodexMonitor
             m.Fill = new Panel { BackColor = UiColors.Five, Width = 0, Height = 9 };
             m.Track.Controls.Add(m.Fill);
             m.Ring = new CircularGauge();
-            m.Reset = TextLabel("En attente de Codex...", 8, UiColors.Muted, false);
+            m.Reset = TextLabel("Waiting de Codex...", 8, UiColors.Muted, false);
             Controls.Add(m.Name); Controls.Add(m.Number); Controls.Add(m.Track); Controls.Add(m.Reset); Controls.Add(m.Ring);
             return m;
         }
@@ -438,42 +441,42 @@ namespace ShinoCodexMonitor
         private void MakeMenu()
         {
             // Two immediate actions; everything else is grouped by user intention.
-            Menu(context, "Afficher / masquer", delegate { ToggleVisibility(); });
-            Menu(context, "Actualiser les quotas", delegate { nextRefresh = DateTimeOffset.MinValue; });
+            Menu(context, "Show / hide", delegate { ToggleVisibility(); });
+            Menu(context, "Refresh quotas", delegate { nextRefresh = DateTimeOffset.MinValue; });
             context.Items.Add(new ToolStripSeparator());
-            ToolStripMenuItem tasksMenu = Menu(context, "Activité Codex (locale)", null);
-            Menu(tasksMenu, "Actualiser l'activité locale", delegate {
+            ToolStripMenuItem tasksMenu = Menu(context, "Codex activity (local)", null);
+            Menu(tasksMenu, "Refresh activity", delegate {
                 nextTaskPoll = DateTimeOffset.MinValue;
                 PollTasks(DateTimeOffset.UtcNow);
             });
-            Menu(tasksMenu, "Copier le diagnostic des tours (sans données privées)",
-                delegate { CopyTaskDiagnostic(); });
+            Menu(tasksMenu, "Copy sanitized activity diagnostics",
+                delegate { CopyTaskDiagnostics(); });
             tasksMenu.DropDownItems.Add(new ToolStripSeparator());
-            ToolStripMenuItem taskSourceInfo = Menu(tasksMenu, "Source : journaux locaux, statut indicatif", null);
+            ToolStripMenuItem taskSourceInfo = Menu(tasksMenu, "Source: local logs (indicative)", null);
             taskSourceInfo.Enabled = false;
             tasksMenu.DropDownOpening += delegate {
                 taskSourceInfo.Text = taskReport == null ?
-                    "Source : aucun relevé" :
-                    "Sources : " + taskReport.ExaminedRoots + " principale(s), " +
-                    taskReport.IgnoredSubagents + " sous-agent(s) exclus";
+                    "Source: no sample yet" :
+                    "Sources: " + taskReport.ExaminedRoots + " root thread(s), " +
+                    taskReport.IgnoredSubagents + " subagent(s) excluded";
             };
             context.Items.Add(new ToolStripSeparator());
 
             // QUOTAS: source, reset display and rate-limit polling interval.
-            ToolStripMenuItem quotas = Menu(context, "Quotas & données", null);
-            Menu(quotas, "Tableau officiel Codex", delegate {
+            ToolStripMenuItem quotas = Menu(context, "Quotas & data", null);
+            Menu(quotas, "Official Codex dashboard", delegate {
                 OpenUrl("https://chatgpt.com/codex/cloud/settings/analytics#usage");
             });
-            Menu(quotas, "État des données Codex", delegate { ShowSourceHealth(); });
+            Menu(quotas, "Data source status", delegate { ShowSourceHealth(); });
             quotas.DropDownItems.Add(new ToolStripSeparator());
-            ToolStripMenuItem resets = Menu(quotas, "Réinitialisations", null);
-            AddOption(resets, "Date/heure + décompte", "both", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
-            AddOption(resets, "Date/heure uniquement", "absolute", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
-            AddOption(resets, "Décompte uniquement", "relative", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
-            AddOption(resets, "Masquées", "hidden", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
+            ToolStripMenuItem resets = Menu(quotas, "Resets", null);
+            AddOption(resets, "Date/time + countdown", "both", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
+            AddOption(resets, "Date/time only", "absolute", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
+            AddOption(resets, "Countdown only", "relative", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
+            AddOption(resets, "Hidden", "hidden", delegate(string value) { settings.ResetStyle = value; PaintSnapshot(); Save(); }, settings.ResetStyle);
             resets.DropDownItems[0].ToolTipText =
-                "En mode Circulaire : décompte pour 5 h, date pour 7 jours.";
-            ToolStripMenuItem refresh = Menu(quotas, "Fréquence d'actualisation", null);
+                "Circular layout: countdown for 5h, date for weekly.";
+            ToolStripMenuItem refresh = Menu(quotas, "Refresh interval", null);
             foreach (int sec in new int[] { 30, 60, 120, 300 })
             {
                 int interval = sec;
@@ -495,13 +498,13 @@ namespace ShinoCodexMonitor
             };
 
             // APPEARANCE: layout, sizes, opacity, palette and the tray icon.
-            ToolStripMenuItem appearance = Menu(context, "Apparence", null);
-            ToolStripMenuItem layouts = Menu(appearance, "Disposition", null);
+            ToolStripMenuItem appearance = Menu(context, "Appearance", null);
+            ToolStripMenuItem layouts = Menu(appearance, "Layout", null);
             foreach (string mode in new string[] { "Circular", "Vertical", "Compact", "Micro" })
             {
                 string layout = mode;
                 ToolStripMenuItem option = new ToolStripMenuItem(mode == "Circular" ?
-                    "Circulaire · 2 roues" : mode == "Micro" ? "Micro-widget" :
+                    "Circular · 2 gauges" : mode == "Micro" ? "Micro widget" :
                     mode == "Compact" ? "Compact horizontal" : "Vertical");
                 option.Click += delegate {
                     settings.Layout = layout;
@@ -516,14 +519,14 @@ namespace ShinoCodexMonitor
                 for (int i = 0; i < choices.Length; i++)
                     ((ToolStripMenuItem)layouts.DropDownItems[i]).Checked = choices[i] == settings.Layout;
             };
-            ToolStripMenuItem circularSize = Menu(appearance, "Taille des roues", null);
-            circularSize.ToolTipText = "Uniquement pour le mode Circulaire épinglé ; glisser la poignée pour une taille personnalisée.";
+            ToolStripMenuItem circularSize = Menu(appearance, "Gauge size", null);
+            circularSize.ToolTipText = "Only in pinned Circular layout; drag the resize handle for a custom size.";
             foreach (int value in new int[] { 480, 540, 620, 700 })
             {
                 int pixels = value;
-                ToolStripMenuItem option = new ToolStripMenuItem(value == 480 ? "Petit · 480 px" :
+                ToolStripMenuItem option = new ToolStripMenuItem(value == 480 ? "Small · 480 px" :
                     value == 540 ? "Standard · 540 px" :
-                    value == 620 ? "Grand · 620 px" : "Très grand · 700 px");
+                    value == 620 ? "Large · 620 px" : "Extra large · 700 px");
                 option.Tag = pixels;
                 option.Click += delegate {
                     settings.CircularWidth = pixels;
@@ -542,9 +545,9 @@ namespace ShinoCodexMonitor
                     if (option != null && option.Tag is int)
                         option.Checked = (int)option.Tag == settings.CircularWidth;
                 }
-                customSizeInfo.Text = "Taille actuelle : " + settings.CircularWidth + " px";
+                customSizeInfo.Text = "Current size: " + settings.CircularWidth + " px";
             };
-            ToolStripMenuItem opacity = Menu(appearance, "Opacité", null);
+            ToolStripMenuItem opacity = Menu(appearance, "Opacity", null);
             foreach (int value in new int[] { 70, 75, 80, 85, 90, 95, 96, 98, 100 })
             {
                 int percent = value;
@@ -561,27 +564,27 @@ namespace ShinoCodexMonitor
                     ((ToolStripMenuItem)child).Checked =
                         Math.Abs(settings.Opacity * 100.0 - (int)((ToolStripMenuItem)child).Tag) < .1;
             };
-            ToolStripMenuItem backgrounds = Menu(appearance, "Couleur du fond", null);
-            AddBackgroundPreset(backgrounds, "Bleu nuit", "#111926");
-            AddBackgroundPreset(backgrounds, "Noir profond", "#090C13");
-            AddBackgroundPreset(backgrounds, "Gris anthracite", "#22272E");
-            AddBackgroundPreset(backgrounds, "Bleu pétrole", "#102C36");
-            Menu(backgrounds, "Personnalisée (fond sombre)...", delegate { ChooseCustomBackground(); });
+            ToolStripMenuItem backgrounds = Menu(appearance, "Background color", null);
+            AddBackgroundPreset(backgrounds, "Midnight blue", "#111926");
+            AddBackgroundPreset(backgrounds, "Deep black", "#090C13");
+            AddBackgroundPreset(backgrounds, "Charcoal", "#22272E");
+            AddBackgroundPreset(backgrounds, "Deep teal", "#102C36");
+            Menu(backgrounds, "Custom dark background...", delegate { ChooseCustomBackground(); });
             backgrounds.DropDownOpening += delegate { SyncBackgroundMenu(backgrounds); };
-            Menu(appearance, "Réinitialiser fond et opacité", delegate {
+            Menu(appearance, "Reset background and opacity", delegate {
                 Preferences defaults = Preferences.Defaults();
                 settings.Opacity = defaults.Opacity;
                 settings.BackgroundColor = defaults.BackgroundColor;
                 ApplyAppearance(); Save();
             });
             appearance.DropDownItems.Add(new ToolStripSeparator());
-            ToolStripMenuItem colors = Menu(appearance, "Couleurs des jauges", null);
+            ToolStripMenuItem colors = Menu(appearance, "Gauge colors", null);
             AddColor(colors, "76–100 % · Violet", "76");
             AddColor(colors, "51–75 % · Bleu / turquoise", "51");
-            AddColor(colors, "26–50 % · Jaune doré", "26");
+            AddColor(colors, "26–50 % · Golden yellow", "26");
             AddColor(colors, "11–25 % · Orange", "11");
-            AddColor(colors, "0–10 % · Rouge", "0");
-            Menu(colors, "Réinitialiser les couleurs", delegate {
+            AddColor(colors, "0–10 % · Red", "0");
+            Menu(colors, "Reset gauge colors", delegate {
                 Preferences defaults = Preferences.Defaults();
                 settings.Color76 = defaults.Color76; settings.Color51 = defaults.Color51;
                 settings.Color26 = defaults.Color26; settings.Color11 = defaults.Color11;
@@ -589,16 +592,16 @@ namespace ShinoCodexMonitor
                 PaintSnapshot(); Save();
             });
             ToolStripMenuItem trayStyles = Menu(appearance, "Tray Icon", null);
-            AddOption(trayStyles, "Anneau + %", "Percent", delegate(string value) {
+            AddOption(trayStyles, "Ring + %", "Percent", delegate(string value) {
                 settings.TrayStyle = value; Save(); UpdateQuotaTrayIcon(State(),
                     State() == "Direct" && snapshot != null && snapshot.UsageAllowed == false);
             }, settings.TrayStyle);
-            AddOption(trayStyles, "Anneau seul", "Ring", delegate(string value) {
+            AddOption(trayStyles, "Ring only", "Ring", delegate(string value) {
                 settings.TrayStyle = value; Save(); UpdateQuotaTrayIcon(State(),
                     State() == "Direct" && snapshot != null && snapshot.UsageAllowed == false);
             }, settings.TrayStyle);
             appearance.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(appearance, "Animer la roue d'activité Codex", settings.TaskAnimations,
+            AddAlertToggle(appearance, "Animate activity radar", settings.TaskAnimations,
                 delegate(bool value) { settings.TaskAnimations = value; UpdateTaskMotion(); Save(); });
             ToolStripMenuItem motionToggle = appearance.DropDownItems[appearance.DropDownItems.Count - 1]
                 as ToolStripMenuItem;
@@ -607,8 +610,8 @@ namespace ShinoCodexMonitor
             };
 
             // WINDOW: behavioral controls stay out of appearance/color settings.
-            ToolStripMenuItem window = Menu(context, "Fenêtre", null);
-            ToolStripMenuItem pinned = Menu(window, "Épingler le widget (sinon panneau au clic)",
+            ToolStripMenuItem window = Menu(context, "Window", null);
+            ToolStripMenuItem pinned = Menu(window, "Pin widget (otherwise opens on click)",
                 delegate(object sender, EventArgs args) {
                     settings.Pinned = ((ToolStripMenuItem)sender).Checked;
                     TopMost = settings.Pinned ? settings.Top : true;
@@ -617,13 +620,13 @@ namespace ShinoCodexMonitor
                     ApplyLayout(); Save();
                 });
             pinned.CheckOnClick = true;
-            ToolStripMenuItem magnet = Menu(window, "Aimantation aux bords des écrans",
+            ToolStripMenuItem magnet = Menu(window, "Snap to screen edges",
                 delegate(object sender, EventArgs args) {
                     settings.SnapToEdges = ((ToolStripMenuItem)sender).Checked;
                     Save();
                 });
             magnet.CheckOnClick = true;
-            ToolStripMenuItem top = Menu(window, "Toujours au-dessus",
+            ToolStripMenuItem top = Menu(window, "Always on top",
                 delegate(object sender, EventArgs args) {
                     settings.Top = ((ToolStripMenuItem)sender).Checked;
                     TopMost = settings.Pinned ? settings.Top : true;
@@ -631,7 +634,7 @@ namespace ShinoCodexMonitor
                     Save();
                 });
             top.CheckOnClick = true;
-            ToolStripMenuItem taskbar = Menu(window, "Afficher dans la barre des tâches",
+            ToolStripMenuItem taskbar = Menu(window, "Show in taskbar",
                 delegate(object sender, EventArgs args) {
                     settings.InTaskbar = ((ToolStripMenuItem)sender).Checked;
                     ShowInTaskbar = settings.Pinned && settings.InTaskbar;
@@ -649,33 +652,33 @@ namespace ShinoCodexMonitor
             };
 
             ToolStripMenuItem alerts = Menu(context, "Notifications", null);
-            ToolStripMenuItem notificationsEnabled = Menu(alerts, "Activer les notifications",
+            ToolStripMenuItem notificationsEnabled = Menu(alerts, "Enable notifications",
                 delegate(object sender, EventArgs args) {
                     settings.Alerts = ((ToolStripMenuItem)sender).Checked;
                     Save();
                 });
             notificationsEnabled.CheckOnClick = true;
-            ToolStripMenuItem testNotification = Menu(alerts, "Tester la notification Windows",
+            ToolStripMenuItem testNotification = Menu(alerts, "Test Windows notification",
                 delegate { TestWindowsNotification(); });
-            testNotification.ToolTipText = "Test manuel, indépendant des options d'alertes ; affichage soumis à Windows.";
+            testNotification.ToolTipText = "Manual test; Windows controls delivery.";
             alerts.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(alerts, "Tâche Codex terminée", settings.TaskAlerts,
+            AddAlertToggle(alerts, "Codex task finished", settings.TaskAlerts,
                 delegate(bool value) { settings.TaskAlerts = value; Save(); });
             ToolStripMenuItem taskAlertsToggle = alerts.DropDownItems[alerts.DropDownItems.Count - 1]
                 as ToolStripMenuItem;
             alerts.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(alerts, "Fenêtre 5 heures", settings.AlertFive,
+            AddAlertToggle(alerts, "Window 5 heures", settings.AlertFive,
                 delegate(bool v) { settings.AlertFive = v; Save(); });
-            AddAlertToggle(alerts, "Fenêtre 7 jours", settings.AlertWeek,
+            AddAlertToggle(alerts, "Window weekly", settings.AlertWeek,
                 delegate(bool v) { settings.AlertWeek = v; Save(); });
             alerts.DropDownItems.Add(new ToolStripSeparator());
-            AddAlertToggle(alerts, "Seuil 50 %", settings.Alert50,
+            AddAlertToggle(alerts, "50% threshold", settings.Alert50,
                 delegate(bool v) { settings.Alert50 = v; Save(); });
-            AddAlertToggle(alerts, "Seuil 25 %", settings.Alert25,
+            AddAlertToggle(alerts, "25% threshold", settings.Alert25,
                 delegate(bool v) { settings.Alert25 = v; Save(); });
-            AddAlertToggle(alerts, "Seuil 10 %", settings.Alert10,
+            AddAlertToggle(alerts, "10% threshold", settings.Alert10,
                 delegate(bool v) { settings.Alert10 = v; Save(); });
-            AddAlertToggle(alerts, "Réinitialisation constatée", settings.AlertResets,
+            AddAlertToggle(alerts, "Reset observed", settings.AlertResets,
                 delegate(bool v) { settings.AlertResets = v; Save(); });
             alerts.DropDownOpening += delegate {
                 notificationsEnabled.Checked = settings.Alerts;
@@ -684,25 +687,25 @@ namespace ShinoCodexMonitor
                     if (child != notificationsEnabled && child != testNotification) child.Enabled = settings.Alerts;
             };
 
-            ToolStripMenuItem historyMenu = Menu(context, "Historique", null);
-            Menu(historyMenu, "Afficher l'historique (24 h / 7 j / 14 j)", delegate { OpenHistory(); });
-            ToolStripMenuItem record = Menu(historyMenu, "Enregistrer l'historique local",
+            ToolStripMenuItem historyMenu = Menu(context, "History", null);
+            Menu(historyMenu, "View history (24h / 7d / 14d)", delegate { OpenHistory(); });
+            ToolStripMenuItem record = Menu(historyMenu, "Record local history",
                 delegate(object sender, EventArgs args) {
                     settings.History = ((ToolStripMenuItem)sender).Checked;
                     Save();
                 });
             record.CheckOnClick = true;
             historyMenu.DropDownOpening += delegate { record.Checked = settings.History; };
-            Menu(historyMenu, "Ouvrir le dossier de données", delegate {
+            Menu(historyMenu, "Open data folder", delegate {
                 Process.Start("explorer.exe", "\"" + store.DirectoryPath + "\"");
             });
 
             ToolStripMenuItem application = Menu(context, "Application", null);
-            updateMenuItem = Menu(application, "Vérifier les mises à jour", delegate { CheckForUpdates(); });
+            updateMenuItem = Menu(application, "Check for updates", delegate { CheckForUpdates(); });
             Menu(application, "Releases GitHub", delegate {
                 OpenUrl(ReleaseUpdater.RepoUrl + "/releases");
             });
-            ToolStripMenuItem autostart = Menu(application, "Démarrer avec Windows",
+            ToolStripMenuItem autostart = Menu(application, "Start with Windows",
                 delegate(object sender, EventArgs args) {
                     ToolStripMenuItem item = (ToolStripMenuItem)sender;
                     if (item.Checked) EnableStartup(); else DisableStartup();
@@ -710,12 +713,12 @@ namespace ShinoCodexMonitor
                 });
             autostart.CheckOnClick = true;
             application.DropDownItems.Add(new ToolStripSeparator());
-            Menu(application, "Diagnostic", delegate { ShowDiagnostic(); });
-            Menu(application, "Copier le diagnostic", delegate { CopyDiagnostic(); });
+            Menu(application, "Diagnostics", delegate { ShowDiagnostic(); });
+            Menu(application, "Copy diagnostics", delegate { CopyDiagnostic(); });
             application.DropDownOpening += delegate { autostart.Checked = StartupEnabled(); };
 
             context.Items.Add(new ToolStripSeparator());
-            Menu(context, "Quitter complètement", delegate { exiting = true; Close(); });
+            Menu(context, "Exit completely", delegate { exiting = true; Close(); });
         }
         private static void AddAlertToggle(ToolStripMenuItem menu, string title, bool current, Action<bool> onChange)
         {
@@ -780,8 +783,8 @@ namespace ShinoCodexMonitor
                     dialog.Color.R, dialog.Color.G, dialog.Color.B);
                 if (!Preferences.IsDarkBackground(hex))
                 {
-                    MessageBox.Show(this, "Choisis une couleur de fond sombre pour conserver la lisibilité des quotas et des états.",
-                        "SHINO // CODEX — Contraste", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(this, "Choose a dark background so quotas and status remain readable.",
+                        "CODEX PERISCOPE — Contrast", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
                 SetBackground(hex);
@@ -812,13 +815,13 @@ namespace ShinoCodexMonitor
         private static void OpenUrl(string url)
         {
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-            catch { MessageBox.Show("Ouvre ce lien dans ton navigateur :\n" + url, "Codex"); }
+            catch { MessageBox.Show("Open this link in your browser:\n" + url, "Codex"); }
         }
         private async void CheckForUpdates()
         {
             if (updateCheckRunning) return;
             updateCheckRunning = true;
-            if (updateMenuItem != null) { updateMenuItem.Enabled = false; updateMenuItem.Text = "Vérification GitHub..."; }
+            if (updateMenuItem != null) { updateMenuItem.Enabled = false; updateMenuItem.Text = "Checking GitHub..."; }
             try
             {
                 PublicRelease latest = await ReleaseUpdater.CheckAsync();
@@ -828,38 +831,38 @@ namespace ShinoCodexMonitor
                 if (ReleaseUpdater.IsNewer(latest, current))
                 {
                     DialogResult choice = MessageBox.Show(
-                        "Version installée : " + current.ToString(3) + "\n" +
-                        "Nouvelle Release : " + latest.Tag + "\n\n" +
-                        "Télécharger et vérifier la mise à jour officielle GitHub ?\n" +
-                        "Le téléchargement n'installe rien. Installation après un deuxième accord explicite.\n" +
-                        "En cas de problème, tu pourras utiliser la page Releases.",
-                        "SHINO // CODEX — Mise à jour disponible", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        "Installed version: " + current.ToString(3) + "\n" +
+                        "New release: " + latest.Tag + "\n\n" +
+                        "Download and verify the official GitHub update?\n" +
+                        "The download does not install anything. Installation requires a second confirmation.\n" +
+                        "You can use the Releases page if anything goes wrong.",
+                        "CODEX PERISCOPE — Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                     if (choice == DialogResult.Yes) await DownloadAndConfirm(latest);
                 }
                 else
                 {
                     MessageBox.Show(current.CompareTo(latest.Number) > 0 ?
-                        "Version installée : " + current.ToString(3) + "\n" +
-                        "Dernière Release publique : " + latest.Tag + "\n" +
-                        "Cette version est plus récente que la dernière Release publique." :
-                        "Vous utilisez la dernière version stable publiée : " + latest.Tag,
-                        "SHINO // CODEX — Mises à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "Installed version: " + current.ToString(3) + "\n" +
+                        "Latest public release: " + latest.Tag + "\n" +
+                        "This build is newer than the latest public release." :
+                        "You are on the latest published stable version: " + latest.Tag,
+                        "CODEX PERISCOPE — Updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception)
             {
                 if (!IsDisposed && !Disposing)
-                    MessageBox.Show("Impossible de vérifier les Releases GitHub pour le moment.\n" +
-                        "Vérifiez la connexion Internet ou consultez la page Releases.\n" +
-                        "Les quotas Codex ne sont pas affectés.",
-                        "SHINO // CODEX — Vérification indisponible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Cannot check GitHub Releases right now.\n" +
+                        "Check your internet connection or visit the Releases page.\n" +
+                        "Codex quotas are unaffected.",
+                        "CODEX PERISCOPE — Update check unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
             {
                 updateCheckRunning = false;
                 if (!IsDisposed && updateMenuItem != null && !updateMenuItem.IsDisposed)
                 {
-                    updateMenuItem.Text = "Vérifier les mises à jour";
+                    updateMenuItem.Text = "Check for updates";
                     updateMenuItem.Enabled = true;
                 }
             }
@@ -868,7 +871,7 @@ namespace ShinoCodexMonitor
         private async Task DownloadAndConfirm(PublicRelease latest)
         {
             StagedUpdate staged = null;
-            if (updateMenuItem != null) updateMenuItem.Text = "Téléchargement sécurisé...";
+            if (updateMenuItem != null) updateMenuItem.Text = "Secure download...";
             try
             {
                 // Refuse absent or contradictory GitHub release asset digest.
@@ -876,13 +879,13 @@ namespace ShinoCodexMonitor
                 staged = await ReleasePackage.StageAsync(asset);
                 if (IsDisposed || Disposing) return;
                 DialogResult yes = MessageBox.Show(
-                    "Archive officielle téléchargée et SHA-256 vérifié.\n" +
-                    "Version : " + latest.Tag + "\n" +
-                    "Taille : " + asset.Size + " octets\n" +
-                    "Empreinte GitHub : " + asset.Sha256 + "\n\n" +
-                    "Installer cette version maintenant ? Le widget va se fermer.\n" +
-                    "La version précédente restera sauvegardée. L'exécutable n'est PAS signé.",
-                    "SHINO // CODEX — Confirmer l'installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    "Official archive downloaded and SHA-256 verified.\n" +
+                    "Version: " + latest.Tag + "\n" +
+                    "Size: " + asset.Size + " bytes\n" +
+                    "GitHub digest: " + asset.Sha256 + "\n\n" +
+                    "Install this version now? The widget will close.\n" +
+                    "The previous executable will be backed up. The executable is UNSIGNED.",
+                    "CODEX PERISCOPE — Confirm installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (yes != DialogResult.Yes) return;
                 UpdateHandoff.Start(staged);
                 exiting = true;
@@ -891,13 +894,13 @@ namespace ShinoCodexMonitor
             catch (Exception ex)
             {
                 if (!IsDisposed && !Disposing)
-                    MessageBox.Show("Mise à jour interrompue sans modification de l'installation.\n" +
-                        ex.Message + "\n\nConsulte si nécessaire : " + latest.PageUrl,
-                        "SHINO // CODEX — Mise à jour indisponible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Update stopped without modifying the installation.\n" +
+                        ex.Message + "\n\nFor details see: " + latest.PageUrl,
+                        "CODEX PERISCOPE — Update unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
             {
-                if (!IsDisposed && updateMenuItem != null) updateMenuItem.Text = "Vérifier les mises à jour";
+                if (!IsDisposed && updateMenuItem != null) updateMenuItem.Text = "Check for updates";
                 // Do not retain rejected downloads; never remove an in-progress installation.
                 if (staged != null && !exiting)
                     try { Directory.Delete(staged.Directory, true); } catch { }
@@ -913,91 +916,128 @@ namespace ShinoCodexMonitor
         }
         private static string StartupValue()
         {
-            try
-            {
+            try {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
                     return key == null ? null : key.GetValue(RunName) as string;
-            }
-            catch { return null; }
+            } catch { return null; }
         }
         private static bool StartupEnabled()
         {
             string value = StartupValue();
-            if (string.IsNullOrEmpty(value)) return false;
-            return string.Equals(value.Trim().Trim('"'), Application.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(value) &&
+                string.Equals(value.Trim().Trim('"'), Application.ExecutablePath,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+        private static bool IsLegacyMonitorCommand(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command)) return false;
+            string path = command.Trim().Trim('"');
+            if (path.IndexOf('"') >= 0 || path.IndexOf('\r') >= 0 || path.IndexOf('\n') >= 0)
+                return false;
+            string filename = Path.GetFileName(path);
+            return filename.Equals("SHINO-CODEX-MONITOR.exe", StringComparison.OrdinalIgnoreCase) ||
+                filename.Equals("CODEX-PERISCOPE.exe", StringComparison.OrdinalIgnoreCase);
         }
         private void EnableStartup()
         {
             try
             {
-                string current = StartupValue();
-                if (!string.IsNullOrEmpty(current) && !StartupEnabled())
+                using (RegistryKey read = Registry.CurrentUser.OpenSubKey(RunKey))
                 {
-                    DialogResult replace = MessageBox.Show(
-                        "Un ancien emplacement V4 est encore enregistré au démarrage Windows.\n\nLe remplacer par cette V4.5 ?",
-                        "Démarrage Windows", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (replace != DialogResult.Yes) return;
-                }
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey))
-                {
-                    if (key != null && key.GetValue("SHINO_CODEX_MONITOR") != null)
+                    if (read != null)
                     {
-                        DialogResult decision = MessageBox.Show(
-                            "Un démarrage automatique V3 est détecté. Activer aussi la V4.5 peut lancer deux widgets.\n\nActiver sans modifier la V3 ?",
-                            "Démarrage Windows", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                        if (decision != DialogResult.Yes) return;
+                        string current = read.GetValue(RunName) as string;
+                        if (!string.IsNullOrEmpty(current) && !StartupEnabled() &&
+                            MessageBox.Show(this,
+                                "Codex Periscope is registered to start from another location.\n\n" +
+                                "Replace the existing entry with this executable?",
+                                "Windows startup", MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question) != DialogResult.Yes) return;
+                        bool legacyFound = false;
+                        foreach (string name in LegacyRunNames)
+                        {
+                            string value = read.GetValue(name) as string;
+                            if (string.IsNullOrEmpty(value)) continue;
+                            if (!IsLegacyMonitorCommand(value))
+                            {
+                                MessageBox.Show(this,
+                                    "An unrecognized legacy startup entry was found. It will not be changed.",
+                                    "Windows startup", MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                                return;
+                            }
+                            legacyFound = true;
+                        }
+                        if (legacyFound && MessageBox.Show(this,
+                            "A previous Codex Monitor startup entry was found.\n\n" +
+                            "Replace it so only Codex Periscope starts with Windows?",
+                            "Windows startup migration", MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question) != DialogResult.Yes) return;
                     }
                 }
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey))
+                {
                     key.SetValue(RunName, "\"" + Application.ExecutablePath + "\"", RegistryValueKind.String);
+                    foreach (string legacyName in LegacyRunNames)
+                    {
+                        string legacy = key.GetValue(legacyName) as string;
+                        if (IsLegacyMonitorCommand(legacy)) key.DeleteValue(legacyName, false);
+                    }
+                }
             }
-            catch (Exception e) { MessageBox.Show(e.Message, "Démarrage Windows"); }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
         private void DisableStartup()
         {
-            try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true)) if (key != null) key.DeleteValue(RunName, false); }
-            catch (Exception e) { MessageBox.Show(e.Message, "Démarrage Windows"); }
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                {
+                    if (key != null && StartupEnabled()) key.DeleteValue(RunName, false);
+                }
+            }
+            catch (Exception e) { MessageBox.Show(this, e.Message, "Windows startup"); }
         }
         private string DiagnosticText()
         {
-            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "Aucun";
+            string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "None";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
-                "Source : Codex CLI / account/rateLimits/read\n" +
+            return "Version: " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
+                "Source: Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
-                "Binaire CLI : " + binaryPath + "\n" +
-                "État : " + State() + "\n" +
-                "Icône de notification : " + settings.TrayStyle + "\n" +
-                "Widget épinglé : " + settings.Pinned + "\n" +
-                "Taille circulaire : " + settings.CircularWidth + " px\n" +
-                "Aimantation : " + settings.SnapToEdges + "\n" +
-                "Alertes 5 h / 7 j : " + settings.AlertFive + "/" + settings.AlertWeek + "\n" +
-                "Alertes 50/25/10/reset : " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
-                "Dernier relevé valide : " + last + "\n" +
-                "Reprises / invalidations : " + wakeRefreshes + "\n" +
-                "Dernier signal : " + lastWakeReason + "\n" +
-                "Collecte suspendue : " + suspended + "\n" +
+                "CLI binary: " + binaryPath + "\n" +
+                "Status: " + State() + "\n" +
+                "Tray icon: " + settings.TrayStyle + "\n" +
+                "Pinned widget: " + settings.Pinned + "\n" +
+                "Circular size: " + settings.CircularWidth + " px\n" +
+                "Snap to edges: " + settings.SnapToEdges + "\n" +
+                "5h / weekly alerts: " + settings.AlertFive + "/" + settings.AlertWeek + "\n" +
+                "50/25/10/reset alerts: " + settings.Alert50 + "/" + settings.Alert25 + "/" + settings.Alert10 + "/" + settings.AlertResets + "\n" +
+                "Last valid sample: " + last + "\n" +
+                "Wake/invalidations: " + wakeRefreshes + "\n" +
+                "Last event: " + lastWakeReason + "\n" +
+                "Collection paused: " + suspended + "\n" +
                 runtime.Summary() + "\n" +
-                "Échecs successifs : " + failures + "\n" +
-                "Erreur : " + (lastError.Length == 0 ? "Aucune" : lastError) + "\n" +
-                "Données locales : " + store.DirectoryPath + "\n" +
-                "Aucun cookie, jeton ou mot de passe n'est consulté par le widget.";
+                "Consecutive failures: " + failures + "\n" +
+                "Error: " + (lastError.Length == 0 ? "None" : lastError) + "\n" +
+                "Local data: " + store.DirectoryPath + "\n" +
+                "No cookies, tokens or passwords are accessed by this widget.";
         }
         private void ShowSourceHealth()
         {
             string report = SourceHealth.Build(snapshot, State(), lastSuccess, failures,
                 lastError, nextRefresh, DateTimeOffset.UtcNow);
-            MessageBox.Show(this, report, "SHINO // CODEX — État des données",
+            MessageBox.Show(this, report, "CODEX PERISCOPE — Data status",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         private void ShowDiagnostic()
         {
-            MessageBox.Show(this, DiagnosticText(), "SHINO // CODEX — Diagnostic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, DiagnosticText(), "CODEX PERISCOPE — Diagnostics", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         private void CopyDiagnostic()
         {
             try { Clipboard.SetText(DiagnosticText()); }
-            catch (Exception e) { MessageBox.Show(this, "Copie impossible : " + e.Message, "Diagnostic"); }
+            catch (Exception e) { MessageBox.Show(this, "Copy failed: " + e.Message, "Diagnostics"); }
         }
         private void DispatchSystemEvent(Action action)
         {
@@ -1012,13 +1052,13 @@ namespace ShinoCodexMonitor
         private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs args)
         {
             if (args.Mode == PowerModes.Suspend)
-                DispatchSystemEvent(delegate { suspended = true; InvalidateForWake("Mise en veille Windows"); });
+                DispatchSystemEvent(delegate { suspended = true; InvalidateForWake("Windows sleep"); });
             else if (args.Mode == PowerModes.Resume)
-                DispatchSystemEvent(delegate { suspended = false; InvalidateForWake("Reprise après veille"); Heartbeat(); });
+                DispatchSystemEvent(delegate { suspended = false; InvalidateForWake("Wake from sleep"); Heartbeat(); });
         }
         private void OnTimeChanged(object sender, EventArgs args)
         {
-            DispatchSystemEvent(delegate { InvalidateForWake("Horloge Windows modifiée"); Heartbeat(); });
+            DispatchSystemEvent(delegate { InvalidateForWake("Windows clock changed"); Heartbeat(); });
         }
         private void InvalidateForWake(string reason)
         {
@@ -1045,7 +1085,7 @@ namespace ShinoCodexMonitor
             if (exiting) return;
             DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
             if (lastHeartbeatUtc != DateTimeOffset.MinValue && !suspended && WakeGuard.Gap(lastHeartbeatUtc, nowUtc))
-                InvalidateForWake("Interruption de l'horloge d'interface (> 15 s)");
+                InvalidateForWake("UI clock interrupted (>15 s)");
             lastHeartbeatUtc = nowUtc;
             runtime.Sample(nowUtc);
             // Also expire green terminal glyphs and stale scans while Codex is idle.
@@ -1063,9 +1103,9 @@ namespace ShinoCodexMonitor
             active = Task.Run(delegate {
                 string detected = CodexLocator.Find();
                 if (requestGeneration != readerGeneration)
-                    throw new OperationCanceledException("Recherche Codex annulée après reprise.");
-                binaryPath = string.IsNullOrEmpty(detected) ? "Non trouvé" : detected;
-                if (detected == null) throw new FileNotFoundException("Codex CLI introuvable. Vérifie l'installation npm.");
+                    throw new OperationCanceledException("Codex search cancelled after wake.");
+                binaryPath = string.IsNullOrEmpty(detected) ? "Not found" : detected;
+                if (detected == null) throw new FileNotFoundException("Codex CLI not found. Check your npm installation.");
                 return CodexReader.Read(detected, 20000);
             });
             Task<Snapshot> running = active;
@@ -1078,35 +1118,35 @@ namespace ShinoCodexMonitor
                     if (result.Status == TaskStatus.RanToCompletion &&
                         WakeGuard.Accept(requestGeneration, readerGeneration, result.Result.CapturedUtc, invalidAfterUtc))
                         Success(result.Result);
-                    else Failure(result.Exception == null ? "Relevé obsolète ou aucune réponse Codex." : SafeError(result.Exception.GetBaseException()));
+                    else Failure(result.Exception == null ? "Stale snapshot or no Codex response." : SafeError(result.Exception.GetBaseException()));
                 }); }
                 catch (InvalidOperationException) { }
             });
         }
-        private void CopyTaskDiagnostic()
+        private void CopyTaskDiagnostics()
         {
             // Explicit, local user action. Never copy session IDs, prompts or paths.
             string details = taskReport == null ?
-                "SHINO // CODEX V5.1 — aucune lecture de tâches disponible." :
+                "CODEX PERISCOPE V5.2 — no task snapshot available." :
                 taskReport.RedactedDiagnostics(DateTimeOffset.UtcNow);
             try
             {
                 Clipboard.SetText(details);
-                MessageBox.Show(this, "Diagnostic des tours copié (sans prompts, chemins ou identifiants).",
-                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, "Task diagnostics copied (no prompts, paths or IDs).",
+                    "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (System.Runtime.InteropServices.ExternalException)
             {
-                MessageBox.Show(this, "Impossible de copier le diagnostic dans le presse-papiers.",
-                    "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Could not copy diagnostics to the clipboard.",
+                    "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
         private void TestWindowsNotification()
         {
-            // Diagnostic action requested explicitly by the user, not a claim of OS delivery.
-            tray.ShowBalloonTip(6500, "SHINO // CODEX — TEST",
-                "Notification de test du widget. Si rien n'apparaît, vérifiez Notifications et Ne pas déranger dans Windows.",
+            // Diagnostics action requested explicitly by the user, not a claim of OS delivery.
+            tray.ShowBalloonTip(6500, "CODEX PERISCOPE — TEST",
+                "Test notification. If this does not appear, check Windows notifications and Do not disturb.",
                 ToolTipIcon.Info);
         }
 
@@ -1124,7 +1164,7 @@ namespace ShinoCodexMonitor
                     LiveTaskReport fresh;
                     if (result.Status == TaskStatus.RanToCompletion) fresh = result.Result;
                     else fresh = new LiveTaskReport { CheckedUtc = DateTimeOffset.UtcNow,
-                        Message = "À vérifier · erreur de lecture locale" };
+                        Message = "Unverified · local read error" };
                     bool canAlert = taskReport != null && settings.Alerts && settings.TaskAlerts;
                     if (canAlert)
                     {
@@ -1167,51 +1207,51 @@ namespace ShinoCodexMonitor
             taskGlyph.SetPhase(phase);
             if (task == null)
             {
-                taskName.Text = taskReport == null ? "Recherche d'événements locaux…" :
-                    "État actuel de Codex non vérifiable";
-                taskBadge.Text = "NON VÉRIFIÉ";
-                taskMeta.Text = "Aucune tâche active confirmée dans les journaux";
+                taskName.Text = taskReport == null ? "Checking local events…" :
+                    "Current Codex state cannot be verified";
+                taskBadge.Text = "UNVERIFIED";
+                taskMeta.Text = "No active task confirmed in local logs";
                 if (display.LastTerminal != null)
                 {
                     LiveTask last = display.LastTerminal;
-                    taskExtra.Text = "Dernier tour local : " + last.Workspace + " · " +
-                        (last.Phase == LiveTaskPhase.Completed ? "terminé" :
-                            last.Phase == LiveTaskPhase.Failed ? "échec" : "interrompu") +
-                        " à " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
+                    taskExtra.Text = "Last local turn: " + last.Workspace + " · " +
+                        (last.Phase == LiveTaskPhase.Completed ? "finished" :
+                            last.Phase == LiveTaskPhase.Failed ? "failed" : "interrupted") +
+                        " at " + last.FinishedUtc.Value.ToLocalTime().ToString("HH:mm");
                 }
                 else
-                    taskExtra.Text = taskReport == null ? "En attente du premier relevé" :
-                        display.Detail + " · source partielle";
+                    taskExtra.Text = taskReport == null ? "Waiting for first sample" :
+                        display.Detail + " · partial source";
             }
             else
             {
-                taskName.Text = task.Workspace == "Projet non communiqué" ?
-                    "Session Codex locale" : task.Workspace;
+                taskName.Text = task.Workspace == "Project unknown" ?
+                    "Local Codex session" : task.Workspace;
                 string duration = task.Duration(now);
-                taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVÉ " + duration :
-                    display.Kind == TaskDisplayKind.Uncertain ? "? À VÉRIFIER" :
-                    task.Phase == LiveTaskPhase.Completed ? "✓ FIN " + duration :
-                    task.Phase == LiveTaskPhase.Failed ? "× ÉCHEC " + duration : "■ STOP " + duration;
-                taskMeta.Text = "Modèle : " + task.Model + "   ·   Effort : " + task.Effort;
+                taskBadge.Text = display.Kind == TaskDisplayKind.ObservedActive ? "● OBSERVED " + duration :
+                    display.Kind == TaskDisplayKind.Uncertain ? "? UNVERIFIED" :
+                    task.Phase == LiveTaskPhase.Completed ? "✓ DONE " + duration :
+                    task.Phase == LiveTaskPhase.Failed ? "× FAILED " + duration : "■ STOP " + duration;
+                taskMeta.Text = "Model: " + task.Model + "   ·   Effort: " + task.Effort;
                 int otherActive = taskReport.ActiveCount -
                     (display.Kind == TaskDisplayKind.ObservedActive ? 1 : 0);
                 if (display.Kind == TaskDisplayKind.ObservedActive)
-                    taskExtra.Text = "Durée : " + duration + " · activité dans un journal local, onglet non identifié" +
-                        (otherActive > 0 ? " · +" + otherActive + " autres" : "");
+                    taskExtra.Text = "Duration: " + duration + " · local log activity, tab unknown" +
+                        (otherActive > 0 ? " · +" + otherActive + " more" : "");
                 else if (display.Kind == TaskDisplayKind.Uncertain)
-                    taskExtra.Text = "Dernier journal : " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
-                        " · statut actuel non vérifié";
+                    taskExtra.Text = "Last log: " + task.LastWriteUtc.ToLocalTime().ToString("HH:mm:ss") +
+                        " · current status unverified";
                 else
-                    taskExtra.Text = "Dernier tour local, pas l'état global de Codex · " +
+                    taskExtra.Text = "Last local turn, not global Codex state · " +
                         task.FinishedUtc.Value.ToLocalTime().ToString("HH:mm:ss") +
                         " · " + duration;
             }
-            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(156, 126, 255) :
+            taskBadge.ForeColor = phase == LiveTaskPhase.Active ? Color.FromArgb(73, 218, 185) :
                 phase == LiveTaskPhase.Completed ? UiColors.Five :
                 phase == LiveTaskPhase.Failed ? Color.FromArgb(238, 75, 85) :
                 phase == LiveTaskPhase.Interrupted ? UiColors.Warning : UiColors.Muted;
-            string description = taskReport == null ? "Lecture locale non terminée" :
-                display.Detail + " · source : fichiers JSONL locaux, ne suit pas forcément l'onglet actif";
+            string description = taskReport == null ? "Local read incomplete" :
+                display.Detail + " · source: local JSONL; active tab not guaranteed";
             tooltip.SetToolTip(taskDock, description);
             tooltip.SetToolTip(taskGlyph, description);
             tooltip.SetToolTip(taskBadge, description);
@@ -1221,8 +1261,8 @@ namespace ShinoCodexMonitor
 
         private static string SafeError(Exception error)
         {
-            string message = error.Message ?? "Erreur de lecture Codex";
-            if (message.Contains("401") || message.Contains("403")) return "Accès refusé (401/403)";
+            string message = error.Message ?? "Codex read error";
+            if (message.Contains("401") || message.Contains("403")) return "Access denied (401/403)";
             return message.Length <= 120 ? message : message.Substring(0, 120);
         }
         private void Failure(string error)
@@ -1258,9 +1298,9 @@ namespace ShinoCodexMonitor
             if (settings.AlertFive)
                 CollectNotification(messages, "5 h", previous.Five, latest.Five, latest.CapturedUtc);
             if (settings.AlertWeek)
-                CollectNotification(messages, "7 jours", previous.Week, latest.Week, latest.CapturedUtc);
+                CollectNotification(messages, "weekly", previous.Week, latest.Week, latest.CapturedUtc);
             if (messages.Count == 0) return;
-            tray.BalloonTipTitle = "SHINO // CODEX MONITOR";
+            tray.BalloonTipTitle = "CODEX PERISCOPE";
             tray.BalloonTipText = string.Join(" · ", messages.ToArray());
             tray.ShowBalloonTip(6000);
         }
@@ -1270,7 +1310,7 @@ namespace ShinoCodexMonitor
             if (settings.AlertResets && AlertRules.ConfirmedReset(oldValue, newValue, measuredUtc))
             {
                 string token = label + ":reset:" + newValue.ResetUtc.Value.ToUnixTimeSeconds();
-                if (alerted.Add(token)) messages.Add("Quota " + label + " réinitialisé (relevé confirmé)");
+                if (alerted.Add(token)) messages.Add("Quota " + label + " reset (confirmed sample)");
                 return;
             }
             int? crossed = AlertRules.CrossedThreshold(oldValue, newValue,
@@ -1279,13 +1319,13 @@ namespace ShinoCodexMonitor
             {
                 string token = label + ":seuil:" + crossed.Value + ":" + newValue.ResetUtc.Value.ToUnixTimeSeconds();
                 if (alerted.Add(token))
-                    messages.Add("Quota " + label + " : " + crossed.Value + " % restants atteints");
+                    messages.Add("Quota " + label + " : " + crossed.Value + " % remaining reached");
             }
             if (alerted.Count > 100) alerted.Clear();
         }
         private string State()
         {
-            if (forcedStale) return lastSuccess.HasValue ? "À vérifier" : "Indisponible";
+            if (forcedStale) return lastSuccess.HasValue ? "Unverified" : "Unavailable";
             return QuotaHealth.State(lastSuccess, failures, settings.RefreshSeconds, DateTimeOffset.UtcNow);
         }
         private void PaintSnapshot()
@@ -1298,35 +1338,35 @@ namespace ShinoCodexMonitor
             string sample = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("HH:mm:ss") : "—";
             if (blocked)
             {
-                status.Text = "⚠ Usage Codex signalé bloqué · relevé " + sample;
+                status.Text = "⚠ Codex usage reported blocked · sample " + sample;
                 status.ForeColor = ColorTranslator.FromHtml("#EE4B55");
             }
             else if (live)
             {
-                status.Text = (settings.Layout == "Micro" ? "● Direct" : "● Connecté") + " · relevé " + sample;
+                status.Text = (settings.Layout == "Micro" ? "● Direct" : "● Connected") + " · sample " + sample;
                 if (snapshot != null && snapshot.ResetsAvailable.HasValue)
-                    status.Text += " · " + snapshot.ResetsAvailable.Value + " réinit. dispo.";
+                    status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 status.ForeColor = UiColors.Five;
             }
             else
             {
-                status.Text = "⚠ " + state + " · relevé " + sample;
+                status.Text = "⚠ " + state + " · sample " + sample;
                 status.ForeColor = UiColors.Warning;
             }
             if (settings.Layout == "Circular")
             {
-                status.Text = blocked ? "⚠ Usage Codex bloqué" : live ? "● Direct · Codex CLI" : "⚠ " + state;
+                status.Text = blocked ? "⚠ Codex usage blocked" : live ? "● Direct · Codex CLI" : "⚠ " + state;
                 if (live && snapshot != null && snapshot.ResetsAvailable.HasValue)
-                    status.Text += " · " + snapshot.ResetsAvailable.Value + " réinit. dispo.";
+                    status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
                 statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
-                tooltip.SetToolTip(statusAge, "Dernier relevé Codex : " +
-                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "aucun") +
-                    " (heure Windows). État : " + state);
+                tooltip.SetToolTip(statusAge, "Last Codex sample: " +
+                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "none") +
+                    " (Windows local time). Status: " + state);
             }
-            tooltip.SetToolTip(status, live ? "Source : Codex CLI / account/rateLimits/read" : lastError);
+            tooltip.SetToolTip(status, live ? "Source: Codex CLI / account/rateLimits/read" : lastError);
             string caption = live && snapshot != null && snapshot.Week != null ?
-                "SHINO // CODEX · " + Math.Round(snapshot.Week.Remaining) + "% semaine" : "SHINO // CODEX · " + state;
-            tray.Text = caption.Length > 63 ? "SHINO // CODEX MONITOR" : caption;
+                "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% weekly" : "CODEX PERISCOPE · " + state;
+            tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
             UpdateQuotaTrayIcon(state, blocked);
         }
         private void UpdateQuotaTrayIcon(string state, bool blocked)
@@ -1344,7 +1384,7 @@ namespace ShinoCodexMonitor
                 if (snapshot.Week != null && (!remaining.HasValue || snapshot.Week.Remaining < remaining.Value))
                 {
                     remaining = snapshot.Week.Remaining;
-                    window = "7 j";
+                    window = "7d";
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
@@ -1357,11 +1397,11 @@ namespace ShinoCodexMonitor
             int activeTasks = taskDisplay.Kind == TaskDisplayKind.ObservedActive ?
                 taskReport.ActiveCount : 0;
             tray.Text = current && rounded >= 0 ?
-                "SHINO // CODEX · " + window + " : " + rounded + "% restants" :
-                "SHINO // CODEX · " + (blocked ? "Usage bloqué" : state);
+                "CODEX PERISCOPE · " + window + " : " + rounded + "% remaining" :
+                "CODEX PERISCOPE · " + (blocked ? "Usage blocked" : state);
             Color color = current && rounded >= 0 ? QuotaColor(rounded) : UiColors.Muted;
             if (activeTasks > 0 && tray.Text.Length <= 48)
-                tray.Text += " · " + activeTasks + " tâche(s)";
+                tray.Text += " · " + activeTasks + " task(s)";
             string signature = (current ? "1" : "0") + ":" + rounded + ":" +
                 color.ToArgb() + ":" + settings.TrayStyle + ":" + livePhase;
             if (signature == trayIconSignature) return;
@@ -1374,7 +1414,7 @@ namespace ShinoCodexMonitor
                 trayIconSignature = signature;
                 if (previous != null) previous.Dispose();
             }
-            catch { /* Le glyph statique reste disponible même si GDI+ échoue. */ }
+            catch { /* Keep the static glyph if GDI+ fails. */ }
         }
         private void DrawMeter(Meter meter, QuotaWindow data, string kind, bool live, string state, bool blocked)
         {
@@ -1384,7 +1424,7 @@ namespace ShinoCodexMonitor
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
                 meter.Fill.Width = 0;
                 meter.Ring.SetReading(null, false, UiColors.Muted);
-                meter.Reset.Text = state == "Indisponible" ? "Indisponible" : "Fenêtre non communiquée";
+                meter.Reset.Text = state == "Unavailable" ? "Unavailable" : "Window not provided";
                 return;
             }
             int percent = Math.Max(0, Math.Min(100, (int)Math.Round(data.Remaining, MidpointRounding.AwayFromZero)));
@@ -1398,21 +1438,21 @@ namespace ShinoCodexMonitor
             // The block remains clearly visible in the status/footer and tooltips.
             meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
                 settings.Layout, live || blocked, DateTimeOffset.UtcNow);
-            tooltip.SetToolTip(meter.Ring, blocked ? "Usage Codex bloqué" :
-                live ? "Quota restant · source Codex CLI" : "Ancienne mesure non actuelle");
-            tooltip.SetToolTip(meter.Number, blocked ? "Codex indique que l'usage ordinaire est bloqué" :
-                live ? "Quota restant · source Codex CLI" : "Dernier relevé NON ACTUEL");
+            tooltip.SetToolTip(meter.Ring, blocked ? "Codex usage blocked" :
+                live ? "Remaining quota · Codex CLI source" : "Old sample (not current)");
+            tooltip.SetToolTip(meter.Number, blocked ? "Codex reports normal usage is blocked" :
+                live ? "Remaining quota · Codex CLI source" : "Last sample is STALE");
             tooltip.SetToolTip(meter.Reset, (live || blocked) && data.ResetUtc.HasValue ?
-                "Reset : " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (heure Windows)" : "Réinitialisation indisponible ou non vérifiée");
+                "Reset: " + data.ResetUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") + " (Windows local time)" : "Reset unavailable or unverified");
         }
         internal static string FreshnessLabel(DateTimeOffset? last, DateTimeOffset now)
         {
-            if (!last.HasValue) return "Aucun relevé";
+            if (!last.HasValue) return "No sample yet";
             TimeSpan age = now - last.Value;
-            if (age.TotalSeconds < -5) return "Horloge à vérifier";
-            if (age.TotalSeconds < 60) return "Relevé il y a moins d’1 min";
-            if (age.TotalHours < 1) return "Relevé il y a " + (int)age.TotalMinutes + " min";
-            return "Relevé il y a " + (int)age.TotalHours + " h";
+            if (age.TotalSeconds < -5) return "Check system clock";
+            if (age.TotalSeconds < 60) return "Sample less than 1 min ago";
+            if (age.TotalHours < 1) return "Sample " + (int)age.TotalMinutes + " min";
+            return "Sample " + (int)age.TotalHours + " h";
         }
         private Color QuotaColor(int p)
         {
@@ -1424,23 +1464,23 @@ namespace ShinoCodexMonitor
             string layout, bool sourceCurrent, DateTimeOffset nowUtc)
         {
             if (style == "hidden") return "";
-            if (!sourceCurrent) return "Ancienne mesure · reset non vérifié";
-            if (!utc.HasValue) return "Reset non communiqué";
+            if (!sourceCurrent) return "Old sample · reset unverified";
+            if (!utc.HasValue) return "Reset not provided";
             TimeSpan left = utc.Value - nowUtc;
-            if (left <= TimeSpan.Zero) return "Reset attendu · vérification...";
+            if (left <= TimeSpan.Zero) return "Reset expected · verifying...";
             DateTimeOffset local = utc.Value.ToLocalTime();
             string absolute;
-            if (kind == "five") absolute = "à " + local.ToString("HH:mm");
+            if (kind == "five") absolute = "at " + local.ToString("HH:mm");
             else
             {
-                CultureInfo fr = CultureInfo.GetCultureInfo("fr-FR");
-                string month = local.ToString("MMM", fr).TrimEnd('.');
+                CultureInfo english = CultureInfo.GetCultureInfo("en-US");
+                string month = local.ToString("MMM", english).TrimEnd('.');
                 month = char.ToUpperInvariant(month[0]) + month.Substring(1);
-                absolute = "le " + local.Day + " " + month + " " + local.ToString("HH:mm");
+                absolute = "on " + month + " " + local.Day + " " + local.ToString("HH:mm");
             }
             string relative = left.TotalDays >= 1 ?
-                "dans " + (int)Math.Floor(left.TotalDays) + "j " + left.Hours + "h" :
-                "dans " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
+                "in " + (int)Math.Floor(left.TotalDays) + "d " + left.Hours + "h" :
+                "in " + (int)Math.Floor(left.TotalHours) + "h " + left.Minutes + "min";
             if (layout == "Circular" && style == "both")
                 return kind == "five" ? "Reset " + relative : "Reset " + absolute;
             if (style == "absolute") return "Reset " + absolute;

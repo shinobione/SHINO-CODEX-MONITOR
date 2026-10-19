@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -9,6 +10,11 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            // English UI and diagnostics regardless of the Windows display language;
+            // UTC timestamps remain UTC and user-facing times remain local.
+            CultureInfo english = CultureInfo.GetCultureInfo("en-US");
+            Thread.CurrentThread.CurrentCulture = english;
+            Thread.CurrentThread.CurrentUICulture = english;
             // Explicit CI-only live download smoke test, without opening the widget
             // or installing anything. Does not depend on an authenticated Codex CLI.
             if (Environment.GetCommandLineArgs().Length > 1 &&
@@ -40,7 +46,7 @@ namespace ShinoCodexMonitor
                     try { System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "V4_TEST_REPORT.txt"), report); }
                     catch { }
                     if (Environment.GetCommandLineArgs()[1] != "--self-test-silent")
-                        MessageBox.Show(report, "SHINO // CODEX — Autotests", MessageBoxButtons.OK,
+                        MessageBox.Show(report, "CODEX PERISCOPE — Self-tests", MessageBoxButtons.OK,
                             report.IndexOf("FAIL ", StringComparison.Ordinal) >= 0 ? MessageBoxIcon.Error : MessageBoxIcon.Information);
                     Environment.ExitCode = report.IndexOf("FAIL ", StringComparison.Ordinal) >= 0 ? 1 : 0;
                     return;
@@ -48,8 +54,8 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Le programme doit être examiné avant un nouveau démarrage.",
-                        "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Unable to launch CODEX PERISCOPE " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Inspect this application before trying again.",
+                        "CODEX PERISCOPE", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
             }
