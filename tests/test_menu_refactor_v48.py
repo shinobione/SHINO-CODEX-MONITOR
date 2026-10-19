@@ -41,7 +41,7 @@ class ContextMenuRefactorTests(unittest.TestCase):
     def test_quota_organization_preserves_reset_settings(self):
         self.assertIn('Menu(quotas, "Official Codex dashboard"', MENU)
         self.assertIn('Menu(quotas, "Reset display"', MENU)
-        self.assertIn('Menu(quotas, "Fréquence d\'actualisation"', MENU)
+        self.assertIn('Menu(quotas, "Refresh interval"', MENU)
         for label, value in (("Date/time + countdown","both"),
                              ("Date/time only","absolute"),
                              ("Countdown only","relative"),
@@ -74,7 +74,7 @@ class ContextMenuRefactorTests(unittest.TestCase):
         self.assertIn('Menu(alerts, "Test Windows notification"', MENU)
         self.assertIn('AddAlertToggle(alerts, "Codex task completed"', MENU)
         self.assertIn("Menu(tasksMenu, \"Refresh local activity\"", MENU)
-        self.assertIn('Menu(tasksMenu, "Copy diagnostics des tours', MENU)
+        self.assertIn('Menu(tasksMenu, "Copy privacy-safe task diagnostics', MENU)
         self.assertIn("settings.Alerts = ((ToolStripMenuItem)sender).Checked;", MENU)
         self.assertIn("child.Enabled = settings.Alerts;", MENU)
         for text in ("Window 5 heures", "Window 7 jours", "Threshold 50 %",
