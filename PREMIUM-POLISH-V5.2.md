@@ -34,6 +34,8 @@ Coverage includes empty/single/irregular samples, independent/absent series, sor
 
 The actual ICO frames are decoded and pixel-checked at 16/32/48/256 px. Installer testing uses **-ValidateOnly**; it verifies EXE SHA-256 plus application/activity tests before returning without installation. The build additionally validates the final ZIP's seven-file allowlist and its embedded EXE SHA-256 against the tested image.
 
+Local final-package limitation: the last two local build attempts reached the installer validation and then displayed Windows **Open File - Security Warning** dialogs. Only those two mission-owned PowerShell helpers were canceled; no warning was accepted, no protection was bypassed, and the already installed Periscope process was left running. The initial baseline and an earlier intermediate build completed `-ValidateOnly`, but those do **not** certify the final candidate package. The final installer/ZIP gate must pass on the isolated Windows CI runner. Native candidate C# tests and ICO pixel checks completed locally before the dialogs.
+
 Two pre-existing modified V5.1 batch launchers are deliberately excluded from this change. Three existing compiler warnings remain: two `Menu` hiding warnings and unused `Meter.Data`.
 
 ## Performance observations
