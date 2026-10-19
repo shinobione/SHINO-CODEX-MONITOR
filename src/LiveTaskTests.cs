@@ -358,8 +358,8 @@ namespace ShinoCodexMonitor
                     using (System.IO.StreamWriter writer = new System.IO.StreamWriter(path))
                     {
                         writer.WriteLine(meta);
-                        for (int i = 0; i < 9000; i++) writer.WriteLine(unrelated);
                         writer.WriteLine(Event("task_started", "root", 650));
+                        for (int i = 0; i < 9000; i++) writer.WriteLine(unrelated);
                         writer.WriteLine(Event("task_complete", "root", 12, ",\"duration_ms\":638000"));
                     }
                     System.IO.File.SetLastWriteTimeUtc(path, Now.AddSeconds(-2).UtcDateTime);
