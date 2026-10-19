@@ -94,7 +94,7 @@ namespace ShinoCodexMonitor
                     g.DrawString(tick.ToString(CultureInfo.InvariantCulture), font, muted, 8, y - 7);
                 }
                 if (count == 0)
-                    g.DrawString("No sample yet pendant cette période.", font, muted, 65, Height / 2f);
+                    g.DrawString("No samples in this period.", font, muted, 65, Height / 2f);
                 else
                 {
                     DrawSeries(g, Rows, minTime, maxTime, left, width, height, bottom, true, UiColors.Five);
