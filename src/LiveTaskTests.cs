@@ -38,6 +38,12 @@ namespace ShinoCodexMonitor
         {
             return LiveTaskReader.ParseLines(lines, write, Now);
         }
+        private static LiveTaskReport Report(DateTimeOffset when, params LiveTask[] tasks)
+        {
+            LiveTaskReport result = new LiveTaskReport { CheckedUtc = when };
+            result.Tasks.AddRange(tasks);
+            return result;
+        }
         internal static string Run()
         {
             passed = 0; total = 0; report.Length = 0;
@@ -124,6 +130,77 @@ namespace ShinoCodexMonitor
                 System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(484, 122, "Micro");
                 Assert(box.Top >= 129 && box.Height >= 92 &&
                     box.Bottom < DesktopGeometry.CombinedHeight(484, 122, "Micro"));
+            });
+            Check("Notification : tour sans ID mais même session et début", delegate {
+                LiveTask old = Parse(Now.AddSeconds(-20), Event("task_started", "", 40));
+                LiveTask done = Parse(Now, Event("task_started", "", 40),
+                    Event("task_complete", "", 10));
+                old.SessionKey = done.SessionKey = "rollout-0001.jsonl";
+                LiveTaskReport before = Report(Now.AddSeconds(-20), old);
+                LiveTaskReport after = Report(Now, done);
+                Assert(old.Id == "" && done.Id == "" &&
+                    TaskNotificationRules.NewTerminals(before, after).Count == 1);
+            });
+            Check("Notification : sessions distinctes ne se confondent pas", delegate {
+                LiveTask old = Parse(Now, Event("task_started", "", 40));
+                LiveTask done = Parse(Now, Event("task_started", "", 40),
+                    Event("task_complete", "", 10));
+                old.SessionKey = "rollout-A.jsonl"; done.SessionKey = "rollout-B.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-20), old),
+                    Report(Now, done)).Count == 0);
+            });
+            Check("Notification : autre tour même fichier pas assimilé", delegate {
+                LiveTask old = Parse(Now, Event("task_started", "", 60));
+                LiveTask done = Parse(Now, Event("task_started", "", 40),
+                    Event("task_complete", "", 10));
+                old.SessionKey = done.SessionKey = "rollout-A.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-20), old),
+                    Report(Now, done)).Count == 0);
+            });
+            Check("Notification : turn_id contradictoire reste distinct", delegate {
+                LiveTask old = Parse(Now, Event("task_started", "turn-A", 40));
+                LiveTask done = Parse(Now, Event("task_started", "turn-B", 40),
+                    Event("task_complete", "turn-B", 10));
+                old.SessionKey = done.SessionKey = "rollout-A.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-20), old),
+                    Report(Now, done)).Count == 0);
+            });
+            Check("Notification : tâche complète entièrement entre deux polls", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "", 6),
+                    Event("task_complete", "", 2));
+                done.SessionKey = "rollout-short.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10)),
+                    Report(Now, done)).Count == 1);
+            });
+            Check("Notification : aucun doublon sur fin déjà vue", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "", 40),
+                    Event("task_complete", "", 10));
+                done.SessionKey = "rollout-A.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-5), done),
+                    Report(Now, done)).Count == 0);
+            });
+            Check("Notification : jamais lors du tout premier scan", delegate {
+                LiveTask done = Parse(Now, Event("task_started", "", 5),
+                    Event("task_complete", "", 2));
+                done.SessionKey = "rollout-A.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(null, Report(Now, done)).Count == 0);
+            });
+            Check("Notification : pas de replay après veille / grand intervalle", delegate {
+                LiveTask old = Parse(Now, Event("task_started", "", 80));
+                LiveTask done = Parse(Now, Event("task_started", "", 80),
+                    Event("task_complete", "", 4));
+                old.SessionKey = done.SessionKey = "rollout-A.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-70), old),
+                    Report(Now, done)).Count == 0);
+            });
+            Check("Notification : aucun faux positif après activité non confirmée", delegate {
+                LiveTask old = Parse(Now.AddSeconds(-120), Event("task_started", "", 140));
+                LiveTask done = Parse(Now, Event("task_started", "", 140),
+                    Event("task_complete", "", 2));
+                old.SessionKey = done.SessionKey = "rollout-A.jsonl";
+                Assert(old.Phase == LiveTaskPhase.Unconfirmed &&
+                    TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10), old),
+                        Report(Now, done)).Count == 0);
             });
             report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
                 " tests simulés réussis\r\n");
