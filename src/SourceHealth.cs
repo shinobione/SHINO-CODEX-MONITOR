@@ -10,7 +10,7 @@ namespace ShinoCodexMonitor
         internal static string WindowLine(string label, QuotaWindow window, bool current,
             DateTimeOffset nowUtc)
         {
-            if (window == null) return label + " : Window non communiquée";
+            if (window == null) return label + " : Window not provided";
             int percentage = (int)Math.Round(window.Remaining, MidpointRounding.AwayFromZero);
             percentage = Math.Max(0, Math.Min(100, percentage));
             string line = label + " : " + percentage + " % remaining";
@@ -30,7 +30,7 @@ namespace ShinoCodexMonitor
             report.AppendLine("Statut : " + (string.IsNullOrEmpty(state) ? "Unavailable" : state));
             report.AppendLine("Last valid sample: " +
                 (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime()
-                    .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture) : "Aucun"));
+                    .ToString("dd/MM/yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture) : "None"));
             if (lastSuccess.HasValue)
             {
                 double seconds = (nowUtc - lastSuccess.Value).TotalSeconds;
