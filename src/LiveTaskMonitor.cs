@@ -27,7 +27,7 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset StartedUtc;
         internal DateTimeOffset? FinishedUtc;
         internal DateTimeOffset LastWriteUtc;
-        internal string Source = "Codex local / sessions JSONL (non documenté)";
+        internal string Source = "Local Codex / JSONL sessions (undocumented)";
         internal string LastAction = "Activity details unavailable";
 
         internal string PhaseLabel
@@ -36,9 +36,9 @@ namespace ShinoCodexMonitor
             {
                 switch (Phase)
                 {
-                    case LiveTaskPhase.Active: return "EN COURS · observé";
-                    case LiveTaskPhase.Completed: return "TERMINÉ";
-                    case LiveTaskPhase.Failed: return "ÉCHEC";
+                    case LiveTaskPhase.Active: return "RUNNING · observed";
+                    case LiveTaskPhase.Completed: return "COMPLETED";
+                    case LiveTaskPhase.Failed: return "FAILED";
                     case LiveTaskPhase.Interrupted: return "INTERROMPU";
                     case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
                     default: return "INDISPONIBLE";
@@ -69,13 +69,13 @@ namespace ShinoCodexMonitor
         internal TaskDisplayKind Kind = TaskDisplayKind.NotVerified;
         internal LiveTask Primary;
         internal LiveTask LastTerminal;
-        internal string Detail = "None activité actuelle vérifiable";
+        internal string Detail = "No verifiable current activity";
     }
 
     internal sealed class LiveTaskReport
     {
         internal readonly List<LiveTask> Tasks = new List<LiveTask>();
-        internal string Message = "None session Codex locale récente";
+        internal string Message = "No recent local Codex sessions";
         internal DateTimeOffset CheckedUtc;
         internal int ExaminedRoots;
         internal int IgnoredSubagents;
@@ -96,31 +96,31 @@ namespace ShinoCodexMonitor
         {
             StringBuilder text = new StringBuilder();
             text.AppendLine("CODEX PERISCOPE V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
-            text.AppendLine("Relevé (UTC) : " +
-                (CheckedUtc == DateTimeOffset.MinValue ? "aucun" :
+            text.AppendLine("Sample (UTC): " +
+                (CheckedUtc == DateTimeOffset.MinValue ? "none" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
-            text.AppendLine("Racines inspectées : " + ExaminedRoots +
-                " ; enfants ignorés : " + IgnoredSubagents +
-                " ; origines non classées : " + UnknownOrigins);
+            text.AppendLine("Root threads checked: " + ExaminedRoots +
+                " ; child threads ignored: " + IgnoredSubagents +
+                " ; unknown origins: " + UnknownOrigins);
             TaskDisplay display = DisplayAt(now);
-            text.AppendLine("État observé : " + display.Kind + " ; " + display.Detail);
+            text.AppendLine("Observed state: " + display.Kind + " ; " + display.Detail);
             int i = 0;
             foreach (LiveTask task in Tasks.OrderByDescending(t => t.StartedUtc).Take(6))
             {
                 // No session UUID, full path, cwd, user message, command or token.
                 text.AppendLine("Tour #" + (++i) + " : " +
                     task.Phase + " ; source=" + task.ThreadSource +
-                    " ; démarré (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
+                    " ; started (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
                     " ; finished (UTC)=" +
                     (task.FinishedUtc.HasValue ?
                         task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
-                    " ; durée=" + task.Duration(now) +
-                    " ; durée_ms=" + (task.RecordedDurationMs.HasValue ?
+                    " ; duration=" + task.Duration(now) +
+                    " ; duration_ms=" + (task.RecordedDurationMs.HasValue ?
                         task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
-                    " ; fraîcheur (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
+                    " ; age (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
-            if (i == 0) text.AppendLine("Aucun tour principal observable.");
-            text.AppendLine("Aucun prompt, chemin, identifiant de session ou secret copié.");
+            if (i == 0) text.AppendLine("No observable root turns.");
+            text.AppendLine("No prompts, paths, session IDs or secrets copied.");
             return text.ToString();
         }
 
@@ -132,7 +132,7 @@ namespace ShinoCodexMonitor
             double scanAge = (now - CheckedUtc).TotalSeconds;
             if (CheckedUtc == DateTimeOffset.MinValue || scanAge < -5 || scanAge > 25)
             {
-                display.Detail = "Relevé des tâches ancien ou indisponible";
+                display.Detail = "Task sample stale or unavailable";
                 return display;
             }
 
@@ -151,7 +151,7 @@ namespace ShinoCodexMonitor
             {
                 display.Primary = active;
                 display.Kind = TaskDisplayKind.ObservedActive;
-                display.Detail = "Événement de début local · activité récente";
+                display.Detail = "Local start event · recent log activity";
                 return display;
             }
 
@@ -164,7 +164,7 @@ namespace ShinoCodexMonitor
             {
                 display.Primary = uncertain;
                 display.Kind = TaskDisplayKind.Uncertain;
-                display.Detail = "Début enregistré, mais activité non vérifiable";
+                display.Detail = "Start recorded; ongoing activity unverified";
                 return display;
             }
 
@@ -177,13 +177,13 @@ namespace ShinoCodexMonitor
                 {
                     display.Primary = display.LastTerminal;
                     display.Kind = TaskDisplayKind.RecentTerminal;
-                    display.Detail = "Dernier tour local finished, pas l'état global de Codex";
+                    display.Detail = "Last local turn ended; not Codex's global status";
                     return display;
                 }
-                display.Detail = "Dernier tour enregistré : finished ; activité actuelle inconnue";
+                display.Detail = "Last recorded turn finished; current activity unknown";
             }
             else
-                display.Detail = "None exécution active confirmée in les journaux";
+                display.Detail = "No active execution confirmed in logs";
             return display;
         }
     }
@@ -265,7 +265,7 @@ namespace ShinoCodexMonitor
             string root = SessionRoot();
             if (!Directory.Exists(root))
             {
-                report.Message = "Unavailable · aucun dossier de sessions locales Codex";
+                report.Message = "Unavailable · none dossier de sessions locales Codex";
                 return report;
             }
             try
@@ -332,12 +332,12 @@ namespace ShinoCodexMonitor
                 report.IgnoredSubagents = ignoredChildren;
                 report.UnknownOrigins = unknownHeaders;
                 report.Message = "Tours principaux locaux · " + checkedRoots +
-                    " inspecté(s), " + ignoredChildren + " sous-agent(s) ignoré(s)" +
-                    (unknownHeaders > 0 ? " · " + unknownHeaders + " source(s) non classée(s)" : "");
+                    " inspected, " + ignoredChildren + " subagents ignored" +
+                    (unknownHeaders > 0 ? " · " + unknownHeaders + " unknown sources" : "");
                 if (report.Tasks.Count == 0)
-                    report.Message += " · tour actuel non vérifiable";
+                    report.Message += " · current turn unverified";
             }
-            catch (UnauthorizedAccessException) { report.Message = "Unavailable · accès au dossier refusé"; }
+            catch (UnauthorizedAccessException) { report.Message = "Unavailable · folder access denied"; }
             catch (IOException) { report.Message = "À vérifier · lecture des sessions interruptede"; }
             return report;
         }
