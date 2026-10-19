@@ -25,6 +25,8 @@ try {
     if (!(Test-Path -LiteralPath (Join-Path $root 'CODEX-PERISCOPE.ico'))) {
         throw 'Radar icon generation failed.'
     }
+    # Validate the real rasterized frames (16/32/48/256), not just ICO metadata.
+    & (Join-Path $root 'TEST-PERISCOPE-RADAR.ps1')
     $argsCSC = @('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimize+',
         ('/win32icon:' + (Join-Path $root 'CODEX-PERISCOPE.ico')),
         ('/win32manifest:' + (Join-Path $root 'app.manifest')),
