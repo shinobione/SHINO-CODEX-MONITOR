@@ -48,7 +48,7 @@ namespace ShinoCodexMonitor
                 try { Application.Run(new MonitorForm()); }
                 catch (Exception)
                 {
-                    MessageBox.Show("Impossible de lancer SHINO // CODEX MONITOR " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". Le programme doit être examiné avant un nouveau démarrage.",
+                    MessageBox.Show("Could not start CODEX PERISCOPE " + typeof(Program).Assembly.GetName().Version.ToString(3) + ". The application must be checked before another launch.",
                         "SHINO // CODEX", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 try { mutex.ReleaseMutex(); } catch (ApplicationException) { }
