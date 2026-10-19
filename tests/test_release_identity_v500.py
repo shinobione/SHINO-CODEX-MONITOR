@@ -13,14 +13,14 @@ PACKAGE = (ROOT / 'src' / 'ReleasePackage.cs').read_text(encoding='utf-8')
 CI = (ROOT / '.github' / 'workflows' / 'build-windows.yml').read_text(encoding='utf-8')
 
 
-class V500ReleaseIdentityTests(unittest.TestCase):
+class StableAndPreviewReleaseIdentityTests(unittest.TestCase):
     def test_assembly_has_unique_new_version(self):
-        self.assertIn('AssemblyVersion("5.0.0.0")', ASSEMBLY)
-        self.assertIn('AssemblyFileVersion("5.0.0.0")', ASSEMBLY)
+        self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
+        self.assertIn('AssemblyFileVersion("5.1.0.0")', ASSEMBLY)
 
     def test_ui_and_installer_match_new_version(self):
-        self.assertIn('SHINO // CODEX MONITOR V5.0.0', FORM)
-        self.assertIn('MONITOR / V5.0.0', FORM)
+        self.assertIn('SHINO // CODEX MONITOR V5.1.0 PREVIEW', FORM)
+        self.assertIn('V5.1.0 / PREVIEW', FORM)
         self.assertIn("-Name DisplayVersion -Value '5.0.0'", INSTALL)
 
     def test_new_version_is_strictly_greater_in_runtime_checks(self):
@@ -34,6 +34,13 @@ class V500ReleaseIdentityTests(unittest.TestCase):
         self.assertIn('SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip', BUILD)
         self.assertIn('INSTALLER-V5.0.ps1', INSTALL)
         self.assertIn('V5.0.0 : nom ZIP et installateur conformes', SELF)
+
+    def test_preview_cannot_be_passed_off_as_v50_release(self):
+        candidate = (ROOT / 'BUILD-PREVIEW-V5.1.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn('SHINO_CODEX_MONITOR_V5_1_0_PREVIEW_WINDOWS.zip', candidate)
+        self.assertIn("'README-PREVIEW-V5.1.txt'", candidate)
+        self.assertNotIn("'INSTALLER-V5.0.bat'", candidate)
+        self.assertNotIn('INSTALLER-V5.0.ps1') and self.assertIn('AssemblyVersion("5.1.0.0")', ASSEMBLY)
 
     def test_http_user_agents_derive_running_assembly_version(self):
         self.assertIn('typeof(ReleaseUpdater).Assembly.GetName().Version.ToString(3)', RELEASE)
