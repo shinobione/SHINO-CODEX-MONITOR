@@ -67,7 +67,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ("channel=" + $channel + [Environment]::NewLine))
           }
-          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0") -and
+          elseif ($assembly.Contains('AssemblyVersion("5.1.0.0")') -and
               $assembly.Contains('AssemblyInformationalVersion("5.1.0")')) {
             & .\BUILD-RELEASE-V5.1.ps1
           }
