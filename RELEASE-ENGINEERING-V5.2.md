@@ -4,7 +4,7 @@
 
 Prepared from the existing Draft PR #14 candidate \`074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f\`, independently verified with owner-reported seven real Windows field PASS items. **This branch does not alter the quota/task collector, the WinForms design, user settings, startup, or installed application.**
 
-This is an engineering preparation only. The verified Preview remains \`5.2.0-preview.1\` until stable promotion is explicitly authorized and the last release commit is revalidated.
+This is release-candidate engineering only. Parent PR #14 preserves the field-validated \`5.2.0-preview.1\` code. This dependent branch declares stable \`5.2.0\` solely to validate the as-yet-unpublished final ZIP; no merge or publication is authorized.
 
 ## Files added
 
@@ -19,7 +19,7 @@ This is an engineering preparation only. The verified Preview remains \`5.2.0-pr
 ## Explicit unresolved work BEFORE stable promotion
 
 1. Integrate this dependent PR after a green PR/branch CI result, without merging PR #14 to \`main\` prematurely.
-2. At the final release commit, change \`src/AssemblyInfo.cs\` to \`AssemblyInformationalVersion("5.2.0")\` (preview informational version is intentionally retained for now).
+2. **Candidate prepared:** this dependent branch now declares \`AssemblyInformationalVersion("5.2.0")\`; parent PR #14 retains Preview. Do not publish this candidate until stable CI on the final source tree is inspected and the user authorizes publication.
 3. Update \`README.md\`, \`CHANGELOG.md\`, \`ROADMAP.md\`, the relevant old preview status paragraphs of \`RELEASE-GATE-V5.2.md\` and issue #15 to reflect owner visual sign-off and release-readiness, **only once verified**.
 4. Execute \`BUILD-RELEASE-V5.2.ps1\` on Windows with the stable identity, verify all Python and C# suites, installer \`-ValidateOnly\`, ZIP entry allowlist, ZIP and executable SHA-256. Do not assert a Windows stable build passed before the workflow runs.
 5. Re-run Windows CI against the actual final source commit and confirm the unpublished stable ZIP matches the \`src/ReleasePackage.cs\` and \`src/ReleaseUpdater.cs\` download contract.
