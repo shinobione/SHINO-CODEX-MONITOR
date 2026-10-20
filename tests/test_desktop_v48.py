@@ -11,9 +11,9 @@ SELF = (ROOT / 'src' / 'SelfTests.cs').read_text(encoding='utf-8')
 
 class DesktopV48Audit(unittest.TestCase):
     def test_resizable_circular_only_preserves_previous_layouts(self):
-        self.assertIn('settings.Layout == "Circular"', FORM)
-        self.assertIn('resizeGrip.Visible = circular && settings.Pinned;', FORM)
-        self.assertIn('ClientSize = new Size(w, DesktopGeometry.HeightForWidth(w));', FORM)
+        self.assertIn('settings.Layout=="Circular"', FORM)
+        self.assertIn('resizeGrip.Visible=circular && settings.Pinned;', FORM)
+        self.assertIn('quotaHeight=DesktopGeometry.HeightForWidth(width)', FORM)
         for name in ('"Micro"', '"Compact"', '"Vertical"'):
             self.assertIn(name, FORM)
 

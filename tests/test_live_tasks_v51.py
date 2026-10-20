@@ -34,7 +34,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("Graphics", VIEW)
         self.assertIn("g.DrawLine(stroke, cx, cy", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
-        self.assertIn("taskDock.Bounds = activity", FORM)
+        self.assertIn("taskDock.Bounds=Units(DesktopGeometry.ActivityBounds(", FORM)
         self.assertNotIn("WebView2", VIEW)
         self.assertNotIn("Electron", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)

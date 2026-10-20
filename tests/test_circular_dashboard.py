@@ -29,15 +29,15 @@ class CircularLayoutAudit(unittest.TestCase):
             self.assertIn(name,FORM)
         self.assertIn('PlaceCircular(five',FORM)
         self.assertIn('PlaceCircular(week',FORM)
-        self.assertIn('m.Ring.Visible = circular;',FORM)
-        self.assertIn('m.Track.Visible = !circular;',FORM)
+        self.assertIn('m.Ring.Visible=circular;',FORM)
+        self.assertIn('m.Track.Visible=!circular;',FORM)
 
     def test_no_stale_quota_looks_fresh(self):
         self.assertIn('meter.Ring.SetReading(percent, live, color)',FORM)
         self.assertIn('meter.Ring.SetReading(null, false',FORM)
         self.assertIn('current ? accent : ColorTranslator.FromHtml("#8BA0B1")',PALETTE)
-        self.assertIn('if (settings.Layout == "Circular")',FORM)
-        self.assertIn('FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow)',FORM)
+        self.assertIn('statusAge.Visible=circular || settings.Layout=="Compact"',FORM)
+        self.assertIn('FreshnessLabel(lastSuccess,UiNow)',FORM)
 
     def test_double_buffer_low_cost(self):
         self.assertIn('ControlStyles.OptimizedDoubleBuffer',PALETTE)

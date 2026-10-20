@@ -6,6 +6,8 @@
 
 **Release-blocking P0 continuation:** [Concurrent-turn collection, native window icon checks and field gate](P0-MULTI-TASK-V5.2.md). Unit/CI success alone cannot clear the real concurrent-mission and shell taskbar visual gates.
 
+**October 20 native redesign:** [Stitch Obsidian -> full-window WinForms candidate](OBSIDIAN-NATIVE-V5.2.md) addresses issue #15 with complete native fixture captures. Fresh owner screenshot approval is required; the earlier visual failure is not cleared by synthetic QA or CI. PR #14 stays Draft and stable Release stays HOLD.
+
 **Status (October 19, 2026):** V5.2 Preview, PR #14 remains **Draft**; main and published V5.1 are unchanged. No automatic installation, autostart, merge, public tag or Release was performed for this audit.
 
 ## Verified in source and Windows CI

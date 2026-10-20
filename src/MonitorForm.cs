@@ -23,10 +23,10 @@ namespace ShinoCodexMonitor
     }
     internal sealed class Meter
     {
-        internal Label Name, Number, Reset;
+        internal Label Name, Number, Reset, Hint;
+        internal InstrumentPanel Face;
         internal Panel Track, Fill;
         internal CircularGauge Ring;
-        internal QuotaWindow Data;
     }
     internal sealed class MonitorForm : PeriscopeWindow
     {
@@ -79,18 +79,30 @@ namespace ShinoCodexMonitor
         private ToolStripMenuItem updateMenuItem;
         private bool updateCheckRunning;
         private readonly Panel taskDock = new Panel();
+        private readonly InstrumentPanel sourceFace = new InstrumentPanel();
+        private Bitmap chrome;
         private readonly MissionDeck taskDeck = new MissionDeck();
         private readonly System.Windows.Forms.Timer taskMotion = new System.Windows.Forms.Timer();
+        private DateTimeOffset? presentationTime;
+        private string presentationState;
+        private bool resourcesDisposed;
 
         private LiveTaskReport taskReport;
         private Task<LiveTaskReport> taskRead;
         private DateTimeOffset nextTaskPoll = DateTimeOffset.MinValue;
         private readonly Dictionary<string,DateTimeOffset> sentTaskNotifications = new Dictionary<string,DateTimeOffset>();
 
-        internal MonitorForm()
+        internal MonitorForm() : this(new LocalStore(), null) { }
+        // Presentation-only construction shares the production window and controls,
+        // but has no store, tray, collectors, system subscriptions or persistence.
+        internal MonitorForm(Preferences appearance) : this(null, appearance) { }
+        internal float? PresentationScale { get; private set; }
+        internal void SetPresentationScale(float scale)
+        { if(store!=null)throw new InvalidOperationException("Isolated presentation only."); PresentationScale=scale;ApplyLayout(); }
+        private MonitorForm(LocalStore persistence, Preferences appearance)
         {
-            store = new LocalStore();
-            settings = store.Load();
+            store = persistence;
+            settings = store == null ? appearance : store.Load();
             Text = "CODEX PERISCOPE V5.2.0";
             BackColor = UiColors.Background;
             ForeColor = UiColors.Text;
@@ -98,10 +110,11 @@ namespace ShinoCodexMonitor
             ShowInTaskbar = settings.InTaskbar && settings.Pinned;
             TopMost = settings.Top;
             Opacity = settings.Opacity;
-            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleMode = AutoScaleMode.None;
+            DoubleBuffered=true;
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
-            header = TextLabel("◉ CODEX PERISCOPE", 12, UiColors.Five, true);
+            header = TextLabel("CODEX PERISCOPE", 12, InstrumentStyle.Text, true);
             version = TextLabel("PERISCOPE / V5.2.0", 8, UiColors.Muted, false);
             close = TextLabel("×", 16, UiColors.Muted, false);
             close.Cursor = Cursors.Hand;
@@ -115,14 +128,16 @@ namespace ShinoCodexMonitor
             five = BuildMeter("5-HOUR QUOTA");
             week = BuildMeter("WEEKLY QUOTA");
             status = TextLabel("● Initializing Codex...", 8, UiColors.Muted, false);
-            Controls.Add(status);
+            sourceFace.Controls.Add(status);
             statusAge = TextLabel("Waiting", 8, UiColors.Muted, false);
             statusAge.TextAlign = ContentAlignment.MiddleRight;
-            Controls.Add(statusAge);
+            sourceFace.Controls.Add(statusAge);
+            Controls.Add(sourceFace);
             statusDivider = new Panel { BackColor = UiColors.Track };
             Controls.Add(statusDivider);
             resizeGrip = TextLabel("◢", 11, UiColors.Muted, true);
             resizeGrip.Cursor = Cursors.SizeNWSE;
+            resizeGrip.AutoEllipsis=false;
             resizeGrip.TextAlign = ContentAlignment.MiddleCenter;
             tooltip.SetToolTip(resizeGrip, "Drag to resize gauges");
             Controls.Add(resizeGrip);
@@ -131,6 +146,7 @@ namespace ShinoCodexMonitor
             // Windows may show the generic multicolour WinForms squares in the taskbar.
             // Reuse the exact executable icon embedded by /win32icon in the build.
             Icon = originalTrayIcon ?? SystemIcons.Application;
+            if (store != null) {
             tray = new NotifyIcon { Icon = originalTrayIcon ?? SystemIcons.Application, Text = "CODEX PERISCOPE " + typeof(MonitorForm).Assembly.GetName().Version.ToString(3), Visible = true, ContextMenuStrip = context };
             tray.MouseClick += delegate(object sender, MouseEventArgs e) {
                 if (e.Button == MouseButtons.Left) ToggleVisibility();
@@ -139,6 +155,7 @@ namespace ShinoCodexMonitor
             // In transient-panel mode, never start with a permanently visible widget.
             Shown += delegate { if (!settings.Pinned) BeginInvoke((Action)delegate { Hide(); }); };
             MakeMenu();
+            }
             ApplyAppearance();
             ApplyLayout();
             if (settings.X.HasValue && settings.Y.HasValue)
@@ -149,23 +166,35 @@ namespace ShinoCodexMonitor
                 Location = DesktopGeometry.ClampToScreen(proposed,
                     Screen.FromRectangle(proposed).WorkingArea).Location;
             }
+            if (store != null) {
             AttachDrag(this); AttachDrag(header); AttachDrag(version);
             AttachCircularResize();
             FormClosing += OnFormClosing;
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
             SystemEvents.TimeChanged += OnTimeChanged;
+            }
             tick.Interval = 1000;
             tick.Tick += delegate { Heartbeat(); };
             taskMotion.Interval = 34; // At most 29.4 requested frames per second.
             taskMotion.Tick += delegate { taskDeck.Advance(); UpdateTaskMotion(); };
             VisibleChanged += delegate { UpdateTaskMotion(); };
-            tick.Start();
-            Heartbeat();
+            if (store != null) { tick.Start(); Heartbeat(); }
         }
+        internal void Present(Snapshot quotas, LiveTaskReport missions, DateTimeOffset now, string state)
+        {
+            if (store != null) throw new InvalidOperationException("Presentation requires an isolated window.");
+            presentationTime=now; presentationState=state; snapshot=quotas;
+            lastSuccess=quotas == null ? (DateTimeOffset?)null : quotas.CapturedUtc;
+            taskReport=missions;
+            UpdateTaskSurface(now); PaintSnapshot();
+        }
+        internal MissionDeck Missions { get { return taskDeck; } }
+        internal bool MotionTimerRunning { get { return taskMotion.Enabled; } }
+        private DateTimeOffset UiNow { get { return presentationTime ?? DateTimeOffset.UtcNow; } }
         private static Label TextLabel(string text, float size, Color color, bool bold)
         {
-            return new Label { Text = text, Font = new Font("Segoe UI", size, bold ? FontStyle.Bold : FontStyle.Regular),
-                ForeColor = color, BackColor = Color.Transparent, AutoSize = false, UseCompatibleTextRendering = true };
+            InstrumentLabel label=new InstrumentLabel { Text=text, ForeColor=color, BackColor=Color.Transparent, AutoSize=false, AutoEllipsis=true };
+            label.SetFont(size*96/72,bold ? FontStyle.Bold : FontStyle.Regular);return label;
         }
         private Meter BuildMeter(string title)
         {
@@ -178,130 +207,128 @@ namespace ShinoCodexMonitor
             m.Track.Controls.Add(m.Fill);
             m.Ring = new CircularGauge();
             m.Reset = TextLabel("Waiting for Codex...", 8, UiColors.Muted, false);
-            Controls.Add(m.Name); Controls.Add(m.Number); Controls.Add(m.Track); Controls.Add(m.Reset); Controls.Add(m.Ring);
+            m.Face=new InstrumentPanel();m.Hint=TextLabel("REMAINING",6.5f,InstrumentStyle.Muted,false);
+            m.Face.Controls.Add(m.Name); m.Face.Controls.Add(m.Number); m.Face.Controls.Add(m.Track); m.Face.Controls.Add(m.Reset); m.Face.Controls.Add(m.Ring);m.Face.Controls.Add(m.Hint);
+            Controls.Add(m.Face);
             return m;
         }
-        private void PlaceMeter(Meter m, int x, int y, int width, bool micro)
+        private int Unit(int value) {return (int)Math.Round(value*PeriscopeWindow.ScaleFor(this));}
+        private Rectangle Units(Rectangle r) {return new Rectangle(Unit(r.X),Unit(r.Y),Math.Max(1,Unit(r.Width)),Math.Max(1,Unit(r.Height)));}
+        private void PlaceMeter(Meter m,int x,int y,int width,bool micro)
         {
-            m.Name.SetBounds(x, y, width - 76, micro ? 20 : 24);
-            m.Name.Font = new Font("Segoe UI", micro ? 8f : 10f, FontStyle.Bold);
-            m.Number.SetBounds(x + width - 75, y - 3, 75, micro ? 23 : 30);
-            m.Number.Font = new Font("Segoe UI", micro ? 11f : 17f, FontStyle.Bold);
-            m.Track.SetBounds(x, y + (micro ? 31 : 31), width, micro ? 6 : 9);
-            m.Fill.Height = m.Track.Height;
-            m.Reset.SetBounds(x, y + 44, width, micro ? 18 : 22);
-            m.Reset.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
+            int pad=micro?8:12;
+            m.Face.Bounds=Units(new Rectangle(x,y,width,micro?62:80));
+            m.Name.Bounds=Units(new Rectangle(pad,micro?5:7,width-90-pad,18));
+            InstrumentStyle.FontFor(m.Name,micro?10:12,FontStyle.Bold);
+            m.Name.TextAlign=ContentAlignment.MiddleLeft;
+            m.Number.Bounds=Units(new Rectangle(width-87,2,75,micro?25:32));
+            InstrumentStyle.FontFor(m.Number,micro?18:24,FontStyle.Bold);
+            m.Hint.Bounds=Units(new Rectangle(pad,micro?21:27,width-105-pad,micro?11:12));
+            InstrumentStyle.FontFor(m.Hint,micro?8:9,FontStyle.Regular);
+            m.Track.Bounds=Units(new Rectangle(pad,micro?35:43,width-2*pad,micro?5:7));
+            m.Fill.Height=m.Track.Height;
+            m.Reset.Bounds=Units(new Rectangle(pad,micro?43:54,width-2*pad,micro?17:20));
+            InstrumentStyle.FontFor(m.Reset,micro?10:10.5f,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleLeft;
         }
-        private void PlaceCircular(Meter m, int x, int width)
+        private void PlaceCircular(Meter m,int x,int width)
         {
-            int w = settings.CircularWidth;
-            float ratio = w / (float)DesktopGeometry.DefaultWidth;
-            m.Name.Bounds = DesktopGeometry.ScaleRect(x, 52, width, 25, w);
-            m.Name.TextAlign = ContentAlignment.MiddleCenter;
-            m.Name.Font = new Font("Segoe UI", 9f * ratio, FontStyle.Bold);
-            m.Ring.Bounds = DesktopGeometry.ScaleRect(x + (width - 130) / 2, 78, 130, 130, w);
-            m.Reset.Bounds = DesktopGeometry.ScaleRect(x, 209, width, 23, w);
-            m.Reset.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
-            m.Reset.TextAlign = ContentAlignment.MiddleCenter;
-            m.Number.Visible = false;
-            m.Track.Visible = false;
-            m.Ring.Visible = true;
+            int w=settings.CircularWidth;float ratio=w/(float)DesktopGeometry.DefaultWidth;
+            m.Face.Bounds=Units(DesktopGeometry.ScaleRect(x,48,width,188,w));
+            m.Name.Bounds=Units(DesktopGeometry.ScaleRect(6,7,width-12,20,w));
+            m.Name.TextAlign=ContentAlignment.MiddleCenter;
+            InstrumentStyle.FontFor(m.Name,11.5f*ratio,FontStyle.Bold);
+            m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-130)/2,29,130,130,w));
+            m.Reset.Bounds=Units(DesktopGeometry.ScaleRect(7,164,width-14,19,w));
+            InstrumentStyle.FontFor(m.Reset,10.5f*ratio,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleCenter;
         }
-        private void MeterMode(Meter m, bool circular)
+        private void MeterMode(Meter m,bool circular)
         {
-            m.Ring.Visible = circular;
-            m.Track.Visible = !circular;
-            m.Number.Visible = !circular;
-            m.Name.TextAlign = circular ? ContentAlignment.MiddleCenter : ContentAlignment.MiddleLeft;
-            m.Reset.TextAlign = circular ? ContentAlignment.MiddleCenter : ContentAlignment.MiddleLeft;
+            m.Ring.Visible=circular;m.Track.Visible=!circular;m.Number.Visible=!circular;m.Hint.Visible=!circular;
         }
         private void ApplyLayout()
         {
-            Rectangle work = Screen.FromPoint(new Point(Left + 10, Top + 10)).WorkingArea;
-            bool micro = settings.Layout == "Micro";
-            bool circular = settings.Layout == "Circular";
-            MeterMode(five, circular);
-            MeterMode(week, circular);
-            statusAge.Visible = circular;
-            statusDivider.Visible = circular;
-            if (circular)
-            {
-                int w = DesktopGeometry.ClampWidth(settings.CircularWidth);
-                settings.CircularWidth = w;
-                ClientSize = new Size(w, DesktopGeometry.HeightForWidth(w));
-                float ratio = w / (float)DesktopGeometry.DefaultWidth;
-                header.Bounds = DesktopGeometry.ScaleRect(17, 12, 340, 30, w);
-                header.Font = new Font("Segoe UI", 11f * ratio, FontStyle.Bold);
-                version.Visible = true;
-                version.Bounds = DesktopGeometry.ScaleRect(348, 13, 146, 20, w);
-                version.TextAlign = ContentAlignment.MiddleRight;
-                PlaceCircular(five, 24, 236);
-                PlaceCircular(week, 280, 236);
-                statusDivider.Bounds = DesktopGeometry.ScaleRect(14, 239, 512, 1, w);
-                status.Bounds = DesktopGeometry.ScaleRect(17, 247, 337, 22, w);
-                statusAge.Bounds = DesktopGeometry.ScaleRect(355, 247, 160, 22, w);
-                status.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
-                statusAge.Font = new Font("Segoe UI", 8f * ratio, FontStyle.Regular);
+            if(five==null || week==null || statusAge==null)return;
+            SuspendLayout();
+            try {
+                bool micro=settings.Layout=="Micro",circular=settings.Layout=="Circular";
+                MeterMode(five,circular);MeterMode(week,circular);
+                int width,quotaHeight;
+                if(circular){settings.CircularWidth=DesktopGeometry.ClampWidth(settings.CircularWidth);width=settings.CircularWidth;quotaHeight=DesktopGeometry.HeightForWidth(width);}
+                else {width=micro?484:settings.Layout=="Compact"?670:355;quotaHeight=micro?122:settings.Layout=="Compact"?177:257;}
+                ClientSize=new Size(Unit(width),Unit(DesktopGeometry.CombinedHeight(width,quotaHeight,settings.Layout)));
+                header.Bounds=Units(new Rectangle(micro?29:34,micro?4:8,micro?290:width-200,micro?21:24));
+                InstrumentStyle.FontFor(header,micro?11:13,FontStyle.Bold);
+                version.Visible=!micro;version.Text="PERISCOPE / V5.2.0";
+                version.TextAlign=ContentAlignment.MiddleRight;
+                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,9,FontStyle.Regular);
+                close.Bounds=Units(new Rectangle(width-34,micro?3:7,25,24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
+                if(circular) {
+                    PlaceCircular(five,14,246);PlaceCircular(week,280,246);
+                    sourceFace.Bounds=Units(DesktopGeometry.ScaleRect(14,247,512,27,width));
+                } else if(micro) {
+                    PlaceMeter(five,12,31,220,true);PlaceMeter(week,240,31,232,true);
+                    sourceFace.Bounds=Units(new Rectangle(8,98,468,22));
+                } else if(settings.Layout=="Compact") {
+                    PlaceMeter(five,14,53,317,false);PlaceMeter(week,339,53,317,false);
+                    sourceFace.Bounds=Units(new Rectangle(14,144,642,27));
+                } else {
+                    PlaceMeter(five,14,48,327,false);PlaceMeter(week,14,136,327,false);
+                    sourceFace.Bounds=Units(new Rectangle(14,226,327,28));
+                }
+                statusAge.Visible=circular || settings.Layout=="Compact";statusDivider.Visible=false;
+                int ageWidth=(circular || settings.Layout=="Compact")?Unit(circular?153:210):0;
+                status.SetBounds(Unit(8),Unit(3),Math.Max(1,sourceFace.Width-ageWidth-Unit(16)),sourceFace.Height-Unit(6));
+                statusAge.SetBounds(sourceFace.Width-ageWidth-Unit(7),Unit(3),Math.Max(1,ageWidth),sourceFace.Height-Unit(6));
+                InstrumentStyle.FontFor(status,micro?9:10,FontStyle.Regular);InstrumentStyle.FontFor(statusAge,9,FontStyle.Regular);
+                taskDock.Bounds=Units(DesktopGeometry.ActivityBounds(width,quotaHeight,settings.Layout));
+                taskDeck.LayoutMode=settings.Layout;PlaceActivityControls(circular,micro);
+                UpdateTaskSurface(UiNow);
+                resizeGrip.Visible=circular && settings.Pinned;
+                resizeGrip.Bounds=Units(new Rectangle(width-20,DesktopGeometry.CombinedHeight(width,quotaHeight,settings.Layout)-20,16,16));
+                InstrumentStyle.FontFor(resizeGrip,11,FontStyle.Regular);
+                if(store!=null) Location=DesktopGeometry.ClampToScreen(Bounds,Screen.FromRectangle(Bounds).WorkingArea).Location;
+                PaintSnapshot();
+            } finally {ResumeLayout(true);}
+            ClearChrome();
+        }
+        private void ClearChrome(){if(chrome!=null){chrome.Dispose();chrome=null;}Invalidate();}
+        protected override void OnSizeChanged(EventArgs e){ClearChrome();base.OnSizeChanged(e);}
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            if(Width<2 || Height<2){base.OnPaintBackground(e);return;}
+            if(chrome==null) {
+                chrome=new Bitmap(Width,Height);
+                using(Graphics g=Graphics.FromImage(chrome))
+                using(Brush body=new SolidBrush(BackColor))
+                using(Brush bar=new SolidBrush(InstrumentStyle.Blend(BackColor,Color.FromArgb(19,30,44),.6)))
+                using(Pen edge=new Pen(InstrumentStyle.Border))
+                using(Pen teal=new Pen(InstrumentStyle.Teal)) {
+                    g.FillRectangle(body,ClientRectangle);g.FillRectangle(bar,0,0,Width,Unit(settings!=null && settings.Layout=="Micro"?28:38));
+                    g.DrawRectangle(edge,0,0,Width-1,Height-1);
+                    int r=Unit(12),x=Unit(settings!=null && settings.Layout=="Micro"?11:14),y=Unit(settings!=null && settings.Layout=="Micro"?9:14);
+                    g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;g.DrawEllipse(teal,x,y,r,r);g.DrawLine(teal,x+r/2,y+r/2,x+r,y+r/2);
+                }
             }
-            else if (micro)
-            {
-                version.TextAlign = ContentAlignment.MiddleLeft;
-                ClientSize = new Size(484, 122);
-                header.SetBounds(12, 5, 320, 22);
-                header.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-                version.Visible = false;
-                PlaceMeter(five, 12, 33, 212, true);
-                // Reserve 44px on the right for the close button at every DPI.
-                PlaceMeter(week, 240, 33, 188, true);
-                status.SetBounds(12, 99, 458, 18);
-            }
-            else if (settings.Layout == "Compact")
-            {
-                version.TextAlign = ContentAlignment.MiddleLeft;
-                ClientSize = new Size(670, 177);
-                header.SetBounds(17, 12, 430, 29);
-                header.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-                version.SetBounds(17, 40, 200, 18); version.Visible = true;
-                PlaceMeter(five, 18, 70, 305, false);
-                PlaceMeter(week, 347, 70, 305, false);
-                status.SetBounds(17, 153, 630, 18);
-            }
-            else
-            {
-                version.TextAlign = ContentAlignment.MiddleLeft;
-                ClientSize = new Size(355, 257);
-                header.SetBounds(17, 12, 290, 29);
-                header.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-                version.SetBounds(17, 40, 200, 18); version.Visible = true;
-                PlaceMeter(five, 18, 70, 317, false);
-                PlaceMeter(week, 18, 155, 317, false);
-                status.SetBounds(17, 238, 322, 18);
-            }
-            close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10, 25, micro ? 24 : 28);
-            int quotaHeight = ClientSize.Height;
-            Rectangle activity = DesktopGeometry.ActivityBounds(ClientSize.Width, quotaHeight, settings.Layout);
-            ClientSize = new Size(ClientSize.Width,
-                DesktopGeometry.CombinedHeight(ClientSize.Width, quotaHeight, settings.Layout));
-            taskDock.Bounds = activity;
-            PlaceActivityControls(circular, micro);
-            UpdateTaskSurface(DateTimeOffset.UtcNow);
-            resizeGrip.Visible = circular && settings.Pinned;
-            if (circular)
-                resizeGrip.Bounds = new Rectangle(ClientSize.Width - DesktopGeometry.Scale(21, settings.CircularWidth),
-                    ClientSize.Height - DesktopGeometry.Scale(21, settings.CircularWidth),
-                    DesktopGeometry.Scale(17, settings.CircularWidth), DesktopGeometry.Scale(17, settings.CircularWidth));
-            Location = new Point(Math.Max(work.Left, Math.Min(Left, work.Right - Width)),
-                Math.Max(work.Top, Math.Min(Top, work.Bottom - Height)));
-            PaintSnapshot();
+            e.Graphics.DrawImageUnscaled(chrome,0,0);
+        }
+        protected override void WndProc(ref Message m)
+        {
+            int message=m.Msg;base.WndProc(ref m);
+            if(message==0x02E0 && five!=null && week!=null && statusAge!=null)ApplyLayout();
         }
         private void PlaceActivityControls(bool circular, bool micro)
         { taskDeck.PerformLayout(); }
 
         private void UpdateTaskMotion()
         {
-            taskMotion.Enabled = Visible && !suspended && settings.TaskAnimations &&
+            taskMotion.Enabled = Visible && WindowState != FormWindowState.Minimized && !suspended && settings.TaskAnimations &&
                 taskDeck.NeedsFrames;
             taskDeck.SetMotion(taskMotion.Enabled);
+        }
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if(settings!=null && taskDeck!=null && taskMotion!=null) UpdateTaskMotion();
         }
 
         private void ToggleVisibility()
@@ -319,6 +346,7 @@ namespace ShinoCodexMonitor
         }
         private void Save()
         {
+            if (store == null) return;
             if (settings.Pinned) { settings.X = Left; settings.Y = Top; }
             store.Save(settings);
         }
@@ -351,7 +379,7 @@ namespace ShinoCodexMonitor
             };
             resizeGrip.MouseMove += delegate(object sender, MouseEventArgs e) {
                 if (!resizeMouse.HasValue || Control.MouseButtons != MouseButtons.Left) return;
-                int desired = DesktopGeometry.ClampWidth(resizeOriginalWidth + Cursor.Position.X - resizeMouse.Value.X);
+                int desired = DesktopGeometry.ClampWidth(resizeOriginalWidth + (int)Math.Round((Cursor.Position.X - resizeMouse.Value.X) / PeriscopeWindow.ScaleFor(this)));
                 // Avoid expensive redraw for every single mouse pixel.
                 if (Math.Abs(desired - settings.CircularWidth) >= 5)
                 {
@@ -510,6 +538,7 @@ namespace ShinoCodexMonitor
             ToolStripMenuItem backgrounds = Menu(appearance, "Background color", null);
             AddBackgroundPreset(backgrounds, "Midnight blue", "#111926");
             AddBackgroundPreset(backgrounds, "Premium / Deep Instrument", "#080E17");
+            AddBackgroundPreset(backgrounds, "Obsidian / Sonar", "#080D14");
             AddBackgroundPreset(backgrounds, "Deep black", "#090C13");
             AddBackgroundPreset(backgrounds, "Charcoal gray", "#22272E");
             AddBackgroundPreset(backgrounds, "Petrol blue", "#102C36");
@@ -694,12 +723,16 @@ namespace ShinoCodexMonitor
             settings.Sanitize();
             BackColor = ColorTranslator.FromHtml(settings.BackgroundColor);
             Opacity = settings.Opacity;
-            five.Ring.BackColor = BackColor;
-            week.Ring.BackColor = BackColor;
+            five.Face.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.38);
+            week.Face.BackColor=five.Face.BackColor;
+            five.Ring.BackColor = Color.Transparent;
+            week.Ring.BackColor = Color.Transparent;
+            sourceFace.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.5);
+            taskDock.BackColor=BackColor;taskDeck.BackColor=sourceFace.BackColor;
             five.Ring.Invalidate();
             week.Ring.Invalidate();
             taskDeck.Invalidate();
-            Invalidate();
+            ClearChrome();
         }
         private void SetBackground(string hex)
         {
@@ -787,7 +820,7 @@ namespace ShinoCodexMonitor
                 {
                     DialogResult choice = MessageBox.Show(
                         "Installed version: " + current.ToString(3) + "\n" +
-                        "Nouvelle Release : " + latest.Tag + "\n\n" +
+                        "New release: " + latest.Tag + "\n\n" +
                         "Download and verify the official GitHub update?\n" +
                         "Downloading does not install anything. Installation requires separate confirmation.\n" +
                         "You can always use the Releases page if something goes wrong.",
@@ -835,12 +868,12 @@ namespace ShinoCodexMonitor
                 if (IsDisposed || Disposing) return;
                 DialogResult yes = MessageBox.Show(
                     "Official package downloaded and SHA-256 verified.\n" +
-                    "Version : " + latest.Tag + "\n" +
+                    "Version: " + latest.Tag + "\n" +
                     "Size: " + asset.Size + " bytes\n" +
-                    "Empreinte GitHub : " + asset.Sha256 + "\n\n" +
+                    "GitHub SHA-256: " + asset.Sha256 + "\n\n" +
                     "Install this version now? The widget will close.\n" +
                     "The previous version will be backed up. This executable is NOT signed.",
-                    "CODEX PERISCOPE — Confirmer l'installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    "CODEX PERISCOPE — Confirm installation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (yes != DialogResult.Yes) return;
                 UpdateHandoff.Start(staged);
                 exiting = true;
@@ -968,7 +1001,7 @@ namespace ShinoCodexMonitor
         {
             string last = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss", CultureInfo.GetCultureInfo("en-GB")) : "No";
             Version runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            return "Version : " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
+            return "Version: " + runningVersion.ToString(3) + " (C# / Windows Forms)\n" +
                 "Source : Codex CLI / account/rateLimits/read\n" +
                 "Executable : " + Application.ExecutablePath + "\n" +
                 "CLI binary: " + binaryPath + "\n" +
@@ -1241,6 +1274,7 @@ namespace ShinoCodexMonitor
         }
         private string State()
         {
+            if (store == null && presentationState != null) return presentationState;
             if (forcedStale) return lastSuccess.HasValue ? "Unverified" : "Unavailable";
             return QuotaHealth.State(lastSuccess, failures, settings.RefreshSeconds, DateTimeOffset.UtcNow);
         }
@@ -1251,42 +1285,24 @@ namespace ShinoCodexMonitor
             bool live = state == "Direct" && !blocked;
             DrawMeter(five, snapshot == null ? null : snapshot.Five, "five", live, state, blocked);
             DrawMeter(week, snapshot == null ? null : snapshot.Week, "week", live, state, blocked);
-            string sample = lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("HH:mm:ss") : "—";
-            if (blocked)
-            {
-                status.Text = "⚠ Codex usage reported blocked · reading " + sample;
-                status.ForeColor = ColorTranslator.FromHtml("#EE4B55");
-            }
-            else if (live)
-            {
-                status.Text = (settings.Layout == "Micro" ? "● Direct" : "● Connected") + " · reading " + sample;
-                if (snapshot != null && snapshot.ResetsAvailable.HasValue)
-                    status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
-                status.ForeColor = UiColors.Five;
-            }
-            else
-            {
-                status.Text = "⚠ " + state + " · reading " + sample;
-                status.ForeColor = UiColors.Warning;
-            }
-            if (settings.Layout == "Circular")
-            {
-                status.Text = blocked ? "⚠ Codex usage blocked" : live ? "● Direct · Codex CLI" : "⚠ " + state;
-                if (live && snapshot != null && snapshot.ResetsAvailable.HasValue)
-                    status.Text += " · " + snapshot.ResetsAvailable.Value + " resets available";
-                statusAge.Text = FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow);
-                tooltip.SetToolTip(statusAge, "Last Codex reading: " +
-                    (lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss", CultureInfo.GetCultureInfo("en-GB")) : "none") +
-                    " (Windows local time). Status: " + state);
-            }
-            tooltip.SetToolTip(status, live ? "Source: Codex CLI / account/rateLimits/read" : lastError);
+            string sample=lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")) : "No observation";
+            if(blocked) {status.Text="USAGE BLOCKED / LAST KNOWN";status.ForeColor=InstrumentStyle.Red;}
+            else if(live) {status.Text="CODEX CLI / DIRECT";status.ForeColor=InstrumentStyle.Teal;}
+            else {status.Text=state.ToUpperInvariant()+" / "+(lastSuccess.HasValue?"LAST KNOWN":"NO QUOTA READING");status.ForeColor=InstrumentStyle.Amber;}
+            statusAge.Text=sample;
+            if(settings.Layout!="Circular" && settings.Layout!="Compact" && lastSuccess.HasValue)status.Text+=" / "+sample;
+            sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
+            string observation="Last Codex reading: "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")) : "none")+
+                "\n"+FreshnessLabel(lastSuccess,UiNow)+". Status: "+(blocked?"Usage blocked":state)+". Task availability is independent.";
+            tooltip.SetToolTip(statusAge,observation);tooltip.SetToolTip(status,observation+"\n"+(live?"Source: Codex CLI / account/rateLimits/read":lastError));
             string caption = live && snapshot != null && snapshot.Week != null ?
                 "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% weekly" : "CODEX PERISCOPE · " + state;
-            tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
+            if (tray != null) tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
             UpdateQuotaTrayIcon(state, blocked);
         }
         private void UpdateQuotaTrayIcon(string state, bool blocked)
         {
+            if (tray == null) return;
             bool current = state == "Direct" && !blocked && snapshot != null;
             double? remaining = null;
             string window = "";
@@ -1331,6 +1347,7 @@ namespace ShinoCodexMonitor
         private void DrawMeter(Meter meter, QuotaWindow data, string kind, bool live, string state, bool blocked)
         {
             meter.Reset.Visible = settings.ResetStyle != "hidden";
+            meter.Hint.Text=live ? "REMAINING" : data==null ? "NO READING" : "LAST KNOWN / "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("HH:mm:ss") : "time unavailable");
             if (data == null)
             {
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
@@ -1349,7 +1366,7 @@ namespace ShinoCodexMonitor
             // Blocked ordinary usage does not make a fresh reset timestamp stale.
             // The block remains clearly visible in the status/footer and tooltips.
             meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
-                settings.Layout, live || blocked, DateTimeOffset.UtcNow);
+                settings.Layout, live || blocked, UiNow);
             tooltip.SetToolTip(meter.Ring, blocked ? "Codex usage blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Stale quota reading");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports usage is blocked" :
@@ -1405,18 +1422,27 @@ namespace ShinoCodexMonitor
             exiting = true;
             tick.Stop();
             taskMotion.Stop();
-            taskMotion.Dispose();
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             SystemEvents.TimeChanged -= OnTimeChanged;
             readerGeneration++;
             CodexReader.Cancel();
             Save();
             tray.Visible = false;
-            tray.Dispose();
-            if (dynamicTrayIcon != null) dynamicTrayIcon.Dispose();
-            if (originalTrayIcon != null) originalTrayIcon.Dispose();
+
             if (history != null && !history.IsDisposed) history.Close();
-            context.Dispose();
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && !resourcesDisposed) {
+                resourcesDisposed=true;
+                tick.Dispose(); taskMotion.Dispose(); tooltip.Dispose(); context.Dispose();
+                if (tray != null) tray.Dispose();
+                if (dynamicTrayIcon != null) dynamicTrayIcon.Dispose();
+                if (originalTrayIcon != null) originalTrayIcon.Dispose();
+                if(chrome!=null){chrome.Dispose();chrome=null;}
+                if(store!=null){SystemEvents.PowerModeChanged-=OnPowerModeChanged;SystemEvents.TimeChanged-=OnTimeChanged;}
+            }
+            base.Dispose(disposing);
         }
     }
 }

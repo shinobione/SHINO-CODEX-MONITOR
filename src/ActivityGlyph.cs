@@ -110,7 +110,7 @@ namespace ShinoCodexMonitor
             if (lens != null) lens.Dispose();
             lens = new Bitmap(Math.Max(1,Width),Math.Max(1,Height)); lensColor = background; lensState = state;
             using (Graphics g = Graphics.FromImage(lens)) {
-                g.Clear(background); g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent); g.SmoothingMode = SmoothingMode.AntiAlias;
                 float side = Math.Min(Width,Height), radius = side * .43f;
                 float cx = Width/2f, cy = Height/2f;
                 RectangleF ring = new RectangleF(cx-radius,cy-radius,radius*2,radius*2);
@@ -119,6 +119,10 @@ namespace ShinoCodexMonitor
                     using (PathGradientBrush fill = new PathGradientBrush(path)) {
                         fill.CenterColor = Color.FromArgb(20,46,59); fill.SurroundColors = new [] {Color.FromArgb(8,17,28)}; g.FillEllipse(fill,ring);
                     }
+                }
+                using(Pen bezel=new Pen(state==RadarState.Active ? Color.FromArgb(105,50,224,196) : Color.FromArgb(75,137,161,178),1f)) {
+                    g.DrawEllipse(bezel,cx-side*.48f,cy-side*.48f,side*.96f,side*.96f);
+                    g.DrawEllipse(bezel,cx-side*.45f,cy-side*.45f,side*.9f,side*.9f);
                 }
                 using (Pen track = new Pen(state == RadarState.Active || state == RadarState.Complete ? Color.FromArgb(70,69,113,131) : Color.FromArgb(70,135,147,165),1f)) {
                     for (int i=1; i<=4; i++) {

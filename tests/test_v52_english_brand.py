@@ -7,7 +7,7 @@ SOURCES = (
     'MonitorForm.cs','SourceHealth.cs','HistoryWindow.cs','LiveTaskMonitor.cs',
     'ReleasePackage.cs','ReleaseUpdater.cs','CodexReader.cs','Models.cs',
     'RuntimeMetrics.cs','Program.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs',
-    'HistoryData.cs','ActivityGlyph.cs','PremiumTests.cs','MissionPresentation.cs','PeriscopeWindow.cs','P0Tests.cs'
+    'HistoryData.cs','ActivityGlyph.cs','PremiumTests.cs','MissionPresentation.cs','PeriscopeWindow.cs','P0Tests.cs','InstrumentStyle.cs','InstrumentTests.cs'
 )
 
 class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
@@ -71,7 +71,8 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         self.assertIn("settings.Alerts && settings.TaskAlerts", form)
         self.assertIn('Test Windows notification', form)
         deck = (ROOT / 'src/MissionPresentation.cs').read_text(encoding='utf-8')
-        self.assertIn('Color.FromArgb(55,223,201)', deck)
+        self.assertIn('InstrumentStyle.Teal', deck)
+        self.assertIn('#32E0C4', (ROOT / 'src/InstrumentStyle.cs').read_text(encoding='utf-8'))
 
     def test_history_and_update_handoff_use_english_public_brand(self):
         history = (ROOT / 'src/HistoryWindow.cs').read_text(encoding='utf-8')

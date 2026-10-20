@@ -32,7 +32,7 @@ class ReliabilityV49Audit(unittest.TestCase):
         self.assertIn('5.2.0.0', ASSEMBLY)
         self.assertIn('CODEX PERISCOPE V5.2.0', FORM)
         self.assertIn('if (forcedStale) return', FORM)
-        self.assertIn('settings.Layout, live || blocked, DateTimeOffset.UtcNow', FORM)
+        self.assertIn('settings.Layout, live || blocked, UiNow', FORM)
 
 if __name__ == '__main__':
     unittest.main()

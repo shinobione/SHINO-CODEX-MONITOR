@@ -61,18 +61,20 @@ namespace ShinoCodexMonitor
             return known.Values.OrderBy(v => v.Number).ToList();
         }
     }
-    internal sealed class MissionCard : Panel
+    internal sealed class MissionCard : InstrumentPanel
     {
         internal readonly ActivityGlyph Radar=new ActivityGlyph();
-        private readonly Label title=new Label(), status=new Label(), elapsed=new Label(), metadata=new Label();
+        private readonly Label title=new InstrumentLabel(), status=new InstrumentLabel(), elapsed=new InstrumentLabel(), metadata=new InstrumentLabel();
         private readonly ToolTip tooltip=new ToolTip();
         internal MissionView Mission { get; private set; }
+        internal string LayoutMode="Circular";
+        internal bool Condensed;
         internal MissionCard()
         {
-            DoubleBuffered=true; TabStop=true; BackColor=Color.FromArgb(17,28,41);
-            foreach (Label label in new [] {title,status,elapsed,metadata}) {
-                label.AutoEllipsis=true; label.BackColor=Color.Transparent; label.ForeColor=UiColors.Text;
-                label.Font=new Font("Segoe UI",7.5f); Controls.Add(label);
+            TabStop=true;
+            foreach(Label label in new [] {title,status,elapsed,metadata}) {
+                label.AutoEllipsis=true;label.BackColor=Color.Transparent;label.ForeColor=InstrumentStyle.Text;
+                Controls.Add(label);
             }
             Controls.Add(Radar);
         }
@@ -80,109 +82,155 @@ namespace ShinoCodexMonitor
         {
             Mission=mission; LiveTask task=mission.Task;
             title.Text=mission.Label;
-            status.Text=mission.State == RadarState.Active ? "ACTIVE · observed" : mission.State == RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
-            bool current=mission.State == RadarState.Active;
-            bool durationKnown=!task.IdentityUncertain && task.StartedUtc <= now.AddSeconds(5) && task.LastWriteUtc >= task.StartedUtc && task.LastWriteUtc <= now.AddSeconds(5) &&
-                (!task.FinishedUtc.HasValue || (task.FinishedUtc.Value >= task.StartedUtc && task.FinishedUtc.Value <= now.AddSeconds(5)));
-            elapsed.Text=durationKnown ? (current ? "Elapsed " : "Recorded ") + task.Duration(current ? now : task.LastWriteUtc) : "Duration unverified";
-            metadata.Text="Model: " + task.Model + " · Effort: " + task.Effort;
-            status.ForeColor=mission.State == RadarState.Active ? Color.FromArgb(55,223,201) : mission.State == RadarState.Complete ? Color.FromArgb(72,214,155) : UiColors.Muted;
-            LiveTaskPhase phase=mission.State == RadarState.Unverified ? LiveTaskPhase.Unconfirmed : task.Phase;
-            Radar.SetObservation(phase,mission.State != RadarState.Stale,false);
-            string detail=mission.Label + "\n" + status.Text + " · " + elapsed.Text + "\n" + metadata.Text +
-                "\nLast source observation: " + task.LastWriteUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")) +
-                (mission.Missing ? "\nNot present in the latest bounded source read; completion unverified." : "\nLocal JSONL observation; active Desktop tab not guaranteed.");
-            AccessibleName=title.Text + ", " + status.Text; AccessibleDescription=detail;
-            foreach (Control child in Controls) tooltip.SetToolTip(child,detail);
-            tooltip.SetToolTip(this,detail);
+            status.Text=mission.State==RadarState.Active ? "ACTIVE / OBSERVED" : mission.State==RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
+            bool current=mission.State==RadarState.Active;
+            bool durationKnown=!task.IdentityUncertain && task.StartedUtc<=now.AddSeconds(5) && task.LastWriteUtc>=task.StartedUtc && task.LastWriteUtc<=now.AddSeconds(5) &&
+                (!task.FinishedUtc.HasValue || (task.FinishedUtc.Value>=task.StartedUtc && task.FinishedUtc.Value<=now.AddSeconds(5)));
+            elapsed.Text=durationKnown ? (current ? "Elapsed  " : "Recorded  ")+task.Duration(current ? now : task.LastWriteUtc) : "Duration unverified";
+            metadata.Text="MODEL / "+task.Model+"\nEFFORT / "+task.Effort;
+            status.ForeColor=mission.State==RadarState.Active ? InstrumentStyle.Teal : mission.State==RadarState.Complete ? Color.FromArgb(72,214,155) :
+                mission.State==RadarState.Failed ? InstrumentStyle.Red : InstrumentStyle.Amber;
+            Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.23);
+            LiveTaskPhase phase=mission.State==RadarState.Unverified ? LiveTaskPhase.Unconfirmed : task.Phase;
+            Radar.SetObservation(phase,mission.State!=RadarState.Stale,false);
+            string detail=mission.Label+"\n"+status.Text+" / "+elapsed.Text+"\n"+metadata.Text+
+                "\nLast source observation: "+task.LastWriteUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB"))+
+                (mission.Missing ? "\nNot present in latest bounded read; completion unverified." : "\nLocal JSONL observation; active Desktop tab not guaranteed.");
+            AccessibleName=title.Text+", "+status.Text;AccessibleDescription=detail;
+            foreach(Control child in Controls)tooltip.SetToolTip(child,detail);tooltip.SetToolTip(this,detail);
         }
         protected override void OnLayout(LayoutEventArgs e)
         {
-            base.OnLayout(e); if (title == null) return;
-            float scale=PeriscopeWindow.ScaleFor(this);
-            Func<int,int> unit=value => (int)Math.Round(value*scale);
-            bool wide=Width >= unit(300), tight=Height < unit(74);
-            title.SetBounds(unit(6),unit(2),Math.Max(1,Width-unit(12)),unit(tight ? 17 : 20));
-            Radar.SetBounds(unit(6),unit(tight ? 22 : 25),unit(wide ? 30 : 24),unit(wide ? 30 : 24));
-            status.SetBounds(unit(wide ? 46 : 34),unit(tight ? 19 : 23),Math.Max(1,(wide ? unit(190) : Width)-unit(40)),unit(tight ? 15 : 17));
-            elapsed.SetBounds(unit(wide ? 46 : 34),unit(tight ? 34 : 40),Math.Max(1,(wide ? unit(190) : Width)-unit(40)),unit(tight ? 15 : 17));
-            int metaTop=unit(wide ? 26 : tight ? 50 : 56);
-            metadata.SetBounds(unit(wide ? 212 : 6),metaTop,Math.Max(1,Width-unit(wide ? 218 : 12)),Math.Max(1,Math.Min(unit(wide ? 38 : 18),Height-metaTop)));
+            base.OnLayout(e);if(title==null)return;
+            float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
+            int w=(int)Math.Round(Width/scale),h=(int)Math.Round(Height/scale);
+            bool shortRow=h<52;
+            int desired=LayoutMode=="Micro" ? 40 : LayoutMode=="Compact" ? 60 : LayoutMode=="Vertical" ? 78 : 96;
+            if(Condensed)desired=Math.Min(desired,64);
+            if(shortRow)desired=32;
+            int radar=Math.Max(20,Math.Min(desired,h-2));
+            Radar.Bounds=new Rectangle(u(4),u((h-radar)/2),u(radar),u(radar));Radar.BackColor=Color.Transparent;
+            int x=radar+12, available=Math.Max(1,w-x-8);
+            title.SetBounds(u(x),u(shortRow?3:6),u(available),u(shortRow?15:19));
+            InstrumentStyle.FontFor(title,shortRow?10:11.5f,FontStyle.Bold);
+            status.SetBounds(u(x),u(shortRow?20:27),u(available),u(15));
+            InstrumentStyle.FontFor(status,shortRow?9:10,FontStyle.Bold);
+            elapsed.Visible=!shortRow || available>=180;
+            elapsed.SetBounds(u(shortRow ? w-106 : x),u(shortRow?20:Math.Min(47,h-19)),u(shortRow?98:available),u(17));
+            InstrumentStyle.FontFor(elapsed,shortRow?9:11,FontStyle.Regular);
+            elapsed.ForeColor=InstrumentStyle.Text;
+            if(shortRow && elapsed.Visible)status.Width=Math.Max(1,elapsed.Left-status.Left-u(4));
+            metadata.Visible=w>=390 && h>=64;
+            if(metadata.Visible) {
+                int mx=Math.Max(x+170,w*3/5);metadata.SetBounds(u(mx),u(30),u(w-mx-8),u(Math.Min(37,h-31)));
+                elapsed.Width=u(mx-x-8);InstrumentStyle.FontFor(metadata,10,FontStyle.Regular);metadata.ForeColor=InstrumentStyle.Muted;
+            }
         }
-        protected override void Dispose(bool disposing) { if (disposing) tooltip.Dispose(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) {if(disposing)tooltip.Dispose();base.Dispose(disposing);}
     }
-    // One timer in MonitorForm, one monotonic clock here, many independent radar phases.
-    internal sealed class MissionDeck : Panel
+    // One timer in MonitorForm, one monotonic clock here, independent mission phases.
+    internal sealed class MissionDeck : InstrumentPanel
     {
         private readonly MissionTracker tracker=new MissionTracker();
         private readonly Dictionary<int,MissionCard> cards=new Dictionary<int,MissionCard>();
-        private readonly Label heading=new Label();
-        private readonly Panel viewport=new Panel { Dock=DockStyle.Fill, AutoScroll=true };
+        private readonly Label heading=new InstrumentLabel(),emptyTitle=new InstrumentLabel(),emptyDetail=new InstrumentLabel();
+        private readonly Panel viewport=new Panel { AutoScroll=false, Margin=Padding.Empty };
+        private readonly ActivityGlyph emptyRadar=new ActivityGlyph();
+        private readonly InstrumentScroll scroll=new InstrumentScroll();
         private readonly Stopwatch clock=new Stopwatch();
         private double lastFrame;
+        private bool arranging;
+        private string layoutMode="Circular";
         private List<MissionView> views=new List<MissionView>();
-        internal int Count { get { return views.Count; } }
-        internal IEnumerable<MissionCard> Cards { get { return cards.Values; } }
-        internal bool NeedsFrames { get { return Visible && cards.Values.Any(c => InViewport(c) && c.Radar.NeedsFrames); } }
+        internal string LayoutMode {get{return layoutMode;}set{layoutMode=value;Arrange();}}
+        internal int Count {get{return views.Count;}}
+        internal IEnumerable<MissionCard> Cards {get{return cards.Values;}}
+        internal bool HasOverflow {get{return scroll.Visible;}}
+        internal bool NeedsFrames {get{return Visible && cards.Values.Any(c=>InViewport(c) && c.Radar.NeedsFrames);}}
         internal MissionDeck()
         {
-            DoubleBuffered=true; BackColor=Color.FromArgb(26,39,56);
-            heading.Dock=DockStyle.Top; heading.Height=24; heading.Padding=new Padding(6,4,0,0); heading.ForeColor=UiColors.Muted;
-            heading.Font=new Font("Segoe UI",7.5f,FontStyle.Bold);
-            Controls.Add(viewport); Controls.Add(heading);
-            viewport.SizeChanged += delegate { Arrange(); }; viewport.Scroll += delegate { SetMotion(clock.IsRunning); };
+            heading.BackColor=Color.Transparent;heading.ForeColor=InstrumentStyle.Teal;
+            Controls.Add(viewport);Controls.Add(heading);Controls.Add(scroll);
+            viewport.Controls.Add(emptyRadar);viewport.Controls.Add(emptyTitle);viewport.Controls.Add(emptyDetail);
+            foreach(Label l in new []{emptyTitle,emptyDetail}) {l.BackColor=Color.Transparent;l.AutoEllipsis=true;l.ForeColor=InstrumentStyle.Muted;}
+            scroll.OffsetChanged+=delegate{Arrange();};
+            viewport.SizeChanged+=delegate{Arrange();};
+            viewport.MouseWheel+=Wheel;emptyRadar.MouseWheel+=Wheel;
+            emptyTitle.MouseWheel+=Wheel;emptyDetail.MouseWheel+=Wheel;
         }
-        internal void UpdateReport(LiveTaskReport report, DateTimeOffset now)
+        private void Wheel(object sender,MouseEventArgs e){ScrollBy(-Math.Sign(e.Delta)*Math.Max(20,(int)(40*PeriscopeWindow.ScaleFor(this))));}
+        protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);Wheel(this,e);}
+        internal void ScrollBy(int pixels){scroll.Offset+=pixels;}
+        internal void UpdateReport(LiveTaskReport report,DateTimeOffset now)
         {
-            tracker.Update(report); views=tracker.At(now);
-            HashSet<int> present=new HashSet<int>(views.Select(v => v.Number));
-            foreach (int number in cards.Keys.Where(k => !present.Contains(k)).ToArray()) { MissionCard card=cards[number]; cards.Remove(number); card.Dispose(); }
-            foreach (MissionView view in views) {
+            tracker.Update(report);views=tracker.At(now);
+            HashSet<int> present=new HashSet<int>(views.Select(v=>v.Number));
+            foreach(int number in cards.Keys.Where(k=>!present.Contains(k)).ToArray()) {MissionCard card=cards[number];cards.Remove(number);card.Dispose();}
+            foreach(MissionView view in views) {
                 MissionCard card;
-                if (!cards.TryGetValue(view.Number,out card)) { card=new MissionCard(); card.Update(view,now); cards.Add(view.Number,card); viewport.Controls.Add(card); }
-                else card.Update(view,now);
+                if(!cards.TryGetValue(view.Number,out card)) {
+                    card=new MissionCard();card.Update(view,now); // Initialize before parent layout can run.
+                    cards.Add(view.Number,card);viewport.Controls.Add(card);
+                    card.MouseWheel+=Wheel;foreach(Control child in card.Controls)child.MouseWheel+=Wheel;
+                } else card.Update(view,now);
             }
-            heading.Text=views.Count == 0 ? "CODEX ACTIVITY · " + (report == null ? "UNAVAILABLE" : "UNVERIFIED") :
-                views.Count == 1 ? "CODEX ACTIVITY · LOCAL / PARTIAL" : views.Count + " LOCAL TURNS · " + views.Count(v => v.State == RadarState.Active) + " OBSERVED ACTIVE";
+            heading.Text=views.Count<=1 ? "CODEX ACTIVITY / LOCAL OBSERVATION" : views.Count+" LOCAL TURNS / "+views.Count(v=>v.State==RadarState.Active)+" OBSERVED ACTIVE";
+            emptyTitle.Text=report==null ? "SOURCE UNAVAILABLE" : "NO VERIFIED ACTIVE TURN";
+            emptyDetail.Text="Local JSONL / partial observation";
+            emptyRadar.SetObservation(LiveTaskPhase.Unconfirmed,true,report==null);
+            emptyRadar.Visible=emptyTitle.Visible=emptyDetail.Visible=cards.Count==0;
             Arrange();
         }
-        internal List<MissionView> At(DateTimeOffset now) { return tracker.At(now); }
-        private bool InViewport(MissionCard card) { return viewport.Visible && viewport.ClientRectangle.IntersectsWith(card.Bounds); }
+        internal List<MissionView> At(DateTimeOffset now){return tracker.At(now);}
+        private bool InViewport(MissionCard card){return viewport.Visible && viewport.ClientRectangle.IntersectsWith(card.Bounds);}
+        protected override void OnLayout(LayoutEventArgs e){base.OnLayout(e);Arrange();}
+        protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Arrange();}
         private void Arrange()
         {
-            if (viewport == null || heading == null || cards == null) return;
-            float scale=PeriscopeWindow.ScaleFor(this);
-            heading.Height=(int)Math.Round(24*scale);
-            int columns=cards.Count == 2 || (cards.Count > 2 && viewport.ClientSize.Width >= 440*scale) ? 2 : 1;
-            int rows=(cards.Count+columns-1)/columns;
-            int height=cards.Count > 2 ? (int)Math.Round(76*scale) : Math.Max((int)Math.Round(64*scale),viewport.ClientSize.Height);
-            int width=Math.Max(1,(viewport.ClientSize.Width-(rows*height > viewport.ClientSize.Height ? SystemInformation.VerticalScrollBarWidth : 0))/columns);
-            int i=0; Point offset=viewport.AutoScrollPosition;
-            foreach (MissionCard card in cards.Values.OrderBy(c => c.Mission.Number)) {
-                card.SetBounds(i%columns*width+offset.X,i/columns*height+offset.Y,Math.Max(1,width-2),height-2); i++;
-            }
-            viewport.AutoScrollMinSize=new Size(0,rows*height);
+            if(arranging || viewport==null || heading==null || cards==null || scroll==null)return;
+            arranging=true;
+            try {
+                float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
+                int inset=u(4),gap=u(4),top=u(21);
+                heading.SetBounds(u(9),u(4),Math.Max(1,Width-u(18)),u(15));
+                InstrumentStyle.FontFor(heading,9,FontStyle.Bold);
+                int width=Math.Max(1,Width-2*inset),height=Math.Max(1,Height-top-inset);
+                int columns=cards.Count>1 && width>=u(420) ? 2 : 1;
+                int rows=(cards.Count+columns-1)/columns;
+                int rowHeight=cards.Count<=2 ? Math.Max(1,(height-Math.Max(0,rows-1)*gap)/Math.Max(1,rows)) : u(66);
+                int extent=rows*rowHeight+Math.Max(0,rows-1)*gap;
+                bool overflow=cards.Count>2 && extent>height;
+                scroll.SetBounds(Width-u(12),top,u(8),height);scroll.BackColor=BackColor;
+                scroll.Configure(overflow?extent:height,height);
+                if(!overflow)scroll.Offset=0;
+                viewport.SetBounds(inset,top,Math.Max(1,width-(overflow?u(12):0)),height);
+                viewport.BackColor=BackColor;viewport.AutoScrollMinSize=Size.Empty;viewport.AutoScrollMargin=Size.Empty;
+                int cw=Math.Max(1,(viewport.Width-(columns-1)*gap)/columns),i=0;
+                foreach(MissionCard card in cards.Values.OrderBy(c=>c.Mission.Number)) {
+                    card.LayoutMode=layoutMode;card.Condensed=cards.Count>1;card.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.16);
+                    card.SetBounds(i%columns*(cw+gap),i/columns*(rowHeight+gap)-scroll.Offset,cw,rowHeight);card.PerformLayout();i++;
+                }
+                int radar=Math.Min(u(layoutMode=="Micro"?40:72),Math.Max(1,height-u(4)));
+                emptyRadar.SetBounds(u(6),(height-radar)/2,radar,radar);emptyRadar.BackColor=Color.Transparent;
+                emptyTitle.SetBounds(radar+u(16),Math.Max(u(4),height/2-u(18)),Math.Max(1,viewport.Width-radar-u(24)),u(18));
+                emptyDetail.SetBounds(emptyTitle.Left,emptyTitle.Bottom+u(2),emptyTitle.Width,u(17));
+                InstrumentStyle.FontFor(emptyTitle,10.5f,FontStyle.Bold);InstrumentStyle.FontFor(emptyDetail,10,FontStyle.Regular);
+            } finally {arranging=false;}
         }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Arrange(); }
         internal void ConfirmCompletion(LiveTask task)
-        {
-            foreach (MissionCard card in cards.Values)
-                if (TaskNotificationRules.SameTurn(card.Mission.Task,task) && card.Mission.State == RadarState.Complete) card.Radar.ConfirmCompletion(task.Identity);
-        }
+        {foreach(MissionCard card in cards.Values)if(TaskNotificationRules.SameTurn(card.Mission.Task,task) && card.Mission.State==RadarState.Complete)card.Radar.ConfirmCompletion(task.Identity);}
         internal void SetMotion(bool enabled)
         {
             bool running=enabled && NeedsFrames;
-            if (running && !clock.IsRunning) { clock.Restart(); lastFrame=0; }
-            if (!running) clock.Reset();
-            foreach (MissionCard card in cards.Values) card.Radar.SetSharedMotion(running && InViewport(card),clock.Elapsed.TotalSeconds,card.Mission.Number*.41);
+            if(running && !clock.IsRunning){clock.Restart();lastFrame=0;}if(!running)clock.Reset();
+            foreach(MissionCard card in cards.Values)card.Radar.SetSharedMotion(running && InViewport(card),clock.Elapsed.TotalSeconds,card.Mission.Number*.41);
         }
         internal void Advance()
         {
-            if (!clock.IsRunning) return;
-            double t=clock.Elapsed.TotalSeconds;
-            if (t-lastFrame > .5) { clock.Restart(); t=0; foreach (MissionCard card in cards.Values) card.Radar.FinishMotion(); }
+            if(!clock.IsRunning)return;double t=clock.Elapsed.TotalSeconds;
+            if(t-lastFrame>.5){clock.Restart();t=0;foreach(MissionCard card in cards.Values)card.Radar.FinishMotion();}
             lastFrame=t;
-            foreach (MissionCard card in cards.Values) if (InViewport(card)) { card.Radar.SetSharedMotion(true,t,card.Mission.Number*.41); card.Radar.Advance(); }
+            foreach(MissionCard card in cards.Values)if(InViewport(card)){card.Radar.SetSharedMotion(true,t,card.Mission.Number*.41);card.Radar.Advance();}
         }
     }
 }

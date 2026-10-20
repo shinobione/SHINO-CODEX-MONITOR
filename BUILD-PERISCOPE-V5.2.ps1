@@ -13,7 +13,7 @@ try {
     if (!(Test-Path -LiteralPath $csc)) { throw 'Windows .NET Framework C# compiler unavailable.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
-    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryData.cs','HistoryWindow.cs','PremiumTests.cs','P0Tests.cs','MissionPresentation.cs','PeriscopeWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
+    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryData.cs','HistoryWindow.cs','PremiumTests.cs','P0Tests.cs','InstrumentTests.cs','InstrumentStyle.cs','MissionPresentation.cs','PeriscopeWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
     $sources = @($files | ForEach-Object { Join-Path $root ('src\' + $_) })
     foreach ($source in $sources) { if (!(Test-Path -LiteralPath $source)) { throw ('Missing source: ' + $source) } }
     $identity = [IO.File]::ReadAllText((Join-Path $root 'src\AssemblyInfo.cs'))
@@ -63,6 +63,13 @@ try {
     $p0Result = [IO.File]::ReadAllText($p0Report)
     Write-Host $p0Result
     if (!$p0Result.Contains('All P0 checks passed') -or $p0Result.Contains('FAIL ')) { throw 'P0 tests incomplete.' }
+    $instrumentReport = Join-Path $bin 'INSTRUMENT_TEST_REPORT.txt'
+    if (Test-Path -LiteralPath $instrumentReport) { Remove-Item -LiteralPath $instrumentReport -Force }
+    $instrumentProc = Start-Process -FilePath $exe -ArgumentList '--instrument-self-test' -WindowStyle Hidden -Wait -PassThru
+    if ($instrumentProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $instrumentReport)) { throw 'Full-window instrument tests failed.' }
+    $instrumentResult = [IO.File]::ReadAllText($instrumentReport)
+    Write-Host $instrumentResult
+    if (!$instrumentResult.Contains('All instrument checks passed') -or $instrumentResult.Contains('FAIL ')) { throw 'Instrument checks incomplete.' }
     # V5.2 preview installer; never mix with V5.1 files.
     $resolvedOutput = [IO.Path]::GetFullPath($output).TrimEnd('\') + '\'
     $resolvedStaging = [IO.Path]::GetFullPath($staging)

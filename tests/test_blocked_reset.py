@@ -8,14 +8,14 @@ SELF = (ROOT / "src" / "SelfTests.cs").read_text(encoding="utf-8")
 
 class BlockedResetRegressionTests(unittest.TestCase):
     def test_blocked_uses_fresh_reset_instead_of_blocked_placeholder(self):
-        self.assertIn("settings.Layout, live || blocked, DateTimeOffset.UtcNow", FORM)
+        self.assertIn("settings.Layout, live || blocked, UiNow", FORM)
         self.assertNotIn('meter.Reset.Text = blocked ? "Codex usage blocked"', FORM)
         self.assertIn("if (!sourceCurrent) return \"Stale reading · reset unverified\";", FORM)
 
     def test_block_state_remains_visible_outside_reset_label(self):
-        self.assertIn('status.Text = blocked ? "⚠ Codex usage blocked"', FORM)
-        self.assertIn('if (blocked)', FORM)
-        self.assertIn('status.ForeColor = ColorTranslator.FromHtml("#EE4B55")', FORM)
+        self.assertIn('status.Text="USAGE BLOCKED / LAST KNOWN"', FORM)
+        self.assertIn('if(blocked)', FORM)
+        self.assertIn('status.ForeColor=InstrumentStyle.Red', FORM)
 
     def test_absent_or_expired_reset_not_fabricated(self):
         self.assertIn('if (!utc.HasValue) return "Reset not provided";', FORM)

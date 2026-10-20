@@ -52,6 +52,10 @@ namespace ShinoCodexMonitor
         }
         internal static float ScaleFor(Control control)
         {
+            for (Control owner=control;owner!=null;owner=owner.Parent) {
+                MonitorForm window=owner as MonitorForm;
+                if(window!=null && window.PresentationScale.HasValue) return window.PresentationScale.Value;
+            }
             while (control != null && !control.IsHandleCreated) control=control.Parent;
             if (control == null) return 1;
             try { uint dpi=GetDpiForWindow(control.Handle); return dpi == 0 ? 1 : dpi/96f; }
