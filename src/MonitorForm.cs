@@ -1491,6 +1491,7 @@ namespace ShinoCodexMonitor
             meter.Relative.Visible=false;
             if (data == null)
             {
+                ((InstrumentLabel)meter.Name).Marker=settings.ObsidianLayout && settings.Layout!="Micro"?UiColors.Muted:Color.Transparent;
                 meter.Badge.Text="NO READING";meter.Badge.ForeColor=meter.Hint.ForeColor=UiColors.Muted;meter.Badge.BackColor=InstrumentStyle.QuotaFace;
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
                 meter.Fill.Width = 0;
