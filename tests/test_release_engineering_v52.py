@@ -63,7 +63,9 @@ class V52StableReleasePreparation(unittest.TestCase):
         self.assertIn("cmp -s", workflow)
         self.assertIn("gh release edit v5.2.0", workflow)
         self.assertLess(workflow.index("cmp -s"), workflow.index("gh release edit v5.2.0"))
-        self.assertNotIn("INSTALL-PERISCOPE-V5.2.bat", workflow)
+        # The filename is expected in the archive allowlist; executing it here is forbidden.
+        self.assertNotIn("Start-Process", workflow)
+        self.assertNotIn("powershell -File INSTALL-PERISCOPE", workflow)
 
     def test_regular_ci_handles_both_channels_without_publication(self):
         workflow = read(".github/workflows/build-windows.yml")
