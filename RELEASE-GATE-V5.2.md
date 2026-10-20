@@ -54,3 +54,23 @@
 Codex local JSONL is undocumented, can be incomplete and cannot reliably identify the currently selected Desktop tab. An unobserved or stale activity must be labelled **UNVERIFIED**, never displayed as a current successful task. Windows notifications may be suppressed by system settings. Tests that use synthetic task sessions do not establish true end-to-end Desktop notification delivery.
 
 Reference: [PR #14](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/14) · [Roadmap](ROADMAP.md).
+
+
+## Owner field sign-off received — October 20, 2026 (candidate 074b41f)
+
+**Owner-reported PASS for all seven acceptance scenarios on the actual Windows PC:**
+1. Preview installed/launched and real Obsidian visuals approved.
+2. Two concurrent real Codex missions tracked independently; B stays active when A completes.
+3. Windows notifications enabled/disabled work and duplicate suppression was observed.
+4. Taskbar and Alt+Tab application icons correct.
+5. Sleep/resume and transfers across monitors with different physical DPI work.
+6. Preferences/history retained and rollback verified.
+7. Quota values compared against the official Codex dashboard, same ChatGPT account and instant.
+
+**Evidence class:** firsthand user report, **not independently instrumented or reproduced by CI**. The seven confirmations supersede the untested field items in the historical checklists above *for this specific preview candidate only*. CI and source tests remain separate evidence. The earlier four Windows security/confirmation dialogs still lack an exact cause classification; do not suppress security protections.
+
+**Functional and design field gate: GO for the validated preview commit 074b41f.**
+**Stable release distribution gate: HOLD** until the stable 5.2.0 source identity, correctly named stable archive, manual-only publication workflow, README/release notes, final Windows CI and public-release download/digest checks are validated.
+**Publication authorization: NOT GRANTED.** No merge, tag or GitHub Release is authorized by field-test sign-off alone.
+
+Release engineering changes are intentionally prepared on dependent branch \`release/v5.2-stable-preparation\`; see \`RELEASE-ENGINEERING-V5.2.md\`. No signed binary is available. Local JSONL activity remains undocumented/indicative; **UNVERIFIED** is mandatory for ambiguous observations.
