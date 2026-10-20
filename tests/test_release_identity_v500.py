@@ -14,10 +14,12 @@ CI = (ROOT / '.github/workflows/build-windows.yml').read_text(encoding='utf-8')
 
 
 class PeriscopeV52ReleaseIdentityTests(unittest.TestCase):
-    def test_unique_preview_version(self):
+    def test_unique_v52_preview_or_stable_version(self):
         self.assertIn('AssemblyVersion("5.2.0.0")', ASSEMBLY)
         self.assertIn('AssemblyFileVersion("5.2.0.0")', ASSEMBLY)
-        self.assertIn('5.2.0-preview.1', ASSEMBLY)
+        versions = re.findall(r'AssemblyInformationalVersion\("([^"]+)"\)', ASSEMBLY)
+        self.assertEqual(len(versions), 1)
+        self.assertIn(versions[0], ('5.2.0-preview.1', '5.2.0'))
         self.assertIn('Codex Periscope', ASSEMBLY)
 
     def test_brand_on_every_main_surface(self):

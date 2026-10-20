@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.2.0 — Stable release candidate (unpublished)
+
+- The verified Obsidian Preview `074b41f` received seven owner-reported real Windows acceptance PASS results.
+- Dedicated Windows packaging produces `CODEX_PERISCOPE_V5_2_WINDOWS.zip`, the exact stable filename expected by the updater.
+- Release publication requires a manual workflow on `main`, opt-in `publish: true`, and a verified draft download before making it public.
+- This entry describes preparation only: **no stable Release has been published**. Final candidate Windows CI and explicit publication authorization remain required.
+
 ## 5.2.0-preview.1 — Codex Periscope (not released)
 
 - **Brand:** Codex Periscope / Quota & Activity Radar, an independent Windows app solely for Codex.
