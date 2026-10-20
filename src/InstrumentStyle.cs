@@ -14,6 +14,31 @@ namespace ShinoCodexMonitor
         internal static readonly Color Border=ColorTranslator.FromHtml("#344B60");
         internal static readonly Color Text=ColorTranslator.FromHtml("#E4EDF5");
         internal static readonly Color Muted=ColorTranslator.FromHtml("#B3C4D5");
+        // Individual Stitch screens: optical/material roles, not user quota thresholds.
+        internal static readonly Color Canvas=ColorTranslator.FromHtml("#080D14"),QuotaFace=ColorTranslator.FromHtml("#0E1620"),ActivityFace=ColorTranslator.FromHtml("#0B1219");
+        internal static readonly Color Hairline=ColorTranslator.FromHtml("#1D2A37"),Track=ColorTranslator.FromHtml("#172331"),Bright=ColorTranslator.FromHtml("#F2F6F9");
+        internal static readonly Color Violet=ColorTranslator.FromHtml("#A477FF"),AlertFace=ColorTranslator.FromHtml("#241013");
+        internal static Color MissionAccent(int number) {return new []{Teal,Blue,Violet,Amber}[Math.Max(0,number-1)%4];}
+        internal static bool IsStale(string state) {return state=="Stale" || state=="Stale data";}
+        internal static bool Exhausted(double? raw,bool current) {return current && raw.HasValue && raw.Value==0;}
+        internal static void GlowArc(Graphics g,RectangleF bounds,float start,float sweep,Color color,float stroke,float scale)
+        {
+            // Cached layered falloff approximates the reference's 6 logical-pixel blur.
+            for(int i=10;i>=1;i--)using(Pen p=new Pen(Color.FromArgb((int)(24*(1-i/12f)),color),stroke+12*scale*i/10f)) {
+                p.StartCap=p.EndCap=LineCap.Round;g.DrawArc(p,bounds,start,sweep);
+            }
+        }
+        internal static Bitmap Halo(int side,Color color)
+        {
+            Bitmap b=new Bitmap(Math.Max(2,side),Math.Max(2,side));
+            using(Graphics g=Graphics.FromImage(b))using(GraphicsPath path=new GraphicsPath()) {
+                path.AddEllipse(0,0,b.Width,b.Height);
+                using(PathGradientBrush brush=new PathGradientBrush(path)) {
+                    brush.InterpolationColors=new ColorBlend {Positions=new []{0f,.4f,.75f,1f},Colors=new []{Color.FromArgb(0,color),Color.FromArgb(35,color),Color.FromArgb(150,color),Color.FromArgb(245,color)}};
+                    g.FillEllipse(brush,0,0,b.Width,b.Height);
+                }
+            }return b;
+        }
         internal static GraphicsPath Rounded(RectangleF bounds,float radius)
         {
             float d=Math.Min(radius*2,Math.Min(bounds.Width,bounds.Height));
@@ -31,13 +56,23 @@ namespace ShinoCodexMonitor
     }
     internal sealed class InstrumentLabel : Label
     {
+        internal string Family="Segoe UI";
+        internal bool Framed;
         private Font owned;
         internal InstrumentLabel() {UseMnemonic=false;}
         internal void SetFont(float pixels, FontStyle style)
         {
-            if (owned!=null && Math.Abs(owned.Size-pixels)<.05 && owned.Style==style) return;
-            Font previous=owned; owned=new Font("Segoe UI",pixels,style,GraphicsUnit.Pixel); Font=owned;
+            if (owned!=null && Math.Abs(owned.Size-pixels)<.05 && owned.Style==style && owned.FontFamily.Name==Family) return;
+            Font previous=owned; owned=new Font(Family,pixels,style,GraphicsUnit.Pixel); Font=owned;
             if (previous!=null) previous.Dispose();
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);if(!Framed || Width<2 || Height<2)return;
+            using(Pen p=new Pen(Color.FromArgb(100,ForeColor)))
+            using(GraphicsPath path=InstrumentStyle.Rounded(new RectangleF(.5f,.5f,Width-1,Height-1),3*PeriscopeWindow.ScaleFor(this))) {
+                e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;e.Graphics.DrawPath(p,path);
+            }
         }
         protected override void Dispose(bool disposing)
         { base.Dispose(disposing); if (disposing && owned!=null) { owned.Dispose(); owned=null; } }
@@ -45,6 +80,9 @@ namespace ShinoCodexMonitor
     // Cached bezel/inset. Paints allocate only when size or appearance changes.
     internal class InstrumentPanel : Panel
     {
+        internal bool Warning;
+        private bool flat;
+        internal bool Flat {get{return flat;}set{if(flat==value)return;flat=value;ClearFace();}}
         private Bitmap face;
         private Color edge=InstrumentStyle.Border;
         private Color rail=Color.Transparent;
@@ -62,7 +100,7 @@ namespace ShinoCodexMonitor
                 face=new Bitmap(Width,Height);
                 using(Graphics g=Graphics.FromImage(face))
                 using(LinearGradientBrush fill=new LinearGradientBrush(ClientRectangle,
-                    InstrumentStyle.Blend(BackColor,Color.FromArgb(44,66,86),.26),InstrumentStyle.Blend(BackColor,Color.Black,.22),90))
+                    flat?BackColor:InstrumentStyle.Blend(BackColor,Color.FromArgb(44,66,86),.26),flat?BackColor:InstrumentStyle.Blend(BackColor,Color.Black,.22),90))
                 using(Pen border=new Pen(edge))
                 using(Pen inset=new Pen(Color.FromArgb(38,190,215,234)))
                 using(GraphicsPath shape=InstrumentStyle.Rounded(new RectangleF(.5f,.5f,Width-1,Height-1),4*PeriscopeWindow.ScaleFor(this))) {
@@ -76,6 +114,27 @@ namespace ShinoCodexMonitor
             e.Graphics.DrawImageUnscaled(face,0,0);
         }
         protected override void Dispose(bool disposing) { if(disposing)ClearFace(); base.Dispose(disposing); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);if(!Warning)return;float s=PeriscopeWindow.ScaleFor(this);
+            using(Pen p=new Pen(InstrumentStyle.Red,1.4f*s)) {
+                e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+                e.Graphics.DrawPolygon(p,new []{new PointF(8*s,15*s),new PointF(14*s,4*s),new PointF(20*s,15*s)});
+                e.Graphics.DrawLine(p,14*s,8*s,14*s,11*s);e.Graphics.DrawLine(p,14*s,12.5f*s,14*s,13*s);
+            }
+        }
+    }
+    // A narrow luminous core over the quota track; no timer or image allocation.
+    internal sealed class InstrumentFill : Panel
+    {
+        internal bool Luminous;
+        internal InstrumentFill(){DoubleBuffered=true;ResizeRedraw=true;}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);if(!Luminous || Width<1 || Height<1)return;
+            using(LinearGradientBrush light=new LinearGradientBrush(new Rectangle(0,0,Math.Max(1,Width),Height),
+                InstrumentStyle.Blend(BackColor,Color.White,.35),BackColor,90))e.Graphics.FillRectangle(light,ClientRectangle);
+        }
     }
     // Explicit overflow only: no native horizontal/white scrollbar or AutoScroll feedback.
     internal sealed class InstrumentScroll : Control

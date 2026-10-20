@@ -70,6 +70,8 @@ namespace ShinoCodexMonitor
         internal MissionView Mission { get; private set; }
         internal string LayoutMode="Circular";
         internal bool Condensed;
+        internal bool Parity;
+        private readonly Label observation=new InstrumentLabel();
         internal MissionCard()
         {
             TabStop=true;
@@ -79,10 +81,12 @@ namespace ShinoCodexMonitor
             }
             title.Name="MissionTitle";status.Name="MissionState";elapsed.Name="MissionDuration";model.Name="MissionModel";effort.Name="MissionEffort";
             Controls.Add(Radar);
+            observation.Text="LOCAL / OBSERVED";observation.ForeColor=InstrumentStyle.Muted;observation.BackColor=Color.Transparent;Controls.Add(observation);
         }
         internal void Update(MissionView mission, DateTimeOffset now)
         {
             Mission=mission; LiveTask task=mission.Task;
+            Radar.Accent=InstrumentStyle.MissionAccent(mission.Number);
             title.Text=mission.Number.ToString("00",CultureInfo.InvariantCulture)+" / "+(task.Workspace=="Project not provided"?"Codex task":task.Workspace);
             status.Text=mission.State==RadarState.Active ? "ACTIVE / OBSERVED" : mission.State==RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
             bool current=mission.State==RadarState.Active;
@@ -106,6 +110,8 @@ namespace ShinoCodexMonitor
         protected override void OnLayout(LayoutEventArgs e)
         {
             base.OnLayout(e);if(title==null)return;
+            observation.Visible=Parity;Flat=Parity;
+            if(Parity){ArrangeParity();return;}
             float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
             int w=(int)Math.Round(Width/scale),h=(int)Math.Round(Height/scale);
             bool shortRow=h<50,tight=h<68,flat=h<78,spacious=h>=94 && !Condensed && LayoutMode=="Circular";
@@ -140,6 +146,55 @@ namespace ShinoCodexMonitor
                 model.ForeColor=effort.ForeColor=InstrumentStyle.Muted;
             }
         }
+        private void ArrangeParity()
+        {
+            float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
+            int w=(int)Math.Round(Width/scale),h=(int)Math.Round(Height/scale);bool vertical=LayoutMode=="Vertical"&&!Condensed;
+            bool micro=LayoutMode=="Micro",dock=LayoutMode=="Compact";
+            int radar=vertical?100:micro?(Condensed?40:46):dock?(Condensed?60:68):Condensed?76:88;
+            radar=Math.Min(radar,h-8);Radar.Parity=true;
+            Radar.SetBounds(u(vertical?(w-radar)/2:micro?8:dock?14:12),u(vertical?46:(h-radar)/2),u(radar),u(radar));
+            int x=vertical?12:dock?388:radar+(micro?20:28),available=Math.Max(1,w-x-12);
+            bool small=Condensed || (micro && h<80);
+            title.TextAlign=vertical?ContentAlignment.MiddleCenter:ContentAlignment.MiddleLeft;
+            title.SetBounds(u(x),u(vertical?164:small?4:32),u(available),u(21));
+            status.SetBounds(u(x),u(small?27:8),u(available),u(17));
+            status.Text=Mission==null?"":Mission.State==RadarState.Active?"ACTIVE / OBSERVED":Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
+            elapsed.Text=elapsedReadout ?? "";elapsed.Visible=true;
+            elapsed.SetBounds(u(x),u(vertical?242:small?47:70),u(available),u(20));
+            observation.Visible=!small;observation.SetBounds(u(x),u(8),u(Math.Max(1,available-138)),u(16));
+            if(!small)status.SetBounds(u(w-140),u(8),u(128),u(17));
+            model.Visible=effort.Visible=!small;
+            if(vertical) {
+                observation.SetBounds(u(12),u(10),u(w-160),u(16));
+                model.SetBounds(u(16),u(207),u((w-40)/2),u(17));effort.SetBounds(u(w/2+4),u(207),u(w/2-20),u(17));
+            } else if(!small && dock) {
+                title.Top=u(32);status.SetBounds(u(x),u(57),u(available),u(17));observation.Width=u(available);
+                model.SetBounds(u(x),u(86),u(available),u(17));effort.SetBounds(u(x),u(106),u(available),u(17));elapsed.Top=u(128);
+            } else if(!small) {
+                int mw=available/3,ew=available/5;
+                model.SetBounds(u(x),u(70),u(mw),u(17));effort.SetBounds(u(x+mw+8),u(70),u(ew),u(17));
+                elapsed.SetBounds(u(x+mw+ew+16),u(68),u(available-mw-ew-16),u(21));
+            }
+            if(micro && !Condensed) {
+                title.Width=u(Math.Max(1,available-128));status.SetBounds(u(w-136),u(5),u(124),u(17));
+                model.Visible=true;effort.Visible=false;model.SetBounds(u(x),u(33),u(170),u(17));elapsed.SetBounds(u(x+182),u(32),u(available-182),u(19));
+            }
+            if(micro && Condensed) {title.Top=u(3);title.Height=u(18);status.Top=u(24);status.Height=u(15);elapsed.Top=u(43);elapsed.Height=u(17);}
+            InstrumentStyle.FontFor(title,small?12:vertical?13:15,FontStyle.Bold);
+            InstrumentStyle.FontFor(status,small?10:11,FontStyle.Bold);InstrumentStyle.FontFor(elapsed,small?11:12.5f,FontStyle.Regular);
+            InstrumentStyle.FontFor(observation,9.5f,FontStyle.Bold);InstrumentStyle.FontFor(model,10.5f,FontStyle.Regular);InstrumentStyle.FontFor(effort,10.5f,FontStyle.Regular);
+            status.ForeColor=Mission!=null && Mission.State==RadarState.Active?Radar.Accent:status.ForeColor;elapsed.ForeColor=Mission!=null && Mission.State==RadarState.Active?Radar.Accent:InstrumentStyle.Text;
+            Flat=true;Rail=Color.Transparent;Edge=InstrumentStyle.Hairline;BackColor=InstrumentStyle.ActivityFace;
+        }
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            if(!Parity || LayoutMode!="Compact"){base.OnPaintBackground(e);return;}
+            e.Graphics.Clear(Parent==null?InstrumentStyle.Canvas:Parent.BackColor);float s=PeriscopeWindow.ScaleFor(this);
+            using(Brush b=new SolidBrush(InstrumentStyle.ActivityFace))using(Pen p=new Pen(InstrumentStyle.Hairline))
+                foreach(RectangleF box in new []{new RectangleF(.5f,.5f,96*s-1,Height-1),new RectangleF(376*s,.5f,Width-376*s-1,Height-1)})
+                    using(System.Drawing.Drawing2D.GraphicsPath shape=InstrumentStyle.Rounded(box,5*s)){e.Graphics.FillPath(b,shape);e.Graphics.DrawPath(p,shape);}
+        }
         protected override void Dispose(bool disposing) {if(disposing)tooltip.Dispose();base.Dispose(disposing);}
     }
     // One timer in MonitorForm, one monotonic clock here, independent mission phases.
@@ -155,9 +210,11 @@ namespace ShinoCodexMonitor
         private double lastFrame;
         private bool arranging;
         private string layoutMode="Circular";
+        internal bool Parity;
         private List<MissionView> views=new List<MissionView>();
         internal string LayoutMode {get{return layoutMode;}set{layoutMode=value;Arrange();}}
         internal int Count {get{return views.Count;}}
+        internal Control QuotaEmptyHost {get{return viewport;}}
         internal IEnumerable<MissionCard> Cards {get{return cards.Values;}}
         internal bool HasOverflow {get{return scroll.Visible;}}
         internal bool NeedsFrames {get{return Visible && cards.Values.Any(c=>InViewport(c) && c.Radar.NeedsFrames);}}
@@ -205,13 +262,15 @@ namespace ShinoCodexMonitor
             arranging=true;
             try {
                 float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
-                int inset=u(4),gap=u(4),top=u(24);
+                int inset=Parity?0:u(4),gap=u(4),top=Parity?0:u(24);heading.Visible=!Parity;
                 heading.SetBounds(u(9),u(4),Math.Max(1,Width-u(18)),u(18));
                 InstrumentStyle.FontFor(heading,10.5f,FontStyle.Bold);
                 int width=Math.Max(1,Width-2*inset),height=Math.Max(1,Height-top-inset);
                 int columns=cards.Count>1 && width>=u(420) ? 2 : 1;
+                if(Parity && layoutMode=="Compact")columns=1;
                 int rows=(cards.Count+columns-1)/columns;
                 int rowHeight=cards.Count<=2 ? Math.Max(1,(height-Math.Max(0,rows-1)*gap)/Math.Max(1,rows)) : u(66);
+                if(Parity && layoutMode=="Compact" && cards.Count>2)rowHeight=u(160);
                 int extent=rows*rowHeight+Math.Max(0,rows-1)*gap;
                 bool overflow=cards.Count>2 && extent>height;
                 scroll.SetBounds(Width-u(12),top,u(8),height);scroll.BackColor=BackColor;
@@ -221,13 +280,18 @@ namespace ShinoCodexMonitor
                 viewport.BackColor=BackColor;viewport.AutoScrollMinSize=Size.Empty;viewport.AutoScrollMargin=Size.Empty;
                 int cw=Math.Max(1,(viewport.Width-(columns-1)*gap)/columns),i=0;
                 foreach(MissionCard card in cards.Values.OrderBy(c=>c.Mission.Number)) {
-                    card.LayoutMode=layoutMode;card.Condensed=cards.Count>1;card.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.16);
+                    card.LayoutMode=layoutMode;card.Condensed=cards.Count>1;card.Parity=Parity;card.Radar.Parity=Parity;card.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.16);
                     card.SetBounds(i%columns*(cw+gap),i/columns*(rowHeight+gap)-scroll.Offset,cw,rowHeight);card.PerformLayout();i++;
                 }
                 int radar=Math.Min(u(layoutMode=="Micro"?40:layoutMode=="Circular"?100:72),Math.Max(1,height-u(4)));
                 emptyRadar.SetBounds(u(6),(height-radar)/2,radar,radar);emptyRadar.BackColor=Color.Transparent;
                 emptyTitle.SetBounds(radar+u(16),Math.Max(u(4),height/2-u(18)),Math.Max(1,viewport.Width-radar-u(24)),u(18));
                 emptyDetail.SetBounds(emptyTitle.Left,emptyTitle.Bottom+u(2),emptyTitle.Width,u(17));
+                if(Parity && layoutMode=="Compact") {
+                    emptyRadar.SetBounds(u(14),u(46),u(68),u(68));
+                    emptyTitle.SetBounds(u(388),u(36),Math.Max(1,viewport.Width-u(400)),u(36));
+                    emptyDetail.SetBounds(u(388),u(82),emptyTitle.Width,u(34));
+                }
                 InstrumentStyle.FontFor(emptyTitle,11.5f,FontStyle.Bold);InstrumentStyle.FontFor(emptyDetail,11,FontStyle.Regular);
             } finally {arranging=false;}
         }

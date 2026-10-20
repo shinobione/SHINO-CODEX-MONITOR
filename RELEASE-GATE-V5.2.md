@@ -1,3 +1,12 @@
+## Obsidian parity candidate - separate Draft, owner approval pending
+
+The 2026-10-20 opt-in implementation is based on verified PR #14 head `074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f`. PR #14 and Release Engineering PR #16 remain untouched. Validate this separate candidate with its own Windows CI Preview and QA artifacts, not an older #14 artifact. No merge, tag, Release, installation or autostart action is included.
+
+Current local evidence: 128 Python checks; C# 98 + 46 + 35 + 26 + 119 instrument checks; 88 explicitly synthetic opt-in renders and 154 legacy regression renders. Activation is explicit; existing geometry/data remain. The five individual Stitch references, current comparison decisions and residual differences are documented in [Obsidian implementation](OBSIDIAN-NATIVE-V5.2.md) and [visual review](design-qa.md).
+
+- [ ] Owner approves the five current native comparisons and four two-task variants, including A-completed/B-active.
+- [ ] All pre-existing real Windows field gates below remain required. Earlier owner-observed migration evidence remains valid for that earlier candidate; it is not automatically evidence for this new build.
+
 # CODEX PERISCOPE V5.2 — Pre-release acceptance report
 
 **Scope:** native Windows app for ChatGPT-account Codex quota monitoring and observable local Codex tasks. No general ChatGPT or API usage meter. Independent software, not affiliated with OpenAI.

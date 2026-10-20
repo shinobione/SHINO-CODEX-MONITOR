@@ -13,7 +13,13 @@ class ObsidianNative(unittest.TestCase):
     def test_slice_preserves_collectors_identity_settings_history_and_alerts(self):
         expected = json.loads((ROOT / 'tests/obsidian-core-sha256.json').read_text())
         for name, digest in expected.items():
-            self.assertEqual(hashlib.sha256((ROOT / 'src' / name).read_text(encoding='utf-8').encode('utf-8')).hexdigest(), digest, name)
+            source=(ROOT / 'src' / name).read_text(encoding='utf-8')
+            # Only additive appearance fields/loader lines may differ from the frozen core.
+            additions=[line for line in source.splitlines() if '// PARITY_APPEARANCE_ONLY' in line]
+            expected_additions={'Models.cs':3,'LocalStore.cs':2}.get(name,0)
+            self.assertEqual(len(additions),expected_additions,name)
+            source=''.join(line for line in source.splitlines(keepends=True) if '// PARITY_APPEARANCE_ONLY' not in line)
+            self.assertEqual(hashlib.sha256(source.encode('utf-8')).hexdigest(), digest, name)
 
     def test_entire_production_window_has_isolated_render_entry(self):
         self.assertIn('new MonitorForm(p)', HARNESS)

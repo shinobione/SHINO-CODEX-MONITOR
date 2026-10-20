@@ -5,7 +5,7 @@ on:
     branches: [main, feature/v4.5.1-targeted-motw-fix, feature/v4.6-one-click-update, feature/v4.7-circular-dashboard, feature/v4.8-desktop-experience, feature/v4.9-reliability, feature/v5-data-health]
     tags: []  # No automatic public Release for an unapproved candidate
   pull_request:
-    branches: [main, feature/v4.8-desktop-experience, feature/v4.9-reliability]
+    branches: [main, feature/v4.8-desktop-experience, feature/v4.9-reliability, feature/v5.2-codex-periscope]
   workflow_dispatch:
 
 permissions:
@@ -114,6 +114,16 @@ jobs:
           $proc = Start-Process -FilePath $exe -ArgumentList '--instrument-performance' -WindowStyle Hidden -Wait -PassThru
           if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Full-window benchmark failed.' }
           Get-Content -LiteralPath $report
+      - name: Measure opt-in Obsidian native composition (synthetic)
+        if: hashFiles('src/InstrumentTests.cs') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'bin/SHINO-CODEX-MONITOR.exe'
+          $report = Join-Path $PWD 'bin/PARITY_PERFORMANCE_REPORT.txt'
+          $proc = Start-Process -FilePath $exe -ArgumentList '--parity-performance' -WindowStyle Hidden -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Obsidian benchmark failed.' }
+          Get-Content -LiteralPath $report
       - name: Upload synthetic UI evidence and native reports
         if: always() && hashFiles('src/PremiumTests.cs') != ''
         uses: actions/upload-artifact@v4
@@ -130,6 +140,8 @@ jobs:
             bin/P0_PROGRESS.txt
             bin/P0_PERFORMANCE_REPORT.txt
             bin/instrument-qa/after/*.png
+            bin/instrument-qa/parity/*.png
+            bin/PARITY_PERFORMANCE_REPORT.txt
             bin/INSTRUMENT_TEST_REPORT.txt
             bin/INSTRUMENT_PERFORMANCE_REPORT.txt
           if-no-files-found: error

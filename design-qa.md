@@ -1,3 +1,34 @@
+# Current visual parity review - individual Stitch screens
+
+**Internal synthetic review; owner visual sign-off HOLD.** Source project `7199182866908450683`, five unchanged individual PNG/HTML references. Earlier miniature-board reviews below are archived and are not the source of truth for this pass.
+
+The local viewer `bin/parity-implementation/COMPARAISON.html` presents the five source windows and WinForms renders side by side at logical 100%, plus all four two-task variants and A-completed/B-active. The viewer preserves the raw reference PNGs. The application uses native controls and GDI+ only.
+
+| Screen | P0 / factual outcome | P1 / implemented visual change | P2 / residual or intentional difference |
+|---|---|---|---|
+| Circular | Direct, stale, unverified and cached headings are distinct; only reliable raw zero is exhausted. | 680 x 480 opt-in, twin 144 px gauge controls, cached arc glows, resolved readout/caption accent, severity badges, 88 px single radar. | Windows fonts/kerning and percent typography differ; header tools and decorative footer are not copied. Source strip retains two lines for provenance. |
+| Vertical | Source warning is independent of observed activity. | 360 x 580 opt-in, stacked quota bars and central 100 px radar with title/metadata below. | Metadata is inline rather than the source's nested subcard; secondary layout and blur/rasterization differ. |
+| Compact | Source and per-turn states/durations remain separate. | 640 x 260 true three-zone dock: radar, stacked quotas, mission details; visible quota pixels are asserted. | Metadata uses separate readable rows; no fictional PID/reset-count or dock badge. |
+| Micro | Cached reset is explicitly unverified; current absolute/relative reset fits. | Exactly 484 x 230, two quota columns, 46 px single radar, no scrolling with two missions. | Compact date format and secondary metadata reduction are intentional; full details remain in tooltips. |
+| Blocked | Cached zero remains LAST KNOWN unless a reliable current raw zero is observed. Active local tasks stay active. | Red title/source material and warning triangle, muted cached rings/readouts, observation timestamp, distinct exhausted fixture. | Alert remains in the fixed source strip below quotas to avoid moving controls during a status transition. No fake HTTP 429, retry timer or SUSPENDED mission. This is a deliberate factual and geometric difference from the mock. |
+
+Two missions are variants, not a sixth screen: Circular has two horizontal cards/radars; Vertical stacks two cards/radars; Compact splits the left radar and right information zones into two rows while retaining the center quota stack; Micro has two compact side-by-side cards. Teal and blue are independent; violet and amber extend the stable identity palette. Completion of A retains B's identity, accent, active state and clock. Optional long metadata ellipsizes with full tooltips; required state/duration/reset text is measured.
+
+## Actual compare / correct / recapture loop
+
+1. Retrieved individual Stitch references were matched against the initial native capture. Source tokens and exact window/radar geometry replaced the old board assumptions.
+2. First opt-in capture exposed inverted PathGradientBrush falloff (hollow light rings), blank Compact quotas caused by overlapping HWND containers, and Micro reset truncation. Added failing halo/pixel/bounds checks reproduced these defects. The corrected native captures show filled light falloff and visible quota readouts.
+3. Expanded 100-200% state-transition tests exposed the Blocked warning's shifted text bounds, 125% Compact row rounding and Micro's stale reset width. Corrected warning width, bounded row-local placement and compact reset copy; recaptured all windows.
+4. Side-by-side 100% review refined the gauge calibration, face material, badge borders and blocked title/source material. Recovery is tested without moving quotas or stopping observed tasks. Additional 125/150/200% renders and all A/B variants are inspectable in the evidence set.
+
+P0 functional gaps exercised here are corrected. P1 compositions and light layers are implemented and remain subject to owner approval; **no pixel-identical claim** is made. P2 residuals are native font metrics/letter spacing, exact CSS blur falloff, minor border/icon/decorative treatment and intentional data/provenance copy. Physical mixed-DPI and real observation/notification validation remain HOLD, not inferred from synthetic geometry.
+
+The code was reviewed locally against frozen-core and package guards; no independent reviewer/subagent was available. CI repeats the full source/native/package checks. No field validation or release gate is marked complete by this review.
+
+---
+
+# Historical reviews (superseded reference; prior commits only)
+
 # Native Obsidian visual comparison
 
 Scope: adapt the supplied Stitch presentation to the existing native WinForms widget. The mission explicitly preserves preference geometry, Windows fonts and truthful source data; this is not a pixel-identical implementation of the tall HTML board. No browser workflow is used.

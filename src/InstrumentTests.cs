@@ -24,7 +24,7 @@ namespace ShinoCodexMonitor
                 ScrollableControl viewport=card.Parent as ScrollableControl;
                 Assert(viewport!=null && !viewport.HorizontalScroll.Visible && !viewport.VerticalScroll.Visible,"Native scrollbar visible");
                 if(count<=2)Assert(viewport.ClientRectangle.Contains(card.Bounds),"Card outside viewport");
-                foreach(Control c in card.Controls.Cast<Control>().Where(c=>c.Visible))Assert(card.ClientRectangle.Contains(c.Bounds),"Card child bounds: "+c.GetType().Name);
+                foreach(Control c in card.Controls.Cast<Control>().Where(c=>c.Visible))Assert(card.ClientRectangle.Contains(c.Bounds),"Card child bounds: "+c.GetType().Name+" "+c.Bounds+" / "+card.ClientRectangle);
                 Label[] labels=card.Controls.OfType<Label>().Where(l=>l.Visible && l.Text.Length>0).ToArray();
                 for(int i=0;i<labels.Length;i++)for(int j=i+1;j<labels.Length;j++)
                     Assert(!labels[i].Bounds.IntersectsWith(labels[j].Bounds),"Mission text overlaps: "+labels[i].Name+" / "+labels[j].Name);
@@ -172,6 +172,103 @@ namespace ShinoCodexMonitor
                         Assert(p.CircularWidth==width,"Stored width changed");
                     }
                 });
+            check("Parity real stale classifier renders STALE",delegate {
+                using(MonitorForm window=Window("Vertical",1,"Direct")) {
+                    string state=QuotaHealth.State(Now.AddMinutes(-5),0,60,Now);
+                    window.Present(Quotas(false),Tasks(1),Now,state);window.Show();Application.DoEvents();
+                    Assert(Descendants(window).OfType<Label>().Any(l=>l.Text=="STALE QUOTA READING"),"Production Stale data mislabelled");
+                }
+            });
+            check("Parity raw reliable zero is EXHAUSTED, fractional zero is not",delegate {
+                using(MonitorForm window=Window("Vertical",1,"Direct")) {
+                    Snapshot q=Quotas(false);q.Five.Remaining=0;window.Present(q,Tasks(1),Now,"Direct");window.Show();Application.DoEvents();
+                    Assert(Descendants(window).OfType<Label>().Any(l=>l.Name=="QuotaProvenance" && l.Text=="EXHAUSTED"),"Raw zero lacks EXHAUSTED");
+                    q.Five.Remaining=.4;window.Present(q,Tasks(1),Now,"Direct");
+                    Assert(!Descendants(window).OfType<Label>().Any(l=>l.Text=="EXHAUSTED"),"Rounded zero falsely exhausted");
+                    q.Five.Remaining=0;window.Present(q,Tasks(1),Now,"Stale data");
+                    Assert(!Descendants(window).OfType<Label>().Any(l=>l.Text=="EXHAUSTED"),"Historical zero falsely current");
+                }
+            });
+            check("Parity stable simultaneous identity accents",delegate {
+                using(MonitorForm window=Window("Circular",2,"Direct")) {
+                    window.Show();Application.DoEvents();
+                    var accent=typeof(ActivityGlyph).GetProperty("Accent",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                    Assert(accent!=null,"Radar has no independent accent");
+                    MissionCard[] cards=window.Missions.Cards.OrderBy(c=>c.Mission.Number).ToArray();
+                    Color a=(Color)accent.GetValue(cards[0].Radar,null),b=(Color)accent.GetValue(cards[1].Radar,null);
+                    Assert(a!=b,"Simultaneous missions share one color");
+                    LiveTaskReport report=Tasks(2);report.Tasks[0].Phase=LiveTaskPhase.Completed;report.Tasks[0].FinishedUtc=Now;report.Tasks[0].LastWriteUtc=Now;
+                    window.Present(Quotas(true),report,Now,"Direct");
+                    Assert((Color)accent.GetValue(cards[1].Radar,null)==b && cards[1].Radar.State==RadarState.Active,"A completion/block changed B");
+                }
+            });
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})
+            foreach(int count in new []{1,2})check("Parity opt-in geometry and DPI / "+layout+" / "+count,delegate {
+                var enabled=typeof(Preferences).GetProperty("ObsidianLayout");Assert(enabled!=null,"Missing explicit opt-in");
+                Preferences p=Preferences.Defaults();p.Layout=layout;p.CircularWidth=620;p.Top=false;p.Opacity=1;p.TaskAnimations=false;
+                Assert(!(bool)enabled.GetValue(p,null),"Existing defaults silently opt in");enabled.SetValue(p,true,null);
+                Size expected=layout=="Circular"?new Size(680,480):layout=="Vertical"?new Size(360,580):layout=="Compact"?new Size(640,260):new Size(484,230);
+                using(MonitorForm window=new MonitorForm(p)) {
+                    window.Location=new Point(-30000,-30000);window.Present(Quotas(false),Tasks(count),Now,"Direct");window.Show();Application.DoEvents();
+                    foreach(float scale in new []{1f,1.25f,1.5f,2f,1f}) {
+                        window.SetPresentationScale(scale);Application.DoEvents();BoundsCheck(window,count);
+                        Assert(window.ClientSize==new Size((int)Math.Round(expected.Width*scale),(int)Math.Round(expected.Height*scale)),"Parity composition geometry differs");
+                    }
+                    Assert(p.CircularWidth==620,"Recorded legacy width overwritten");
+                }
+            });
+            check("Diffuse halo has bright filled center and transparent boundary",delegate {
+                using(Bitmap halo=InstrumentStyle.Halo(64,InstrumentStyle.Teal))
+                    Assert(halo.GetPixel(32,32).A>halo.GetPixel(60,32).A+100,"Halo falloff inverted");
+            });
+            check("Compact quota is visible in complete native bitmap",delegate {
+                foreach(int count in new []{0,1,2})using(MonitorForm window=ParityWindow("Compact",count,false))using(Bitmap image=new Bitmap(window.Width,window.Height)) {
+                    window.Show();Application.DoEvents();window.DrawToBitmap(image,window.ClientRectangle);
+                    int bright=0;for(int y=52;y<80;y++)for(int x=300;x<370;x++){Color c=image.GetPixel(x,y);if(c.R>150 && c.G<150)bright++;}
+                    Assert(bright>20,"Quota readout occluded by activity surface");
+                }
+            });
+            check("Parity preferences load legacy JSON and round-trip without replacing geometry",delegate {
+                string path=Path.Combine(DirectoryFor("preferences"),"synthetic-settings.json");
+                LocalStore isolated=(LocalStore)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(LocalStore));
+                typeof(LocalStore).GetField("settingPath",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(isolated,path);
+                File.WriteAllText(path,"{\"CircularWidth\":620,\"X\":123,\"Y\":234,\"Color0\":\"#AB3456\"}");
+                Preferences p=isolated.Load();Assert(!p.ObsidianLayout && p.CircularWidth==620,"Legacy JSON opted in or lost width");
+                p.ObsidianLayout=true;p.ObsidianCircularWidth=600;isolated.Save(p);Preferences restored=isolated.Load();
+                Assert(restored.ObsidianLayout && restored.ObsidianCircularWidth==600 && restored.CircularWidth==620 && restored.X==123 && restored.Y==234 && restored.Color0=="#AB3456","Appearance round-trip overwrote settings");
+                using(MonitorForm window=new MonitorForm(restored)) {
+                    window.Show();window.Present(Quotas(false),Tasks(1),Now,"Direct");
+                    restored.ObsidianLayout=false;window.SetPresentationScale(1);Assert(window.Width==620,"Disable lost recorded geometry");
+                    restored.ObsidianLayout=true;window.SetPresentationScale(1);Assert(window.Width==600,"Enable lost opt-in width");
+                    Assert(restored.X==123 && restored.Y==234 && restored.Color0=="#AB3456","Toggle replaced user preferences");
+                }
+            });
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})
+                check("Parity degraded states and contradictory observations / "+layout,delegate {
+                    using(MonitorForm window=ParityWindow(layout,2,false)) {
+                        window.Show();Application.DoEvents();
+                        foreach(float scale in new []{1f,1.25f,1.5f,2f})foreach(string state in new []{"Direct","Stale data","Unverified","Unavailable","Blocked"}) {
+                            Snapshot q=Quotas(state=="Blocked");q.Five.Remaining=0;
+                            window.Present(state=="Unavailable"?null:q,Tasks(2),Now,state=="Blocked"?"Direct":state);window.SetPresentationScale(scale);BoundsCheck(window,2);
+                            bool exhausted=Descendants(window).OfType<Label>().Any(l=>l.Text=="EXHAUSTED");
+                            Assert(exhausted==(state=="Direct"),"Cached or absent zero presented as confirmed exhausted");
+                            Assert(window.Missions.Cards.All(c=>c.Radar.State==RadarState.Active),"Quota state suspended observed task");
+                        }
+                        LiveTaskReport conflict=Tasks(2);conflict.Tasks[0].Phase=LiveTaskPhase.Completed;conflict.Tasks[0].FinishedUtc=Now.AddDays(1);conflict.Tasks[1].IdentityUncertain=true;
+                        window.Present(Quotas(false),conflict,Now,"Direct");BoundsCheck(window,2);
+                        Assert(window.Missions.Cards.All(c=>c.Radar.State==RadarState.Unverified),"Contradictory event invented completion or activity");
+                        window.Present(null,null,Now,"Unavailable");window.SetPresentationScale(1);
+                        Capture(window,Path.Combine(DirectoryFor("parity"),layout+"-Unavailable-100.png"),layout+" / unavailable / no invented missions");
+                    }
+                });
+            check("Blocked material resets without moving quotas or suspending missions",delegate {
+                using(MonitorForm window=ParityWindow("Circular",2,true))using(Bitmap image=new Bitmap(window.Width,window.Height)) {
+                    window.Show();Application.DoEvents();window.DrawToBitmap(image,window.ClientRectangle);Color warning=image.GetPixel(300,20);
+                    Assert(warning.R>warning.B,"Blocked title bar lacks alert material");
+                    window.Present(Quotas(false),Tasks(2),Now,"Direct");window.DrawToBitmap(image,window.ClientRectangle);Color direct=image.GetPixel(300,20);
+                    Assert(direct.B>direct.R && window.Missions.Cards.All(c=>c.Radar.State==RadarState.Active),"Warning material or mission state persisted after recovery");
+                }
+            });
             CaptureAll("after");result.AppendLine(passed+"/"+total+" instrument checks passed");
             if(passed==total)result.AppendLine("All instrument checks passed. Owner visual acceptance and physical mixed-DPI: HOLD.");return result.ToString();
         }
@@ -241,13 +338,50 @@ namespace ShinoCodexMonitor
                 }
             }
             using(MonitorForm window=Window("Circular",2,"Blocked"))Capture(window,Path.Combine(directory,"Blocked-with-2-observed-tasks-100.png"),"Blocked quota / two independently observed active tasks");
+            CaptureParity();
+        }
+        internal static MonitorForm ParityWindow(string layout,int count,bool blocked)
+        {
+            Preferences p=Preferences.Defaults();p.ObsidianLayout=true;p.BackgroundColor="#080D14";p.Layout=layout;p.Top=false;p.InTaskbar=false;p.TaskAnimations=false;p.Opacity=1;
+            // Explicit reference-palette fixture; production always retains configured colors.
+            p.Color0="#F35A65";p.Color11="#E9B85C";
+            MonitorForm window=new MonitorForm(p);window.Location=new Point(-30000,-30000);
+            Snapshot q=Quotas(blocked);q.Five.Remaining=blocked?0:3;q.Week.Remaining=blocked?16:17;
+            LiveTaskReport report=Tasks(count);foreach(LiveTask task in report.Tasks){task.Model="gpt-6.1-sol";task.Effort="Medium";}
+            window.Present(q,report,Now,"Direct");return window;
+        }
+        internal static void CaptureParity()
+        {
+            string directory=DirectoryFor("parity");
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})
+            foreach(int scale in new []{100,125,150,200})
+            foreach(int count in new []{1,2}) {
+                foreach(bool blocked in new []{false,true})using(MonitorForm window=ParityWindow(layout,count,blocked)) {
+                    window.SetPresentationScale(scale/100f);window.Show();Application.DoEvents();
+                    int phase=0;foreach(MissionCard card in window.Missions.Cards)card.Radar.SetSharedMotion(false,1,phase++*.25);
+                    Capture(window,Path.Combine(directory,layout+(blocked?"-Blocked":"")+"-"+count+"-"+scale+".png"),layout+" / reference-palette fixture / "+(blocked?"BLOCKED + independently active tasks":"Direct 3% / 17%")+" / "+count+" turns / "+scale+"%");
+                }
+            }
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})
+            foreach(string state in new []{"Exhausted","Fractional-zero","Stale data","Unverified"})using(MonitorForm window=ParityWindow(layout,2,false)) {
+                Snapshot q=Quotas(false);q.Five.Remaining=state=="Fractional-zero"?.4:0;
+                LiveTaskReport report=Tasks(2);if(state=="Unverified")foreach(LiveTask task in report.Tasks)task.IdentityUncertain=true;
+                window.Present(q,report,Now,state=="Exhausted" || state=="Fractional-zero"?"Direct":state);window.SetPresentationScale(1);
+                Capture(window,Path.Combine(directory,layout+"-"+state.Replace(" ","-")+"-100.png"),layout+" / "+state+" / synthetic truth fixture");
+            }
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})using(MonitorForm window=ParityWindow(layout,2,false)) {
+                LiveTaskReport report=Tasks(2);report.Tasks[0].Phase=LiveTaskPhase.Completed;report.Tasks[0].FinishedUtc=Now;report.Tasks[0].LastWriteUtc=Now;
+                window.Present(Quotas(false),report,Now,"Direct");
+                Capture(window,Path.Combine(directory,layout+"-A-completed-B-active-100.png"),layout+" / A completed / B active / independent identity colors");
+            }
         }
         [DllImport("user32.dll")] private static extern int GetGuiResources(IntPtr process,int kind);
-        internal static string Performance()
+        internal static string Performance(bool parity=false)
         {
             StringBuilder output=new StringBuilder("SYNTHETIC / complete Circular window, three radars, forced full-window bitmap at each tick (includes static gauges). No live collectors.\r\n");
             Process process=Process.GetCurrentProcess();
-            using(MonitorForm window=Window("Circular",3,"Direct"))
+            if(parity)output.Clear().AppendLine("SYNTHETIC / opt-in 680x480 Circular, two visible independent radars; forced full-window bitmap; no collectors.");
+            using(MonitorForm window=parity?ParityWindow("Circular",2,false):Window("Circular",3,"Direct"))
             using(Bitmap frame=new Bitmap(window.Width,window.Height))
             using(System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer { Interval=34 })
             using(System.Windows.Forms.Timer sample=new System.Windows.Forms.Timer { Interval=250 }) {
@@ -258,6 +392,7 @@ namespace ShinoCodexMonitor
                         process.Refresh();double used=(process.TotalProcessorTime-cpu).TotalSeconds;
                         output.AppendLine("Visible: "+frames+" frames / "+watch.Elapsed.TotalSeconds.ToString("F2",CultureInfo.InvariantCulture)+" s; FPS="+(frames/watch.Elapsed.TotalSeconds).ToString("F2",CultureInfo.InvariantCulture)+
                             "; CPU total-machine="+(used/watch.Elapsed.TotalSeconds/Environment.ProcessorCount*100).ToString("F3",CultureInfo.InvariantCulture)+"%; single-core="+(used/watch.Elapsed.TotalSeconds*100).ToString("F2",CultureInfo.InvariantCulture)+"%");
+                        output.AppendLine("Visible RAM working MiB="+(process.WorkingSet64/1048576d).ToString("F2",CultureInfo.InvariantCulture)+"; private MiB="+(process.PrivateMemorySize64/1048576d).ToString("F2",CultureInfo.InvariantCulture)+"; GDI="+GetGuiResources(process.Handle,0)+"; USER="+GetGuiResources(process.Handle,1));
                         visibleFrames=frames;timer.Stop();window.Hide();window.Missions.SetMotion(false);hidden=true;hiddenCpu=process.TotalProcessorTime;watch.Restart();
                     } else if(hidden && watch.Elapsed.TotalSeconds>=5) {
                         process.Refresh();output.AppendLine("Hidden: "+(frames-visibleFrames)+" frames; running radars="+window.Missions.Cards.Count(c=>c.Radar.MotionRunning)+
@@ -269,11 +404,11 @@ namespace ShinoCodexMonitor
                 process.Refresh();cpu=process.TotalProcessorTime;watch.Start();timer.Start();sample.Start();Application.Run();
             }
             // Warm caches/runtime, then bound disposal and resize across whole windows.
-            using(MonitorForm warm=Window("Micro",1,"Direct")){warm.Show();Application.DoEvents();}
+            using(MonitorForm warm=parity?ParityWindow("Micro",1,false):Window("Micro",1,"Direct")){warm.Show();Application.DoEvents();}
             GC.Collect();GC.WaitForPendingFinalizers();Application.DoEvents();
             int gdi=GetGuiResources(process.Handle,0),user=GetGuiResources(process.Handle,1);
             process.Refresh();long bytes=process.PrivateMemorySize64;
-            for(int i=0;i<80;i++)using(MonitorForm window=Window(i%2==0?"Circular":"Micro",2,"Direct")) {
+            for(int i=0;i<80;i++)using(MonitorForm window=parity?ParityWindow(i%2==0?"Circular":"Micro",2,false):Window(i%2==0?"Circular":"Micro",2,"Direct")) {
                 window.Show();window.SetPresentationScale(1.5f);window.SetPresentationScale(1);Application.DoEvents();
                 using(Bitmap b=new Bitmap(window.Width,window.Height))window.DrawToBitmap(b,window.ClientRectangle);
             }

@@ -39,6 +39,15 @@ namespace ShinoCodexMonitor
         private Bitmap lens;
         private Color lensColor;
         private RadarState lensState;
+        private Color accent=InstrumentStyle.Teal;
+        private Bitmap sweepLight,pingLight;
+        internal bool Parity;
+        internal Color Accent {get{return accent;}set {
+            if(accent==value)return;accent=value;
+            if(lens!=null){lens.Dispose();lens=null;}
+            if(sweepLight!=null){sweepLight.Dispose();sweepLight=null;}
+            if(pingLight!=null){pingLight.Dispose();pingLight=null;}Invalidate();
+        }}
         private readonly Brush[] trail = new Brush[24];
         private readonly Pen head = new Pen(Color.FromArgb(55,223,201),1.5f);
         private readonly Pen success = new Pen(Color.FromArgb(72,214,155),2f);
@@ -68,7 +77,7 @@ namespace ShinoCodexMonitor
             RadarState mapped = RadarMotion.Map(next,fresh,unavailable);
             if (phase == next && state == mapped) return;
             if (state == RadarState.Active && mapped == RadarState.Complete)
-                completionAngle = RadarMotion.AngleAt(AnimationSeconds)-90;
+                completionAngle = (Parity?(float)((AnimationSeconds%4)*90):RadarMotion.AngleAt(AnimationSeconds))-90;
             phase = next; state = mapped; FinishMotion();
             AccessibleName = "Observed task radar: " + StateLabel;
             Invalidate();
@@ -117,14 +126,15 @@ namespace ShinoCodexMonitor
                 using (GraphicsPath path = new GraphicsPath()) {
                     path.AddEllipse(ring);
                     using (PathGradientBrush fill = new PathGradientBrush(path)) {
-                        fill.CenterColor = Color.FromArgb(20,46,59); fill.SurroundColors = new [] {Color.FromArgb(8,17,28)}; g.FillEllipse(fill,ring);
+                        fill.InterpolationColors=new ColorBlend {Positions=new []{0f,.3f,1f},Colors=new []{Color.FromArgb(2,5,8),Color.FromArgb(4,9,14),Color.FromArgb(6,17,24)}};
+                        g.FillEllipse(fill,ring);
                     }
                 }
-                using(Pen bezel=new Pen(state==RadarState.Active ? Color.FromArgb(105,50,224,196) : Color.FromArgb(75,137,161,178),1f)) {
+                using(Pen bezel=new Pen(state==RadarState.Active ? Color.FromArgb(105,accent) : Color.FromArgb(75,137,161,178),1f)) {
                     g.DrawEllipse(bezel,cx-side*.48f,cy-side*.48f,side*.96f,side*.96f);
                     g.DrawEllipse(bezel,cx-side*.45f,cy-side*.45f,side*.9f,side*.9f);
                 }
-                using (Pen track = new Pen(state == RadarState.Active || state == RadarState.Complete ? Color.FromArgb(70,69,113,131) : Color.FromArgb(70,135,147,165),1f)) {
+                using (Pen track = new Pen(state == RadarState.Active || state == RadarState.Complete ? Color.FromArgb(78,accent) : Color.FromArgb(70,135,147,165),1f)) {
                     for (int i=1; i<=4; i++) {
                         float r = radius*i/4;
                         RectangleF inner = new RectangleF(cx-r,cy-r,r*2,r*2);
@@ -138,6 +148,17 @@ namespace ShinoCodexMonitor
                     }
                 }
             }
+            if(sweepLight!=null)sweepLight.Dispose();sweepLight=new Bitmap(Math.Max(2,Width),Math.Max(2,Height));
+            using(Graphics g=Graphics.FromImage(sweepLight))using(GraphicsPath path=new GraphicsPath()) {
+                float side=Math.Min(Width,Height),r=side*.43f;RectangleF box=new RectangleF(Width/2f-r,Height/2f-r,r*2,r*2);
+                path.AddEllipse(box);
+                using(PathGradientBrush light=new PathGradientBrush(path)) {
+                    light.CenterPoint=new PointF(Width/2f,Height/2f);
+                    light.InterpolationColors=new ColorBlend {Positions=new []{0f,.4f,1f},Colors=new []{Color.FromArgb(0,accent),Color.FromArgb(38,accent),Color.FromArgb(204,accent)}};
+                    g.SmoothingMode=SmoothingMode.AntiAlias;g.FillPie(light,box.X,box.Y,box.Width,box.Height,-45,45);
+                }
+            }
+            if(pingLight==null)pingLight=InstrumentStyle.Halo(64,accent);
         }
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -149,10 +170,17 @@ namespace ShinoCodexMonitor
             RectangleF ring = new RectangleF(cx-radius,cy-radius,radius*2,radius*2);
             double seconds = AnimationSeconds;
             if (state == RadarState.Active || completing) {
-                float angle = completing ? completionAngle : RadarMotion.AngleAt(seconds)-90;
+                float angle = completing ? completionAngle : (Parity?(float)((seconds%4)*90):RadarMotion.AngleAt(seconds))-90;
                 float fade = completing ? (float)Math.Max(0,1-seconds/.55) : 1;
                 if (fade > 0) {
-                    int count = side < 40 ? 8 : 24;
+                    if(!completing) {
+                        GraphicsState saved=g.Save();g.TranslateTransform(cx,cy);g.RotateTransform(angle);
+                        g.DrawImageUnscaled(sweepLight,-Width/2,-Height/2);g.Restore(saved);
+                        using(Pen beam=new Pen(Color.FromArgb(230,accent),Math.Max(1.2f,side*.012f))) {
+                            double beamAngle=angle*Math.PI/180;g.DrawLine(beam,cx,cy,cx+(float)Math.Cos(beamAngle)*radius,cy+(float)Math.Sin(beamAngle)*radius);
+                        }
+                    }
+                    int count = completing ? (side < 40 ? 8 : 24) : 0;
                     for (int i=0; i<count; i++) {
                         // Non-overlapping angular slices: cached brushes, no persistent trails.
                         int brush = (int)(i*23f/Math.Max(1,count-1));
@@ -161,16 +189,17 @@ namespace ShinoCodexMonitor
                     }
                     double a = angle*Math.PI/180;
                     Pen stroke = head;head.Width=Math.Max(1.5f,side*.018f);
-                    head.Color = Color.FromArgb((int)(255*fade),55,223,201);
-                    g.DrawLine(stroke, cx, cy,cx+(float)Math.Cos(a)*radius,cy+(float)Math.Sin(a)*radius);
+                    head.Color = Color.FromArgb((int)(255*fade),accent);
+                    if(completing)g.DrawLine(stroke, cx, cy,cx+(float)Math.Cos(a)*radius,cy+(float)Math.Sin(a)*radius);
                 }
                 if (!completing) {
-                    float pulse = (float)((1-Math.Cos(seconds*Math.PI*2/1.5))/2);
+                    float pulse = (float)((1-Math.Cos(seconds*Math.PI*2/(Parity?2:1.5)))/2);
                     float x = cx+radius*.36f, y = cy-radius*.53f, r = Math.Max(1.7f,side*.025f);
-                    halo.Color = Color.FromArgb(50,55,223,201);
-                    halo.Width = 1+2*pulse;
-                    g.DrawEllipse(halo,x-r*(2+pulse),y-r*(2+pulse),r*(4+2*pulse),r*(4+2*pulse));
+                    float glow=r*(6+2*pulse);g.DrawImage(pingLight,x-glow/2,y-glow/2,glow,glow);
+                    g.DrawImage(pingLight,cx-r*3,cy-r*3,r*6,r*6);
+                    contact.Color=accent;
                     g.FillEllipse(contact,x-r,y-r,r*2,r*2);
+                    g.FillEllipse(contact,cx-r*.55f,cy-r*.55f,r*1.1f,r*1.1f);
                 }
             }
             if (state == RadarState.Complete) {
@@ -195,6 +224,7 @@ namespace ShinoCodexMonitor
         {
             if (disposing) {
                 if (lens != null) lens.Dispose(); foreach (Brush brush in trail) brush.Dispose();
+                if(sweepLight!=null)sweepLight.Dispose();if(pingLight!=null)pingLight.Dispose();
                 head.Dispose(); success.Dispose(); halo.Dispose(); contact.Dispose(); stateInk.Dispose(); stateFont.Dispose(); centered.Dispose();
             }
             base.Dispose(disposing);

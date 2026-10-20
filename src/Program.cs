@@ -9,6 +9,12 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--parity-performance")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"PARITY_PERFORMANCE_REPORT.txt"),InstrumentTests.Performance(true));return;
+            }
             if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--instrument-performance")
             {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);

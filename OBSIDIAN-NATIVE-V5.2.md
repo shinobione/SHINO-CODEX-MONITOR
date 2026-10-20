@@ -1,3 +1,65 @@
+# Obsidian Visual Parity - individual Stitch references (2026-10-20)
+
+**Separate Draft candidate based on PR #14 head `074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f`. Owner visual acceptance / release: HOLD.** PR #14 and Release Engineering PR #16 are not changed or merged. No tag, Release, installation or autostart change is authorized by this work.
+
+## Current source of truth
+
+Stitch MCP project **CODEX PERISCOPE - OBSIDIAN VISUAL PARITY**, `7199182866908450683`. The five individual PNGs and their HTML were retrieved in the accepted audit and reused by SHA-256, without generation. The old miniature ZIP board is historical evidence only and is excluded from this implementation's comparison.
+
+| Reference | Stitch screen ID | Opt-in native logical size |
+|---|---|---:|
+| Circular | `de5af343e8584ea284e4fa100e7c3c4e` | 680 x 480 |
+| Vertical | `fe30496269f844da959e485127e19b23` | 360 x 580 |
+| Compact | `414684ee25634cdba1ac9a90894c8581` | 640 x 260 |
+| Micro | `ee2368e1d7d044fb90b06abea88d826b` | **484 x 230** |
+| Blocked (Circular state) | `74b64a3022484c85aa5c1f3144dc7ca2` | 680 x 480 |
+
+Local source receipt, original PNG/HTML and extracted tokens remain in `bin/stitch-parity-audit-20261020-0rcpmW`; none of its diagnostic files are committed. Current comparison viewer: `bin/parity-implementation/COMPARAISON.html`. It displays each full individual reference at logical size using only a CSS viewport over the unchanged original PNG, alongside the actual WinForms capture. It is an evidence viewer, not the application runtime or a substitute design board.
+
+## Changes and preservation
+
+- P0: production `Stale data` and compatibility `Stale` now use the same stale heading. Quota source state, cached values and independently observed task state remain separate.
+- P0: `EXHAUSTED` requires a current unblocked raw value of exactly zero. A rounded 0.4% is not exhausted; blocked/stale/unverified historical zero is LAST KNOWN. Missing data clears the previous severity and reading.
+- P1: centralized Obsidian canvas/face/hairline/accent/material tokens; cached circular arc glow with rounded core and dashed inner calibration; values and REMAINING share the configured, resolved quota accent.
+- P1: native radar dish, concentric rings, crosshair, diffuse radial beam, nucleus and filled ping glow. Static optical bitmaps are cached/disposed. The opt-in sweep/ping periods are four/two seconds. No extra production timer is added.
+- P1: mission identities use stable teal/blue/violet/amber accents independently of quota colors. A's completion does not stop, recolor or reset B. Source failure does not invent a suspended local mission.
+- P1: Circular twin gauges; Vertical prominent central radar; Compact three-zone horizontal dock; Micro zero-scroll. All four support two independent state/duration/radar readouts. Compact quota controls are attached to their row before native bitmap rendering to avoid overlapping-container occlusion, and detached before task-card disposal.
+- P1: native warning triangle and red blocked material, neutral cached quotas, real observation timestamp. Recovery restores the direct material without moving the geometry. No illustrative HTTP 429, PID, retry, probe-halted or sync-ready claim is copied.
+
+**Appearance -> Obsidian visual parity layout** explicitly activates the new sizes. Missing JSON fields default to disabled; the recorded `CircularWidth`, X/Y, background, opacity, custom quota colors and alert settings remain intact. A separate `ObsidianCircularWidth` preserves the opt-in width. Toggling off restores the recorded legacy width. Reset and source copy adapt to the available space. The original collector/auth/history/notification core is frozen by the existing hashes; only five marked appearance-field/loader lines are excluded from normalization (three in Models, two in LocalStore), with exact addition counts enforced.
+
+## Validation and remaining differences
+
+Current local checks: **128 Python; C# 98 application + 46 task + 35 premium + 26 P0 + 119 instrument = 324**. Instrument evidence includes synthetic 100/125/150/200% native geometry/fonts, all four layouts, raw/fractional/cached/missing zero, source transitions, uncertain/future contradictory events, independent identities, recorded preference load/save/toggle, filled halo pixels, Compact visible pixels with zero/one/two missions, critical text bounds and disposal.
+
+There are **88 opt-in PNGs** in `instrument-qa/parity`: 64 direct/blocked x four scales x four layouts x one/two missions, four A-completed/B-active, sixteen exhausted/fractional/stale/unverified, and four unavailable. The existing 154 legacy full-window captures remain a separate regression set. Every image carries an explicit synthetic-data footer outside the native client bounds. The CI QA artifact uploads both sets; no fixture or capture enters the seven-file portable Preview ZIP.
+
+See [current visual review](design-qa.md) for the reference-by-reference findings, corrected iterations and intentional differences. Windows font rasterization, tracked spacing, a few decorative header/footer elements and the exact CSS blur are not pixel-identical. Physical monitor moves, real transparency, local Codex sessions, shell behavior, notification delivery and owner acceptance remain field gates. Synthetic captures and green CI do not clear them.
+
+## Fresh same-host rendering measurements
+
+Twelve logical processors; sequential native runs on this Windows machine. Every visible tick forces a complete bitmap, including static quotas, for about 30 seconds; five seconds hidden; then 80 create/scale/render/dispose cycles. This synthetic workload is heavier than ordinary animation. It does not measure real source polling.
+
+| Metric | PR #14 / 074b41f baseline | Candidate, identical legacy geometry / 3 radars | Candidate opt-in 680 x 480 / 2 radars |
+|---|---:|---:|---:|
+| Frames / elapsed | 638 / 30.08 s | 635 / 30.08 s | 640 / 30.25 s |
+| FPS | 21.21 | 21.11 | 21.16 |
+| CPU total machine / single core | 1.441% / 17.30% | 1.645% / 19.74% | 1.683% / 20.20% |
+| Hidden frames / running clocks / CPU | 0 / 0 / 0.000% | 0 / 0 / 0.000% | 0 / 0 / 0.000% |
+| GDI before -> after 80 cycles | 27 -> 28 | 27 -> 28 | 28 -> 28 |
+| USER before -> after | 6 -> 6 | 6 -> 6 | 6 -> 6 |
+| Private MiB before -> after | 31.39 -> 32.47 | 31.57 -> 32.40 | 31.12 -> 32.71 |
+| Visible working / private MiB | Not recorded by old harness | 50.34 / 38.36 | 50.12 / 37.84 |
+| Visible GDI / USER | Not recorded by old harness | 55 / 57 | 54 / 55 |
+
+The matched workload shows a **0.204 percentage-point machine CPU increase** (about 14.2% relative CPU), with FPS about 0.5% lower. This is a measured cost of the new optical layers, not a speedup claim. Handles remain bounded and post-cycle private memory is comparable. The larger opt-in workload is reported separately because geometry and visible radar count differ. Reports are local in `bin/parity-implementation/baseline/INSTRUMENT_PERFORMANCE_REPORT.txt`, `INSTRUMENT_PERFORMANCE_REPORT.txt` and `PARITY_PERFORMANCE_REPORT.txt`; CI machine measurements must not be mixed with this local comparison.
+
+---
+
+# Historical integration / finish record (superseded as visual reference)
+
+The following describes earlier commits and earlier test/performance runs. It does not define the current Stitch source or current candidate acceptance.
+
 # Obsidian Sonar -> native WinForms V5.2 candidate
 
 PR #14 stays Draft. Stable Release and Premium Polish acceptance stay **HOLD** until the owner approves fresh screenshots and the remaining Windows field gates. This candidate does not install, merge, tag, publish a Release or change autostart.

@@ -33,7 +33,7 @@ class CircularLayoutAudit(unittest.TestCase):
         self.assertIn('m.Track.Visible=!circular;',FORM)
 
     def test_no_stale_quota_looks_fresh(self):
-        self.assertIn('meter.Ring.SetReading(percent, live, color)',FORM)
+        self.assertIn('meter.Ring.SetReading(percent, live, color,exhausted)',FORM)
         self.assertIn('meter.Ring.SetReading(null, false',FORM)
         self.assertIn('current ? accent : ColorTranslator.FromHtml("#8BA0B1")',PALETTE)
         self.assertIn('statusAge.Visible=true;statusDivider.Visible=false;',FORM)
@@ -41,7 +41,7 @@ class CircularLayoutAudit(unittest.TestCase):
 
     def test_double_buffer_low_cost(self):
         self.assertIn('ControlStyles.OptimizedDoubleBuffer',PALETTE)
-        self.assertIn('if (percentage == clamped && current == isCurrent && accent == color) return;',PALETTE)
+        self.assertIn('if (percentage == clamped && current == isCurrent && accent == color && exhausted==rawExhausted) return;',PALETTE)
         self.assertNotIn('CodexReader',PALETTE)
 
     def test_menu_has_five_color_options(self):
