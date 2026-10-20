@@ -1,0 +1,159 @@
+name: Prepare / publish Codex Periscope v5.2.0
+
+# Manual only. Never publish on push, pull_request, or a V5.1 release workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish verified v5.2.0 after explicit owner approval? (default: NO)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-periscope-v5.2-publication
+  cancel-in-progress: false
+
+jobs:
+  stable-candidate:
+    name: Verify 5.2.0 source and build stable Windows ZIP (NO INSTALL)
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Release identity and branch safeguards
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw 'V5.2 stable candidate must be built from main.' }
+          $assembly = [IO.File]::ReadAllText((Join-Path $PWD 'src/AssemblyInfo.cs'))
+          if (!$assembly.Contains('AssemblyVersion("5.2.0.0")') -or
+              !$assembly.Contains('AssemblyInformationalVersion("5.2.0")') -or
+              $assembly.Contains('5.2.0-preview')) {
+            throw 'Release source must explicitly be stable 5.2.0; Preview cannot be relabeled as stable.'
+          }
+          if (!(Test-Path 'RELEASE-NOTES-V5.2.md') -or !(Test-Path 'BUILD-RELEASE-V5.2.ps1')) {
+            throw 'Missing release notes or dedicated stable builder.'
+          }
+          Write-Host ("Source commit: " + $env:GITHUB_SHA)
+      - name: Public-source and release-engineering audit
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build tested stable Windows package
+        shell: powershell
+        run: |
+          & .\BUILD-RELEASE-V5.2.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check stable ZIP content, checksum and independent updater naming
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $name = 'CODEX_PERISCOPE_V5_2_WINDOWS.zip'
+          $zipFile = Join-Path $PWD ('dist/' + $name)
+          if (!(Test-Path -LiteralPath $zipFile)) { throw 'Stable asset missing.' }
+          $expected = @('CODEX-PERISCOPE.ico','INSTALL-PERISCOPE-V5.2.bat',
+            'INSTALL-PERISCOPE-V5.2.ps1','README-EN.txt','SHA256SUMS.txt',
+            'SHINO-CODEX-MONITOR.exe','UNINSTALL-PERISCOPE-V5.2.ps1')
+          $zip = [IO.Compression.ZipFile]::OpenRead($zipFile)
+          try {
+            $actual = @($zip.Entries | ForEach-Object { $_.FullName } | Sort-Object)
+            if (@(Compare-Object -ReferenceObject $expected -DifferenceObject $actual).Count -ne 0) {
+              throw 'Stable asset allowlist mismatch.'
+            }
+            $readme = $zip.GetEntry('README-EN.txt')
+            $reader = [IO.StreamReader]::new($readme.Open())
+            try { $txt = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            if (!$txt.Contains('WINDOWS STABLE') -or $txt.Contains('THIS IS AN UNSIGNED PREVIEW')) {
+              throw 'Archive contains a preview README.'
+            }
+            $manifest = $zip.GetEntry('SHA256SUMS.txt')
+            $mr = [IO.StreamReader]::new($manifest.Open())
+            try { $sum = $mr.ReadToEnd() } finally { $mr.Dispose() }
+            $match = [regex]::Match($sum,'^([A-Fa-f0-9]{64})\s+SHINO-CODEX-MONITOR\.exe', 'Multiline')
+            if (!$match.Success) { throw 'Invalid packaged EXE manifest.' }
+            $exe = $zip.GetEntry('SHINO-CODEX-MONITOR.exe')
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try {
+              $stream = $exe.Open()
+              try { $calc = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+              finally { $stream.Dispose() }
+            } finally { $sha.Dispose() }
+            if ($calc -ne $match.Groups[1].Value.ToUpperInvariant()) { throw 'EXE digest mismatch.' }
+          } finally { $zip.Dispose() }
+          $digest = (Get-FileHash -LiteralPath $zipFile -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "STABLE CANDIDATE PASS / $name / SHA256 $digest"
+          Write-Host 'No install, no tag, no publication.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CODEX-PERISCOPE-V5.2-STABLE-CANDIDATE-UNPUBLISHED
+          path: dist/CODEX_PERISCOPE_V5_2_WINDOWS.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    name: Publish v5.2.0 AFTER separate explicit approval only
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true && github.ref == 'refs/heads/main'
+    needs: stable-candidate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: CODEX-PERISCOPE-V5.2-STABLE-CANDIDATE-UNPUBLISHED
+          path: dist
+      - name: Refuse conflicting tag/release and prepare draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test -f dist/CODEX_PERISCOPE_V5_2_WINDOWS.zip
+          if gh release view v5.2.0 --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>&1; then
+            echo 'Existing V5.2 Release: refusing replacement.' >&2; exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v5.2.0" >/dev/null 2>&1; then
+            echo 'Existing V5.2 tag: refusing replacement.' >&2; exit 1
+          fi
+          gh release create v5.2.0 dist/CODEX_PERISCOPE_V5_2_WINDOWS.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "CODEX PERISCOPE V5.2.0" --notes-file RELEASE-NOTES-V5.2.md \
+            --target "$GITHUB_SHA" --draft
+      - name: Independently verify GitHub draft download BEFORE publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-verify
+          gh release download v5.2.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern CODEX_PERISCOPE_V5_2_WINDOWS.zip --dir release-verify
+          cmp -s dist/CODEX_PERISCOPE_V5_2_WINDOWS.zip release-verify/CODEX_PERISCOPE_V5_2_WINDOWS.zip
+          expected="$(sha256sum dist/CODEX_PERISCOPE_V5_2_WINDOWS.zip | cut -d' ' -f1)"
+          actual="$(sha256sum release-verify/CODEX_PERISCOPE_V5_2_WINDOWS.zip | cut -d' ' -f1)"
+          test "$expected" = "$actual"
+          echo "Draft download SHA-256 verified: $actual"
+      - name: Make verified draft public
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit v5.2.0 --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          gh release view v5.2.0 --repo "$GITHUB_REPOSITORY" \
+            --json tagName,url,isDraft,isPrerelease,assets
