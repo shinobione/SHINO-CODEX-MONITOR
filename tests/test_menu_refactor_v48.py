@@ -12,73 +12,73 @@ MENU = UI[BEG:END]
 class ContextMenuRefactorTests(unittest.TestCase):
     def test_main_menu_is_short_and_ordered(self):
         expected = [
-            "Afficher / masquer", "Actualiser les quotas",
-            "Activité Codex (locale)", "Quotas & données", "Apparence", "Fenêtre",
-            "Notifications", "Historique", "Application",
-            "Quitter complètement"
+            "Show / Hide", "Refresh quotas",
+            "Codex Activity (local)", "Quotas & Data", "Appearance", "Window",
+            "Notifications", "History", "Application",
+            "Exit completely"
         ]
         items = re.findall(r'Menu\(context, "([^"]+)"', MENU)
         self.assertEqual(items, expected)
         self.assertEqual(MENU.count("context.Items.Add(new ToolStripSeparator())"), 3)
 
     def test_appearance_contains_layout_palette_and_tray(self):
-        for label in ("Disposition", "Taille des roues", "Opacité",
-                      "Couleur du fond", "Couleurs des jauges", "Tray Icon"):
+        for label in ("Layout", "Gauge size", "Opacity",
+                      "Background color", "Gauge colors", "Tray Icon"):
             self.assertIn(f'Menu(appearance, "{label}"', MENU)
-        self.assertIn("Animer la roue d'activité Codex", MENU)
-        self.assertNotIn('Menu(context, "Disposition"', MENU)
-        self.assertNotIn('Menu(context, "Couleurs des jauges"', MENU)
+        self.assertIn("Animate Codex activity radar", MENU)
+        self.assertNotIn('Menu(context, "Layout"', MENU)
+        self.assertNotIn('Menu(context, "Gauge colors"', MENU)
         self.assertNotIn('Menu(context, "Icône de notification"', MENU)
 
     def test_window_controls_are_grouped_by_behavior(self):
-        for label in ("Épingler le widget", "Aimantation aux bords des écrans",
-                      "Toujours au-dessus", "Afficher dans la barre des tâches"):
+        for label in ("Pin widget", "Snap to screen edges",
+                      "Always on top", "Show in taskbar"):
             self.assertIn(f'Menu(window, "{label}', MENU)
         self.assertIn("magnet.Enabled = settings.Pinned;", MENU)
         self.assertIn("top.Enabled = settings.Pinned;", MENU)
         self.assertIn("taskbar.Enabled = settings.Pinned;", MENU)
 
     def test_quota_organization_preserves_reset_settings(self):
-        self.assertIn('Menu(quotas, "Tableau officiel Codex"', MENU)
-        self.assertIn('Menu(quotas, "Réinitialisations"', MENU)
-        self.assertIn('Menu(quotas, "Fréquence d\'actualisation"', MENU)
-        for label, value in (("Date/heure + décompte","both"),
-                             ("Date/heure uniquement","absolute"),
-                             ("Décompte uniquement","relative"),
-                             ("Masquées","hidden")):
+        self.assertIn('Menu(quotas, "Official Codex dashboard"', MENU)
+        self.assertIn('Menu(quotas, "Reset display"', MENU)
+        self.assertIn('Menu(quotas, "Refresh interval"', MENU)
+        for label, value in (("Date/time + countdown","both"),
+                             ("Date/time only","absolute"),
+                             ("Countdown only","relative"),
+                             ("Hidden","hidden")):
             self.assertIn(f'AddOption(resets, "{label}", "{value}"', MENU)
-        self.assertIn("En mode Circulaire : décompte pour 5 h, date pour 7 jours.", MENU)
+        self.assertIn("In circular mode: countdown for 5 hours and date for weekly quota.", MENU)
 
     def test_dynamic_checks_instead_of_stale_selection(self):
         for submenu in ("layouts", "refresh", "opacity",
                         "circularSize", "backgrounds", "window",
                         "alerts", "historyMenu", "application"):
             self.assertIn(f"{submenu}.DropDownOpening += delegate", MENU)
-        self.assertIn("Taille actuelle : ", MENU)
+        self.assertIn("Current size: ", MENU)
         self.assertIn("SyncBackgroundMenu(backgrounds);", MENU)
-        self.assertIn('Menu(appearance, "Réinitialiser fond et opacité"', MENU)
+        self.assertIn('Menu(appearance, "Reset background and opacity"', MENU)
         self.assertNotIn('Rétablir l\'apparence', MENU)
 
     def test_history_and_application_actions_preserved(self):
-        for label in ("Afficher l'historique", "Enregistrer l'historique local",
-                      "Ouvrir le dossier de données"):
+        for label in ("Show history", "Record local history",
+                      "Open data folder"):
             self.assertIn(label, MENU)
-        for label in ("Vérifier les mises à jour", "Releases GitHub",
-                      "Démarrer avec Windows", "Diagnostic", "Copier le diagnostic"):
+        for label in ("Check for updates", "Releases GitHub",
+                      "Start with Windows", "Diagnostic", "Copy diagnostics"):
             self.assertIn(f'"{label}"', MENU)
-        self.assertIn('updateMenuItem = Menu(application, "Vérifier les mises à jour"', MENU)
-        self.assertNotIn("Démarrer V4 avec Windows", MENU)
+        self.assertIn('updateMenuItem = Menu(application, "Check for updates"', MENU)
+        self.assertNotIn("Start V4 with Windows", MENU)
 
     def test_notifications_remain_opt_in_and_source_checked(self):
-        self.assertIn('Menu(alerts, "Activer les notifications"', MENU)
-        self.assertIn('Menu(alerts, "Tester la notification Windows"', MENU)
-        self.assertIn('AddAlertToggle(alerts, "Tâche Codex terminée"', MENU)
-        self.assertIn("Menu(tasksMenu, \"Actualiser l'activité locale\"", MENU)
-        self.assertIn('Menu(tasksMenu, "Copier le diagnostic des tours', MENU)
+        self.assertIn('Menu(alerts, "Enable notifications"', MENU)
+        self.assertIn('Menu(alerts, "Test Windows notification"', MENU)
+        self.assertIn('AddAlertToggle(alerts, "Codex task completed"', MENU)
+        self.assertIn("Menu(tasksMenu, \"Refresh local activity\"", MENU)
+        self.assertIn('Menu(tasksMenu, "Copy privacy-safe task diagnostics', MENU)
         self.assertIn("settings.Alerts = ((ToolStripMenuItem)sender).Checked;", MENU)
         self.assertIn("child.Enabled = settings.Alerts;", MENU)
-        for text in ("Fenêtre 5 heures", "Fenêtre 7 jours", "Seuil 50 %",
-                     "Seuil 25 %", "Seuil 10 %", "Réinitialisation constatée"):
+        for text in ("Window 5 hours", "Weekly window", "Threshold 50 %",
+                     "Threshold 25 %", "Threshold 10 %", "Reset observed"):
             self.assertIn(f'AddAlertToggle(alerts, "{text}"', MENU)
 
     def test_menu_helpers_do_not_change_codex_collector(self):

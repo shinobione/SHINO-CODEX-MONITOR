@@ -15,12 +15,12 @@ namespace ShinoCodexMonitor
         private static void Check(string label, Action test)
         {
             total++;
-            try { test(); passed++; report.AppendLine("PASS " + label); }
-            catch (Exception e) { report.AppendLine("FAIL " + label + " : " + e.GetType().Name); }
+            try { test(); passed++; report.AppendLine("PASS Test #" + total); }
+            catch (Exception e) { report.AppendLine("FAIL Test #" + total + " : " + e.GetType().Name); }
         }
         private static void Assert(bool condition)
         {
-            if (!condition) throw new InvalidOperationException("Échec d'assertion.");
+            if (!condition) throw new InvalidOperationException("Assertion failed.");
         }
         private static string Event(string name, string id, int secondsAgo, string extras = "")
         {
@@ -62,7 +62,7 @@ namespace ShinoCodexMonitor
             });
             Check("Modèle non communiqué distinct de modèle inventé", delegate {
                 LiveTask x = Parse(Now, Event("task_started", "a1", 20));
-                Assert(x.Model == "Non communiqué" && x.Effort == "Non communiqué");
+                Assert(x.Model == "Not provided" && x.Effort == "Not provided");
             });
             Check("Terminal confirmé : succès et durée figée", delegate {
                 LiveTask x = Parse(Now, Event("task_started", "a1", 40),
@@ -112,8 +112,8 @@ namespace ShinoCodexMonitor
                     int quotasHeight = DesktopGeometry.HeightForWidth(width);
                     System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(width, quotasHeight, "Circular");
                     int fullHeight = DesktopGeometry.CombinedHeight(width, quotasHeight, "Circular");
-                    Assert(box.Left >= 0 && box.Top > quotasHeight && box.Right < width &&
-                        box.Bottom < fullHeight && box.Height > 60);
+                    Assert(box.Left >= 0 && box.Top == quotasHeight-DesktopGeometry.Scale(22,width) && box.Right < width &&
+                        box.Bottom < fullHeight && box.Height > 90 && fullHeight == quotasHeight+DesktopGeometry.Scale(8,width)+DesktopGeometry.Scale(100,width)+DesktopGeometry.Scale(12,width));
                 }
             });
             Check("Widget vertical et compact conservent les quotas", delegate {
@@ -128,7 +128,8 @@ namespace ShinoCodexMonitor
             });
             Check("Micro : indicateur intégré sans recouvrir les resets", delegate {
                 System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(484, 122, "Micro");
-                Assert(box.Top >= 129 && box.Height >= 92 &&
+                Assert(box.Top == 138 && box.Height == 84 &&
+                    DesktopGeometry.CombinedHeight(484,122,"Micro") == 230 &&
                     box.Bottom < DesktopGeometry.CombinedHeight(484, 122, "Micro"));
             });
             Check("Notification : tour sans ID mais même session et début", delegate {
@@ -178,6 +179,12 @@ namespace ShinoCodexMonitor
                 done.SessionKey = "rollout-A.jsonl";
                 Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-5), done),
                     Report(Now, done)).Count == 0);
+                // A terminal timestamp in the future is never a confirmed alert.
+                LiveTask impossible = new LiveTask { Phase = LiveTaskPhase.Completed,
+                    SessionKey = "rollout-future.jsonl", StartedUtc = Now.AddSeconds(-8),
+                    FinishedUtc = Now.AddSeconds(10) };
+                Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10)),
+                    Report(Now, impossible)).Count == 0);
             });
             Check("Notification : jamais lors du tout premier scan", delegate {
                 LiveTask done = Parse(Now, Event("task_started", "", 5),
@@ -192,6 +199,15 @@ namespace ShinoCodexMonitor
                 old.SessionKey = done.SessionKey = "rollout-A.jsonl";
                 Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-70), old),
                     Report(Now, done)).Count == 0);
+                // Same-session ACTIVE snapshot is not enough: an old terminal
+                // event predating the last scan must not generate a new toast.
+                LiveTask recentlySeen = Parse(Now, Event("task_started", "stale", 80));
+                LiveTask staleFinish = Parse(Now, Event("task_started", "stale", 80),
+                    Event("task_complete", "stale", 40));
+                recentlySeen.SessionKey = staleFinish.SessionKey = "rollout-stale.jsonl";
+                Assert(TaskNotificationRules.NewTerminals(
+                    Report(Now.AddSeconds(-20), recentlySeen),
+                    Report(Now, staleFinish)).Count == 0);
             });
             Check("Notification : aucun faux positif après activité non confirmée", delegate {
                 LiveTask old = Parse(Now.AddSeconds(-120), Event("task_started", "", 140));
@@ -287,7 +303,7 @@ namespace ShinoCodexMonitor
             Check("Thread_source absent ne devient jamais racine confirmée", delegate {
                 LiveTask t = Parse(Now, Event("task_started", "unknown", 4));
                 Assert(!t.IsRootConfirmed && !t.IsSubagent &&
-                    t.ThreadSource == "Inconnue");
+                    t.ThreadSource == "Unknown");
             });
             Check("Turn complet 10 min 38 s : duration_ms fiable", delegate {
                 LiveTask t = Parse(Now,
@@ -383,7 +399,7 @@ namespace ShinoCodexMonitor
                 LiveTaskReport r = Report(Now, t);
                 r.ExaminedRoots = 1;
                 string sanitized = r.RedactedDiagnostics(Now);
-                Assert(sanitized.Contains("durée_ms=25000") &&
+                Assert(sanitized.Contains("duration_ms=25000") &&
                     !sanitized.Contains("PRIVATE_TURN_ID") &&
                     !sanitized.Contains("PRIVATE_FILE") &&
                     !sanitized.Contains("C:/secret") &&
@@ -393,10 +409,10 @@ namespace ShinoCodexMonitor
                 LiveTaskReport r = Report(Now);
                 string diagnostic = r.RedactedDiagnostics(Now);
                 Assert(diagnostic.Contains("NotVerified") &&
-                    diagnostic.Contains("Aucun tour principal observable."));
+                    diagnostic.Contains("No primary turn observed."));
             });
-            report.Insert(0, "SHINO // LIVE TASKS — " + passed + "/" + total +
-                " tests simulés réussis\r\n");
+            report.Insert(0, "CODEX PERISCOPE TASKS — " + passed + "/" + total +
+                " simulated tests passed\r\n");
             return report.ToString();
         }
     }

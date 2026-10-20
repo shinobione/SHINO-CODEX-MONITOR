@@ -14,7 +14,12 @@ TOP_LEVEL = {
     'BUILD-PREVIEW-V5.1.ps1','BUILD-PREVIEW-V5.1.bat',
     'BUILD-RELEASE-V5.1.ps1','BUILD-RELEASE-V5.1.bat',
     'INSTALLER-V5.1.bat','INSTALLER-V5.1.ps1','DESINSTALLER-V5.1.ps1',
-    'RELEASE-NOTES-V5.1.md'
+    'RELEASE-NOTES-V5.1.md',
+    'GENERATE-PERISCOPE-ICON.ps1','TEST-PERISCOPE-RADAR.ps1','BUILD-PERISCOPE-V5.2.ps1',
+    'INSTALL-PERISCOPE-V5.2.ps1','INSTALL-PERISCOPE-V5.2.bat',
+    'UNINSTALL-PERISCOPE-V5.2.ps1','README-EN.txt','BRANDING-V5.2.md',
+    'RELEASE-GATE-V5.2.md','PREMIUM-POLISH-V5.2.md','CODEX-PERISCOPE.ico','P0-MULTI-TASK-V5.2.md',
+    'OBSIDIAN-NATIVE-V5.2.md','design-qa.md'
 }
 ALLOW_DIRECTORIES = {'.github/workflows','src','tests'}
 ALLOW_EXT = {'.cs','.py','.yml','.json'}
@@ -30,6 +35,8 @@ SECRET_PATTERNS = [
 def approved_files():
     files = []
     for file in ROOT.rglob('*'):
+        if file.relative_to(ROOT).parts[0] in {'bin', 'dist', 'obj'}:
+            continue  # Explicit build outputs, not outgoing source/package inputs.
         if not file.is_file() or '.git' in file.parts or '__pycache__' in file.parts or file.suffix == '.pyc':
             continue
         files.append(file)

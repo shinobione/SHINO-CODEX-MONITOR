@@ -6,7 +6,7 @@ READER = (ROOT / "src" / "LiveTaskMonitor.cs").read_text(encoding="utf-8")
 VIEW = (ROOT / "src" / "ActivityGlyph.cs").read_text(encoding="utf-8")
 FORM = (ROOT / "src" / "MonitorForm.cs").read_text(encoding="utf-8")
 TESTS = (ROOT / "src" / "LiveTaskTests.cs").read_text(encoding="utf-8")
-BUILD = (ROOT / "BUILD-RELEASE-V5.1.ps1").read_text(encoding="utf-8-sig")
+BUILD = (ROOT / "BUILD-PERISCOPE-V5.2.ps1").read_text(encoding="utf-8-sig")
 CI = (ROOT / ".github/workflows/build-windows.yml").read_text(encoding="utf-8")
 PREFS = (ROOT / "src" / "Models.cs").read_text(encoding="utf-8")
 
@@ -27,24 +27,24 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("task_started", "task_complete", "turn_aborted",
                       "LiveTaskPhase.Unconfirmed", "ActivityMaxAgeSeconds"):
             self.assertIn(value, READER)
-        self.assertIn("phase == LiveTaskPhase.Active", FORM)
+        self.assertIn("v.State == RadarState.Active", FORM)
         self.assertIn('old.Phase == LiveTaskPhase.Active', READER)
 
     def test_graphics_lightweight_and_only_visible_animation(self):
         self.assertIn("Graphics", VIEW)
-        self.assertIn("g.DrawArc", VIEW)
+        self.assertIn("g.DrawLine(stroke, cx, cy", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
-        self.assertIn("taskDock.Bounds = activity", FORM)
+        self.assertIn("taskDock.Bounds=Units(DesktopGeometry.ActivityBounds(", FORM)
         self.assertNotIn("WebView2", VIEW)
         self.assertNotIn("Electron", VIEW)
         self.assertIn("taskMotion.Enabled = Visible", FORM)
         self.assertNotIn("LiveTaskWindow", FORM)
-        self.assertIn("taskDock.Controls.Add(taskGlyph);", FORM)
+        self.assertIn("taskDock.Controls.Add(taskDeck);", FORM)
 
     def test_notification_requires_observed_transition(self):
         self.assertIn("taskReport != null && settings.Alerts && settings.TaskAlerts", FORM)
         self.assertIn("TaskNotificationRules.NewTerminals(taskReport, fresh)", FORM)
-        self.assertIn("Tester la notification Windows", FORM)
+        self.assertIn("Test Windows notification", FORM)
         self.assertIn("ShowBalloonTip(6500", FORM)
         self.assertIn("SessionKey", READER)
         self.assertIn("string.IsNullOrEmpty(a.Id)", READER)
@@ -53,7 +53,7 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("duration_ms", READER)
         self.assertIn("ReadFirstMetadataLine", READER)
         self.assertIn("RedactedDiagnostics", READER)
-        self.assertIn("Copier le diagnostic des tours", FORM)
+        self.assertIn("Copy privacy-safe task diagnostics", FORM)
         self.assertIn("tray.ShowBalloonTip(5500", FORM)
 
     def test_options_and_preserved_quota_collector(self):

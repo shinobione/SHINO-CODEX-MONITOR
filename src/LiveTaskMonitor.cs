@@ -14,21 +14,24 @@ namespace ShinoCodexMonitor
     internal sealed class LiveTask
     {
         internal string Id = "";
+        internal bool IdentityUncertain;
+        internal string Identity { get { return SessionKey + "|" + StartedUtc.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) + "|" + Id; } }
+        internal LiveTask Copy() { return (LiveTask)MemberwiseClone(); }
         internal string SessionKey = ""; // rollout filename only; never path, content or credentials
-        internal string ThreadSource = "Inconnue";
-        internal string Originator = "Non communiqué";
+        internal string ThreadSource = "Unknown";
+        internal string Originator = "Not provided";
         internal bool IsSubagent;
         internal bool IsRootConfirmed;
         internal long? RecordedDurationMs;
-        internal string Workspace = "Projet non communiqué";
-        internal string Model = "Non communiqué";
-        internal string Effort = "Non communiqué";
+        internal string Workspace = "Project not provided";
+        internal string Model = "Not provided";
+        internal string Effort = "Not provided";
         internal LiveTaskPhase Phase;
         internal DateTimeOffset StartedUtc;
         internal DateTimeOffset? FinishedUtc;
         internal DateTimeOffset LastWriteUtc;
-        internal string Source = "Codex local / sessions JSONL (non documenté)";
-        internal string LastAction = "Activité non détaillée";
+        internal string Source = "Local Codex / JSONL sessions (undocumented)";
+        internal string LastAction = "Activity details unavailable";
 
         internal string PhaseLabel
         {
@@ -36,12 +39,12 @@ namespace ShinoCodexMonitor
             {
                 switch (Phase)
                 {
-                    case LiveTaskPhase.Active: return "EN COURS · observé";
-                    case LiveTaskPhase.Completed: return "TERMINÉ";
-                    case LiveTaskPhase.Failed: return "ÉCHEC";
-                    case LiveTaskPhase.Interrupted: return "INTERROMPU";
-                    case LiveTaskPhase.Unconfirmed: return "À VÉRIFIER";
-                    default: return "INDISPONIBLE";
+                    case LiveTaskPhase.Active: return "RUNNING · observed";
+                    case LiveTaskPhase.Completed: return "COMPLETED";
+                    case LiveTaskPhase.Failed: return "FAILED";
+                    case LiveTaskPhase.Interrupted: return "INTERRUPTED";
+                    case LiveTaskPhase.Unconfirmed: return "UNVERIFIED";
+                    default: return "UNAVAILABLE";
                 }
             }
         }
@@ -54,7 +57,7 @@ namespace ShinoCodexMonitor
                 RecordedDurationMs.Value >= 0 && RecordedDurationMs.Value <= 86400000L ?
                 TimeSpan.FromMilliseconds(RecordedDurationMs.Value) : end - StartedUtc;
             string prefix = Phase == LiveTaskPhase.Unconfirmed ? "≥ " : "";
-            if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " j " + span.Hours + " h";
+            if (span.TotalDays >= 1) return prefix + ((int)span.TotalDays) + " d " + span.Hours + " h";
             if (span.TotalHours >= 1) return prefix + ((int)span.TotalHours) + " h " + span.Minutes.ToString("00") + " min";
             return prefix + ((int)span.TotalMinutes).ToString("00") + ":" + span.Seconds.ToString("00");
         }
@@ -69,13 +72,13 @@ namespace ShinoCodexMonitor
         internal TaskDisplayKind Kind = TaskDisplayKind.NotVerified;
         internal LiveTask Primary;
         internal LiveTask LastTerminal;
-        internal string Detail = "Aucune activité actuelle vérifiable";
+        internal string Detail = "Current activity not verifiable";
     }
 
     internal sealed class LiveTaskReport
     {
         internal readonly List<LiveTask> Tasks = new List<LiveTask>();
-        internal string Message = "Aucune session Codex locale récente";
+        internal string Message = "No recent local Codex session";
         internal DateTimeOffset CheckedUtc;
         internal int ExaminedRoots;
         internal int IgnoredSubagents;
@@ -95,32 +98,32 @@ namespace ShinoCodexMonitor
         internal string RedactedDiagnostics(DateTimeOffset now)
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine("SHINO // CODEX V5.1 — DIAGNOSTIC DES TOURS (LECTURE SEULE)");
-            text.AppendLine("Relevé (UTC) : " +
-                (CheckedUtc == DateTimeOffset.MinValue ? "aucun" :
+            text.AppendLine("CODEX PERISCOPE V5.2 — READ-ONLY TASK DIAGNOSTICS");
+            text.AppendLine("Reading (UTC): " +
+                (CheckedUtc == DateTimeOffset.MinValue ? "none" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
-            text.AppendLine("Racines inspectées : " + ExaminedRoots +
-                " ; enfants ignorés : " + IgnoredSubagents +
-                " ; origines non classées : " + UnknownOrigins);
+            text.AppendLine("Root sessions checked: " + ExaminedRoots +
+                " ; child sessions excluded: " + IgnoredSubagents +
+                " ; unknown origins: " + UnknownOrigins);
             TaskDisplay display = DisplayAt(now);
-            text.AppendLine("État observé : " + display.Kind + " ; " + display.Detail);
+            text.AppendLine("Observed status: " + display.Kind + " ; " + display.Detail);
             int i = 0;
             foreach (LiveTask task in Tasks.OrderByDescending(t => t.StartedUtc).Take(6))
             {
                 // No session UUID, full path, cwd, user message, command or token.
-                text.AppendLine("Tour #" + (++i) + " : " +
+                text.AppendLine("Turn #" + (++i) + " : " +
                     task.Phase + " ; source=" + task.ThreadSource +
-                    " ; démarré (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
-                    " ; terminé (UTC)=" +
+                    " ; started (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
+                    " ; completed (UTC)=" +
                     (task.FinishedUtc.HasValue ?
                         task.FinishedUtc.Value.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "absent") +
-                    " ; durée=" + task.Duration(now) +
-                    " ; durée_ms=" + (task.RecordedDurationMs.HasValue ?
-                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "absente") +
-                    " ; fraîcheur (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
+                    " ; duration=" + task.Duration(now) +
+                    " ; duration_ms=" + (task.RecordedDurationMs.HasValue ?
+                        task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "missing") +
+                    " ; freshness (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
-            if (i == 0) text.AppendLine("Aucun tour principal observable.");
-            text.AppendLine("Aucun prompt, chemin, identifiant de session ou secret copié.");
+            if (i == 0) text.AppendLine("No primary turn observed.");
+            text.AppendLine("No prompts, paths, session IDs or secrets copied.");
             return text.ToString();
         }
 
@@ -132,7 +135,7 @@ namespace ShinoCodexMonitor
             double scanAge = (now - CheckedUtc).TotalSeconds;
             if (CheckedUtc == DateTimeOffset.MinValue || scanAge < -5 || scanAge > 25)
             {
-                display.Detail = "Relevé des tâches ancien ou indisponible";
+                display.Detail = "Task reading stale or unavailable";
                 return display;
             }
 
@@ -151,7 +154,7 @@ namespace ShinoCodexMonitor
             {
                 display.Primary = active;
                 display.Kind = TaskDisplayKind.ObservedActive;
-                display.Detail = "Événement de début local · activité récente";
+                display.Detail = "Local start event · recent activity";
                 return display;
             }
 
@@ -164,7 +167,7 @@ namespace ShinoCodexMonitor
             {
                 display.Primary = uncertain;
                 display.Kind = TaskDisplayKind.Uncertain;
-                display.Detail = "Début enregistré, mais activité non vérifiable";
+                display.Detail = "Start recorded, but activity unverified";
                 return display;
             }
 
@@ -177,13 +180,13 @@ namespace ShinoCodexMonitor
                 {
                     display.Primary = display.LastTerminal;
                     display.Kind = TaskDisplayKind.RecentTerminal;
-                    display.Detail = "Dernier tour local terminé, pas l'état global de Codex";
+                    display.Detail = "Last local turn completed, not the global Codex status";
                     return display;
                 }
-                display.Detail = "Dernier tour enregistré : terminé ; activité actuelle inconnue";
+                display.Detail = "Last recorded turn: completed; current activity unknown";
             }
             else
-                display.Detail = "Aucune exécution active confirmée dans les journaux";
+                display.Detail = "No running task confirmed in logs";
             return display;
         }
     }
@@ -200,9 +203,9 @@ namespace ShinoCodexMonitor
                 task.Phase == LiveTaskPhase.Failed || task.Phase == LiveTaskPhase.Interrupted);
         }
 
-        private static bool SameTurn(LiveTask a, LiveTask b)
+        internal static bool SameTurn(LiveTask a, LiveTask b)
         {
-            if (a == null || b == null || string.IsNullOrEmpty(a.SessionKey) ||
+            if (a == null || b == null || a.IdentityUncertain || b.IdentityUncertain || string.IsNullOrEmpty(a.SessionKey) ||
                 string.IsNullOrEmpty(b.SessionKey) ||
                 !string.Equals(a.SessionKey, b.SessionKey, StringComparison.Ordinal) ||
                 a.StartedUtc != b.StartedUtc) return false;
@@ -220,9 +223,12 @@ namespace ShinoCodexMonitor
             if (pollingGap < TimeSpan.Zero || pollingGap > TimeSpan.FromSeconds(30)) return found;
             foreach (LiveTask task in current.Tasks)
             {
-                if (!IsTerminal(task) || !task.FinishedUtc.HasValue ||
+                if (task.IdentityUncertain || !IsTerminal(task) || !task.FinishedUtc.HasValue ||
                     task.FinishedUtc.Value < task.StartedUtc ||
-                    string.IsNullOrEmpty(task.SessionKey)) continue;
+                    string.IsNullOrEmpty(task.SessionKey) ||
+                    // An old terminal event is history, not a new notification.
+                    task.FinishedUtc.Value < previous.CheckedUtc.AddSeconds(-5) ||
+                    task.FinishedUtc.Value > current.CheckedUtc.AddSeconds(5)) continue;
                 bool wasActive = previous.Tasks.Any(old => old.Phase == LiveTaskPhase.Active &&
                     SameTurn(old, task));
                 bool wasAlreadySeen = previous.Tasks.Any(old => SameTurn(old, task));
@@ -246,6 +252,15 @@ namespace ShinoCodexMonitor
         private const int ActiveRootFallbackBytes = 16777216; // only freshest root; 16 MiB max
         private const int MaxFiles = 12;
         private const int DiscoveryFiles = 48;
+        internal const int MaxTurnsPerSession = 64;
+        private sealed class SessionCache
+        {
+            internal long Length;
+            internal DateTime Write;
+            internal List<LiveTask> Turns;
+        }
+        private static readonly Dictionary<string,SessionCache> Sessions = new Dictionary<string,SessionCache>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object ReadGate = new object();
         // Immutable, sanitized metadata only; never keep the original session_meta,
         // system prompt, instructions, auth or response content in this cache.
         private static readonly Dictionary<string, string> HeaderCache =
@@ -260,12 +275,14 @@ namespace ShinoCodexMonitor
         }
 
         internal static LiveTaskReport Read(DateTimeOffset now)
+        { lock (ReadGate) return ReadCore(now); }
+        private static LiveTaskReport ReadCore(DateTimeOffset now)
         {
             LiveTaskReport report = new LiveTaskReport { CheckedUtc = now };
             string root = SessionRoot();
             if (!Directory.Exists(root))
             {
-                report.Message = "Indisponible · aucun dossier de sessions locales Codex";
+                report.Message = "Unavailable · none Codex local sessions directory";
                 return report;
             }
             try
@@ -289,6 +306,7 @@ namespace ShinoCodexMonitor
                 int checkedRoots = 0;
                 int ignoredChildren = 0;
                 int unknownHeaders = 0;
+                int expansionBudget = ActiveRootFallbackBytes;
                 foreach (FileInfo info in candidates.OrderByDescending(f => f.LastWriteTimeUtc)
                     .Take(DiscoveryFiles))
                 {
@@ -296,30 +314,43 @@ namespace ShinoCodexMonitor
                     {
                         // Root session may have less recent disk activity than 12 subagents.
                         // Inspect metadata FIRST, then parse a bounded tail only for roots.
+                        SessionCache priorSource;
+                        if (Sessions.TryGetValue(info.FullName,out priorSource) && info.Length < priorSource.Length) HeaderCache.Remove(info.FullName);
                         string sessionMeta = ReadFirstMetadataLine(info.FullName);
                         if (sessionMeta == null) { unknownHeaders++; continue; }
                         string threadKind = HeaderThreadKind(sessionMeta);
                         if (threadKind == "subagent") { ignoredChildren++; continue; }
                         if (threadKind != "user") { unknownHeaders++; continue; }
                         if (++checkedRoots > MaxFiles) break;
-                        LiveTask task = ParseLines(
-                            new string[] { sessionMeta }.Concat(ReadTail(info.FullName, TailBytes)),
-                            new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
-                        // A 10+ minute Desktop turn may generate more than 512 KiB
-                        // of JSONL; the start event then falls outside the tail.
-                        // Only expand for the freshest root, never every old file.
-                        if (task == null && checkedRoots == 1 &&
-                            info.LastWriteTimeUtc >= now.UtcDateTime.AddMinutes(-2))
-                            task = ParseLines(new string[] { sessionMeta }.Concat(
-                                ReadTail(info.FullName, ActiveRootFallbackBytes)),
-                                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), now);
-                        if (task != null) task.SessionKey = info.Name;
-                        if (task != null && !task.IsRootConfirmed) continue;
-                        if (task != null && (task.Phase == LiveTaskPhase.Active ||
-                            (task.Phase == LiveTaskPhase.Unconfirmed &&
-                            now - task.LastWriteUtc < TimeSpan.FromMinutes(30)) ||
-                            now - (task.FinishedUtc ?? task.StartedUtc) < TimeSpan.FromHours(2)))
-                            report.Tasks.Add(task);
+                        SessionCache cache;
+                        bool known = Sessions.TryGetValue(info.FullName,out cache);
+                        List<LiveTask> turns;
+                        if (known && cache.Length == info.Length && cache.Write == info.LastWriteTimeUtc)
+                            turns = cache.Turns.Select(t => t.Copy()).ToList();
+                        else {
+                            IEnumerable<LiveTask> seed = known && info.Length >= cache.Length ? cache.Turns : null;
+                            turns = ParseCollection(new [] {sessionMeta}.Concat(ReadTail(info.FullName,TailBytes)),
+                                new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,seed);
+                            // The existing global fallback bound is retained. Warm sources keep
+                            // sanitized starts instead of expanding repeatedly as tails grow.
+                            if (turns.Count == 0 && expansionBudget > 0 && info.LastWriteTimeUtc >= now.UtcDateTime.AddMinutes(-2)) {
+                                int allowance=Math.Min(4*1024*1024,expansionBudget);
+                                expansionBudget-=allowance;
+                                turns = ParseTurns(new [] {sessionMeta}.Concat(ReadTail(info.FullName,allowance)),
+                                    new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now);
+                            }
+                            if (Sessions.Count >= 64 && !known) Sessions.Clear();
+                            Sessions[info.FullName] = new SessionCache { Length = info.Length, Write = info.LastWriteTimeUtc,
+                                Turns = turns.Select(t => t.Copy()).ToList() };
+                        }
+                        foreach (LiveTask task in turns) {
+                            task.SessionKey = info.Name;
+                            Expire(task,now);
+                            if (!task.IsRootConfirmed || task.IsSubagent) continue;
+                            if (task.Phase == LiveTaskPhase.Active ||
+                                (task.Phase == LiveTaskPhase.Unconfirmed && now-task.LastWriteUtc < TimeSpan.FromMinutes(30)) ||
+                                now-(task.FinishedUtc ?? task.StartedUtc) < TimeSpan.FromHours(2)) report.Tasks.Add(task);
+                        }
                     }
                     catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
@@ -331,14 +362,14 @@ namespace ShinoCodexMonitor
                 report.ExaminedRoots = checkedRoots;
                 report.IgnoredSubagents = ignoredChildren;
                 report.UnknownOrigins = unknownHeaders;
-                report.Message = "Tours principaux locaux · " + checkedRoots +
-                    " inspecté(s), " + ignoredChildren + " sous-agent(s) ignoré(s)" +
-                    (unknownHeaders > 0 ? " · " + unknownHeaders + " source(s) non classée(s)" : "");
+                report.Message = "Local root turns · " + checkedRoots +
+                    " checked, " + ignoredChildren + " subagents excluded" +
+                    (unknownHeaders > 0 ? " · " + unknownHeaders + " unclassified sources" : "");
                 if (report.Tasks.Count == 0)
-                    report.Message += " · tour actuel non vérifiable";
+                    report.Message += " · current turn unverified";
             }
-            catch (UnauthorizedAccessException) { report.Message = "Indisponible · accès au dossier refusé"; }
-            catch (IOException) { report.Message = "À vérifier · lecture des sessions interrompue"; }
+            catch (UnauthorizedAccessException) { report.Message = "Unavailable · folder access denied"; }
+            catch (IOException) { report.Message = "Unverified · session read interrupted"; }
             return report;
         }
 
@@ -436,129 +467,127 @@ namespace ShinoCodexMonitor
             return records;
         }
 
+        // Legacy one-turn API remains for compatibility tests; production consumes ParseTurns.
         internal static LiveTask ParseLines(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now)
+        { return ParseTurns(lines,fileWriteUtc,now).LastOrDefault(); }
+        internal static List<LiveTask> ParseTurns(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now)
+        { return ParseCollection(lines,fileWriteUtc,now,null); }
+        private static List<LiveTask> ParseCollection(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now, IEnumerable<LiveTask> seed)
         {
-            LiveTask last = null;
-            System.Web.Script.Serialization.JavaScriptSerializer serializer =
-                new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
-            string workspace = "Projet non communiqué";
-            string originator = "Non communiqué";
-            string threadSource = "Inconnue";
-            bool isSubagent = false;
-            bool isRoot = false;
-            foreach (string line in lines)
-            {
-                if (string.IsNullOrEmpty(line) || line.Length > 1048576) continue;
-                if (!Relevant(line)) continue;
-                Dictionary<string, object> root;
-                try { root = Json.Object(serializer.DeserializeObject(line)); }
-                catch (ArgumentException) { continue; }
+            List<LiveTask> turns = seed == null ? new List<LiveTask>() : seed.Where(t =>
+                t.FinishedUtc.HasValue ? now-t.FinishedUtc.Value < TimeSpan.FromHours(2) : now-t.LastWriteUtc < TimeSpan.FromMinutes(30)).Select(t => t.Copy()).ToList();
+            System.Web.Script.Serialization.JavaScriptSerializer serializer = new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = 1048576 };
+            string workspace = "Project not provided", originator = "Not provided", threadSource = "Unknown";
+            bool isSubagent = false, isRoot = false;
+            foreach (string line in lines) {
+                if (string.IsNullOrEmpty(line) || line.Length > 1048576 || !Relevant(line)) continue;
+                Dictionary<string,object> root;
+                try { root = Json.Object(serializer.DeserializeObject(line)); } catch (ArgumentException) { continue; }
                 if (root == null) continue;
-                string type = Json.String(Json.Get(root, "type"));
-                Dictionary<string, object> payload = Json.Object(Json.Get(root, "payload"));
-                if (payload == null) continue;
-                if (type == "session_meta")
-                {
-                    string cwd = Json.String(Json.Get(payload, "cwd"));
-                    if (!string.IsNullOrEmpty(cwd))
-                    {
-                        string normalized = cwd.Replace('\\', '/').TrimEnd('/');
-                        string name = normalized.Substring(normalized.LastIndexOf('/') + 1);
-                        workspace = Clean(name, "Projet non communiqué");
-                    }
-                    originator = Clean(Json.String(Json.Get(payload, "originator")), originator);
-                    object threadSourceRaw = Json.Get(payload, "thread_source");
-                    string kind = Json.String(threadSourceRaw as string);
-                    Dictionary<string, object> kindObject = Json.Object(threadSourceRaw);
-                    if (kindObject != null && kindObject.Count > 0)
-                        kind = kindObject.Keys.FirstOrDefault();
-                    threadSource = Clean(kind, threadSource);
-                    string parentId = Json.String(Json.Get(payload, "parent_thread_id"));
-                    isSubagent = !string.IsNullOrWhiteSpace(parentId) ||
-                        threadSource.IndexOf("subagent", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        threadSource.IndexOf("sub_agent", StringComparison.OrdinalIgnoreCase) >= 0;
-                    isRoot = !isSubagent &&
-                        string.Equals(threadSource, "user", StringComparison.OrdinalIgnoreCase);
-                    if (last != null)
-                    {
-                        last.Workspace = workspace;
-                        last.Originator = originator;
-                        last.ThreadSource = threadSource;
-                        last.IsSubagent = isSubagent;
-                        last.IsRootConfirmed = isRoot;
-                    }
+                string type = Json.String(Json.Get(root,"type"));
+                Dictionary<string,object> payload = Json.Object(Json.Get(root,"payload")); if (payload == null) continue;
+                if (type == "session_meta") {
+                    string cwd = Json.String(Json.Get(payload,"cwd"));
+                    if (!string.IsNullOrEmpty(cwd)) { string path = cwd.Replace('\\','/').TrimEnd('/'); workspace = Clean(path.Substring(path.LastIndexOf('/')+1),workspace); }
+                    originator = Clean(Json.String(Json.Get(payload,"originator")),originator);
+                    object raw = Json.Get(payload,"thread_source");
+                    string kind = raw as string; Dictionary<string,object> kindObject = Json.Object(raw);
+                    if (kindObject != null && kindObject.Count > 0) kind = kindObject.Keys.FirstOrDefault();
+                    threadSource = Clean(kind,threadSource);
+                    isSubagent = !string.IsNullOrWhiteSpace(Json.String(Json.Get(payload,"parent_thread_id"))) ||
+                        threadSource.IndexOf("subagent",StringComparison.OrdinalIgnoreCase) >= 0 || threadSource.IndexOf("sub_agent",StringComparison.OrdinalIgnoreCase) >= 0;
+                    isRoot = !isSubagent && string.Equals(threadSource,"user",StringComparison.OrdinalIgnoreCase);
+                    foreach (LiveTask t in turns) { t.Workspace=workspace; t.Originator=originator; t.ThreadSource=threadSource; t.IsSubagent=isSubagent; t.IsRootConfirmed=isRoot; }
                     continue;
                 }
-                if (type == "event_msg")
-                {
-                    string ev = Json.String(Json.Get(payload, "type"));
-                    string turnId = Json.String(Json.Get(payload, "turn_id"));
-                    DateTimeOffset eventTime = Timestamp(root, now);
-                    if (ev == "task_started" || ev == "turn_started")
-                    {
-                        if (eventTime == DateTimeOffset.MinValue || eventTime > now.AddSeconds(10)) continue;
-                        long? epoch = Json.Long(Json.Get(payload, "started_at"));
-                        if (epoch.HasValue)
-                        {
-                            try
-                            {
-                                DateTimeOffset candidate = DateTimeOffset.FromUnixTimeSeconds(epoch.Value);
-                                if (candidate <= now.AddSeconds(10) && candidate >= eventTime.AddMinutes(-5))
-                                    eventTime = candidate;
-                            }
-                            catch (ArgumentOutOfRangeException) { }
-                        }
-                        last = new LiveTask { Id = Clean(turnId, ""), Workspace = workspace,
-                            ThreadSource = threadSource, Originator = originator,
-                            IsSubagent = isSubagent, IsRootConfirmed = isRoot,
-                            StartedUtc = eventTime, Phase = LiveTaskPhase.Active, LastWriteUtc = fileWriteUtc };
+                string ev = type == "event_msg" ? Json.String(Json.Get(payload,"type")) : "";
+                object idValue=Json.Get(payload,"turn_id");
+                bool invalidIdType=idValue != null && !(idValue is string);
+                string rawId = idValue as string;
+                string id = ReliableId(rawId);
+                DateTimeOffset time = Timestamp(root,now);
+                if (ev == "task_started" || ev == "turn_started") {
+                    if (time == DateTimeOffset.MinValue || time > now.AddSeconds(10)) continue;
+                    long? epoch = Json.Long(Json.Get(payload,"started_at"));
+                    if (epoch.HasValue) try {
+                        DateTimeOffset candidate = DateTimeOffset.FromUnixTimeSeconds(epoch.Value);
+                        if (candidate <= now.AddSeconds(10) && candidate >= time.AddMinutes(-5)) time = candidate;
+                    } catch (ArgumentOutOfRangeException) { }
+                    LiveTask existing = turns.FirstOrDefault(t => id.Length > 0 ? t.Id == id : t.StartedUtc == time);
+                    if (existing != null) {
+                        if (existing.StartedUtc != time) Uncertain(existing);
+                        continue; // Repeated records in overlapping tails never create/restart a task.
                     }
-                    else if (last != null && (string.IsNullOrEmpty(turnId) || turnId == last.Id))
-                    {
-                        if (ev == "task_complete" || ev == "turn_complete" || ev == "turn_completed")
-                        {
-                            last.Phase = Json.Get(payload, "error") != null ? LiveTaskPhase.Failed : LiveTaskPhase.Completed;
-                            last.FinishedUtc = eventTime == DateTimeOffset.MinValue ? (DateTimeOffset?)null : eventTime;
-                            long? duration = Json.Long(Json.Get(payload, "duration_ms"));
-                            if (duration.HasValue && duration.Value >= 0 && duration.Value <= 86400000L &&
-                                last.FinishedUtc.HasValue &&
-                                Math.Abs(((last.FinishedUtc.Value - last.StartedUtc).TotalMilliseconds) -
-                                    duration.Value) <= 120000)
-                                last.RecordedDurationMs = duration;
-                        }
-                        else if (ev == "turn_aborted" || ev == "task_aborted")
-                        {
-                            last.Phase = LiveTaskPhase.Interrupted;
-                            last.FinishedUtc = eventTime == DateTimeOffset.MinValue ? (DateTimeOffset?)null : eventTime;
-                        }
+                    List<LiveTask> open = turns.Where(t => !t.FinishedUtc.HasValue).ToList();
+                    if ((id.Length == 0 && open.Count > 0) || open.Any(t => t.Id.Length == 0)) {
+                        foreach (LiveTask t in open) Uncertain(t);
+                        continue; // No reliable evidence for an additional distinct mission.
+                    }
+                    if (turns.Count >= MaxTurnsPerSession) {
+                        LiveTask oldestTerminal=turns.Where(t => t.FinishedUtc.HasValue).OrderBy(t => t.FinishedUtc).FirstOrDefault();
+                        if (oldestTerminal != null) turns.Remove(oldestTerminal);
+                        else { foreach (LiveTask t in open) Uncertain(t); continue; }
+                    }
+                    turns.Add(new LiveTask { Id=id, Workspace=workspace, Originator=originator, ThreadSource=threadSource,
+                        IsSubagent=isSubagent, IsRootConfirmed=isRoot, StartedUtc=time, LastWriteUtc=time,
+                        Phase=LiveTaskPhase.Active, IdentityUncertain=invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0) });
+                    continue;
+                }
+                if (invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0)) { foreach (LiveTask t in turns.Where(t => !t.FinishedUtc.HasValue)) Uncertain(t); continue; }
+                List<LiveTask> matches = id.Length > 0 ? turns.Where(t => t.Id == id).ToList() : turns.Where(t => !t.FinishedUtc.HasValue).ToList();
+                if (matches.Count == 0 && type == "turn_context" && id.Length > 0) {
+                    List<LiveTask> open=turns.Where(t => !t.FinishedUtc.HasValue).ToList();
+                    if (open.Count == 1 && open[0].Id.Length == 0 && !open[0].IdentityUncertain && time >= open[0].StartedUtc) {
+                        open[0].Id=id; matches.Add(open[0]);
                     }
                 }
-                else if (type == "turn_context" && last != null && last.Phase == LiveTaskPhase.Active)
-                {
-                    string turnId = Json.String(Json.Get(payload, "turn_id"));
-                    if (!string.IsNullOrEmpty(turnId) && !string.IsNullOrEmpty(last.Id) && turnId != last.Id) continue;
-                    last.Model = Clean(Json.String(Json.Get(payload, "model")), last.Model);
-                    string effort = Json.String(Json.Get(payload, "effort")) ??
-                        Json.String(Json.Get(payload, "reasoning_effort")) ??
-                        Json.String(Json.Get(payload, "model_reasoning_effort"));
-                    Dictionary<string, object> mode = Json.Object(Json.Get(payload, "collaboration_mode"));
-                    Dictionary<string, object> settings = Json.Object(Json.Get(mode, "settings"));
-                    if (effort == null) effort = Json.String(Json.Get(settings, "model_reasoning_effort"));
-                    last.Effort = Clean(effort, last.Effort);
+                // Duplicate anonymous terminal may refer to the only recorded turn.
+                if (matches.Count == 0 && id.Length == 0 && turns.Count == 1) matches.Add(turns[0]);
+                if (matches.Count != 1) {
+                    if (id.Length == 0) foreach (LiveTask t in matches) Uncertain(t);
+                    continue;
+                }
+                LiveTask task = matches[0];
+                if (task.IdentityUncertain || time == DateTimeOffset.MinValue) continue;
+                if (type == "turn_context" && !task.FinishedUtc.HasValue) {
+                    if (time < task.StartedUtc) continue;
+                    task.Model = Clean(Json.String(Json.Get(payload,"model")),task.Model);
+                    string effort = Json.String(Json.Get(payload,"effort")) ?? Json.String(Json.Get(payload,"reasoning_effort")) ?? Json.String(Json.Get(payload,"model_reasoning_effort"));
+                    Dictionary<string,object> mode = Json.Object(Json.Get(payload,"collaboration_mode"));
+                    if (effort == null) effort = Json.String(Json.Get(Json.Object(Json.Get(mode,"settings")),"model_reasoning_effort"));
+                    task.Effort=Clean(effort,task.Effort); task.LastWriteUtc = time > task.LastWriteUtc ? time : task.LastWriteUtc; task.Phase=LiveTaskPhase.Active;
+                }
+                else if (ev == "task_complete" || ev == "turn_complete" || ev == "turn_completed" || ev == "turn_aborted" || ev == "task_aborted") {
+                    LiveTaskPhase phase = ev == "turn_aborted" || ev == "task_aborted" ? LiveTaskPhase.Interrupted : Json.Get(payload,"error") != null ? LiveTaskPhase.Failed : LiveTaskPhase.Completed;
+                    if (time < task.StartedUtc || (task.FinishedUtc.HasValue && (task.FinishedUtc != time || task.Phase != phase))) { Uncertain(task); continue; }
+                    task.Phase=phase; task.FinishedUtc=time; task.LastWriteUtc=time;
+                    long? duration=Json.Long(Json.Get(payload,"duration_ms"));
+                    if (duration.HasValue && duration.Value >= 0 && duration.Value <= 86400000L && Math.Abs((time-task.StartedUtc).TotalMilliseconds-duration.Value) <= 120000) task.RecordedDurationMs=duration;
                 }
             }
-            if (last == null) return null;
-            if (last.Phase == LiveTaskPhase.Active)
-            {
-                double age = (now - fileWriteUtc).TotalSeconds;
-                if (age < -5 || age > ActivityMaxAgeSeconds) last.Phase = LiveTaskPhase.Unconfirmed;
+            foreach (LiveTask task in turns) {
+                // Generic file writes may support freshness only for a uniquely open turn
+                // that never overlaps another known turn in this session.
+                bool overlap = turns.Any(t => t != task && t.StartedUtc <= now && (t.FinishedUtc ?? now) >= task.StartedUtc);
+                if (!task.FinishedUtc.HasValue && !task.IdentityUncertain && !overlap && fileWriteUtc >= task.LastWriteUtc) {
+                    task.LastWriteUtc=fileWriteUtc; task.Phase=LiveTaskPhase.Active;
+                }
+                Expire(task,now);
             }
-            if (last.FinishedUtc.HasValue && last.FinishedUtc.Value < last.StartedUtc)
-            {
-                last.Phase = LiveTaskPhase.Unconfirmed;
-                last.FinishedUtc = null;
-            }
-            return last;
+            return turns;
+        }
+        private static string ReliableId(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            if (value.Length > 128 || value.Any(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_')) return "";
+            return value;
+        }
+        private static void Uncertain(LiveTask task)
+        { task.IdentityUncertain=true; task.Phase=LiveTaskPhase.Unconfirmed; task.FinishedUtc=null; task.RecordedDurationMs=null; }
+        private static void Expire(LiveTask task, DateTimeOffset now)
+        {
+            double age=(now-task.LastWriteUtc).TotalSeconds;
+            if (task.IdentityUncertain || (task.Phase == LiveTaskPhase.Active && (age < -5 || age > ActivityMaxAgeSeconds))) task.Phase=LiveTaskPhase.Unconfirmed;
         }
 
         private static bool Relevant(string line)

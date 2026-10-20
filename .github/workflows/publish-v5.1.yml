@@ -2,9 +2,9 @@ name: Publish SHINO Codex Monitor v5.1.0
 
 # Authorized publication: this workflow runs only after a vetted merge to main.
 # It builds and verifies the release from the merge commit, not from PR artifacts.
+# Legacy v5.1 publisher is already completed. Manual dispatch only:
+# never fail a v5.2 main merge or attempt another v5.1 publication.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

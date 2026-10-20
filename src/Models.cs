@@ -55,6 +55,9 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset Utc;
         internal double? Five;
         internal double? Week;
+        internal DateTimeOffset? FiveResetUtc, WeekResetUtc;
+        internal string Source = "Not recorded (legacy/local history)";
+        internal bool FiveConflict, WeekConflict;
     }
     internal sealed class Preferences
     {
@@ -146,10 +149,10 @@ namespace ShinoCodexMonitor
     {
         internal static string State(DateTimeOffset? lastSuccess, int failures, int refreshSeconds, DateTimeOffset now)
         {
-            if (!lastSuccess.HasValue) return "Indisponible";
+            if (!lastSuccess.HasValue) return "Unavailable";
             double age = (now - lastSuccess.Value).TotalSeconds;
-            if (age < -5 || age >= refreshSeconds * 2) return "Ancienne donnée";
-            if (failures > 0) return "À vérifier";
+            if (age < -5 || age >= refreshSeconds * 2) return "Stale data";
+            if (failures > 0) return "Unverified";
             return "Direct";
         }
         internal static int Backoff(int failures, int refreshSeconds)
@@ -164,7 +167,7 @@ namespace ShinoCodexMonitor
         internal static Snapshot Parse(object result)
         {
             Dictionary<string, object> root = Json.Object(result);
-            if (root == null) throw new InvalidDataException("Réponse Codex mal formée.");
+            if (root == null) throw new InvalidDataException("Malformed Codex response.");
             Dictionary<string, object> buckets = Json.Object(Json.Get(root, "rateLimitsByLimitId"));
             Dictionary<string, object> limits = buckets != null ? Json.Object(Json.Get(buckets, "codex")) : null;
             if (limits == null)
@@ -174,10 +177,10 @@ namespace ShinoCodexMonitor
                 {
                     string limitId = Json.String(Json.Get(limits, "limitId"));
                     if (!string.IsNullOrEmpty(limitId) && limitId != "codex")
-                        throw new InvalidDataException("Quota global Codex absent : uniquement un quota spécifique au modèle.");
+                        throw new InvalidDataException("Global Codex quota missing: model-specific quota only.");
                 }
             }
-            if (limits == null) throw new InvalidDataException("Quota global Codex non communiqué.");
+            if (limits == null) throw new InvalidDataException("Global Codex quota not supplied.");
             Snapshot snap = new Snapshot();
             snap.CapturedUtc = DateTimeOffset.UtcNow;
             QuotaWindow[] all = { ReadWindow(Json.Get(limits, "primary")), ReadWindow(Json.Get(limits, "secondary")) };
@@ -187,18 +190,18 @@ namespace ShinoCodexMonitor
                 if (w.Minutes == 300)
                 {
                     if (snap.Five != null && (Math.Abs(snap.Five.Remaining - w.Remaining) > 0.01 || snap.Five.ResetUtc != w.ResetUtc))
-                        throw new InvalidDataException("Fenêtres 5 h contradictoires.");
+                        throw new InvalidDataException("Conflicting 5-hour windows.");
                     snap.Five = w;
                 }
                 if (w.Minutes == 10080)
                 {
                     if (snap.Week != null && (Math.Abs(snap.Week.Remaining - w.Remaining) > 0.01 || snap.Week.ResetUtc != w.ResetUtc))
-                        throw new InvalidDataException("Fenêtres 7 j contradictoires.");
+                        throw new InvalidDataException("Conflicting weekly windows.");
                     snap.Week = w;
                 }
             }
             if (snap.Five == null && snap.Week == null)
-                throw new InvalidDataException("Aucune fenêtre Codex 5 h / 7 j valide renvoyée.");
+                throw new InvalidDataException("No valid Codex 5-hour or weekly window returned.");
             snap.UsageAllowed = Json.Bool(Json.Get(root, "ordinaryUsageAllowed"));
             Dictionary<string, object> credits = Json.Object(Json.Get(root, "rateLimitResetCredits"));
             int? available = Json.Int(Json.Get(credits, "availableCount"));

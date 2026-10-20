@@ -106,7 +106,7 @@ namespace ShinoCodexMonitor
                 info.StandardOutputEncoding = new UTF8Encoding(false);
                 process = new Process();
                 process.StartInfo = info;
-                if (!process.Start()) throw new IOException("Échec du démarrage du serveur Codex.");
+                if (!process.Start()) throw new IOException("Failed to start Codex server.");
                 lock (Gate) activeProcess = process;
                 Process child = process;
                 deadline = new Timer(delegate(object state) {
@@ -123,13 +123,13 @@ namespace ShinoCodexMonitor
                 stdin.WriteLine("{\"method\":\"account/rateLimits/read\",\"id\":2}");
                 stdin.Flush();
                 Dictionary<string, object> response = WaitForId(stdout, 2, 60);
-                CheckRpcError(response, "Lecture des quotas");
+                CheckRpcError(response, "Read quotas");
                 return QuotaParser.Parse(Json.Get(response, "result"));
             }
             catch (Exception error)
             {
                 if (Interlocked.CompareExchange(ref timedOut, 0, 0) == 1)
-                    throw new TimeoutException("Délai de réponse Codex dépassé (20 s).");
+                    throw new TimeoutException("Codex response timeout (20 s).");
                 throw new InvalidOperationException(SafeMessage(error), error);
             }
             finally
@@ -145,10 +145,10 @@ namespace ShinoCodexMonitor
         }
         private static string SafeMessage(Exception e)
         {
-            string m = e.Message ?? "Erreur inconnue";
+            string m = e.Message ?? "Unknown error";
             // Never record CLI output, RPC bodies or secrets in logs/UI.
             if (m.IndexOf("401", StringComparison.OrdinalIgnoreCase) >= 0 || m.IndexOf("403", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "Accès Codex refusé (401/403).";
+                return "Codex access denied (401/403).";
             return m.Length > 150 ? m.Substring(0, 150) : m;
         }
         private static Dictionary<string, object> WaitForId(StreamReader stdout, int id, int maxLines)
@@ -156,14 +156,14 @@ namespace ShinoCodexMonitor
             for (int i = 0; i < maxLines; i++)
             {
                 string line = stdout.ReadLine();
-                if (line == null) throw new IOException("Connexion interrompue par Codex.");
-                if (line.Length > 1048576) throw new InvalidDataException("Réponse Codex trop volumineuse.");
+                if (line == null) throw new IOException("Codex connection interrupted.");
+                if (line.Length > 1048576) throw new InvalidDataException("Codex response too large.");
                 Dictionary<string, object> obj;
                 try { obj = Json.Object(Json.Serializer.DeserializeObject(line)); }
                 catch (ArgumentException) { continue; }
                 if (obj != null && Json.Int(Json.Get(obj, "id")) == id) return obj;
             }
-            throw new InvalidDataException("Réponse Codex attendue absente.");
+            throw new InvalidDataException("Missing expected Codex response.");
         }
         private static void CheckRpcError(Dictionary<string, object> response, string step)
         {
@@ -174,8 +174,8 @@ namespace ShinoCodexMonitor
                 string privateMessage = Json.String(Json.Get(detail, "message")) ?? "";
                 // Inspect error code/message only, never print the response body.
                 if (code == "401" || code == "403" || privateMessage.Contains("401") || privateMessage.Contains("403"))
-                    throw new UnauthorizedAccessException("Accès Codex refusé (401/403).");
-                throw new InvalidOperationException(step + " refusée par Codex" + (code.Length <= 8 ? " (" + code + ")" : "") + ".");
+                    throw new UnauthorizedAccessException("Codex access denied (401/403).");
+                throw new InvalidOperationException(step + " rejected by Codex" + (code.Length <= 8 ? " (" + code + ")" : "") + ".");
             }
         }
     }

@@ -29,15 +29,15 @@ class CircularLayoutAudit(unittest.TestCase):
             self.assertIn(name,FORM)
         self.assertIn('PlaceCircular(five',FORM)
         self.assertIn('PlaceCircular(week',FORM)
-        self.assertIn('m.Ring.Visible = circular;',FORM)
-        self.assertIn('m.Track.Visible = !circular;',FORM)
+        self.assertIn('m.Ring.Visible=circular;',FORM)
+        self.assertIn('m.Track.Visible=!circular;',FORM)
 
     def test_no_stale_quota_looks_fresh(self):
         self.assertIn('meter.Ring.SetReading(percent, live, color)',FORM)
         self.assertIn('meter.Ring.SetReading(null, false',FORM)
         self.assertIn('current ? accent : ColorTranslator.FromHtml("#8BA0B1")',PALETTE)
-        self.assertIn('if (settings.Layout == "Circular")',FORM)
-        self.assertIn('FreshnessLabel(lastSuccess, DateTimeOffset.UtcNow)',FORM)
+        self.assertIn('statusAge.Visible=true;statusDivider.Visible=false;',FORM)
+        self.assertIn('FreshnessLabel(lastSuccess,UiNow)',FORM)
 
     def test_double_buffer_low_cost(self):
         self.assertIn('ControlStyles.OptimizedDoubleBuffer',PALETTE)
@@ -47,7 +47,7 @@ class CircularLayoutAudit(unittest.TestCase):
     def test_menu_has_five_color_options(self):
         for label in ('76–100 %','51–75 %','26–50 %','11–25 %','0–10 %'):
             self.assertIn(label,FORM)
-        self.assertIn('Circulaire · 2 roues',FORM)
+        self.assertIn('Circular · 2 gauges',FORM)
 
 if __name__=='__main__':
     unittest.main()

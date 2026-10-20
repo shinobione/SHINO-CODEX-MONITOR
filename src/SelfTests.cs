@@ -13,10 +13,10 @@ namespace ShinoCodexMonitor
         private static void Check(string title, Action test)
         {
             total++;
-            try { test(); passed++; report.AppendLine("PASS " + title); }
-            catch (Exception ex) { report.AppendLine("FAIL " + title + " : " + ex.GetType().Name + " " + ex.Message); }
+            try { test(); passed++; report.AppendLine("PASS Test #" + total); }
+            catch (Exception ex) { report.AppendLine("FAIL Test #" + total + " : " + ex.GetType().Name + " " + ex.Message); }
         }
-        private static void Assert(bool ok) { if (!ok) throw new Exception("Assertion non satisfaite"); }
+        private static void Assert(bool ok) { if (!ok) throw new Exception("Assertion failed"); }
         private static Snapshot Parse(string json)
         {
             object obj = Json.Serializer.DeserializeObject(json);
@@ -79,7 +79,7 @@ namespace ShinoCodexMonitor
                 Assert(s.UsageAllowed == false);
             });
             Check("États jamais inventés avant une mesure", delegate {
-                Assert(QuotaHealth.State(null, 0, 60, DateTimeOffset.UtcNow) == "Indisponible");
+                Assert(QuotaHealth.State(null, 0, 60, DateTimeOffset.UtcNow) == "Unavailable");
             });
             Check("Mesure récente directement affichée", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -87,15 +87,15 @@ namespace ShinoCodexMonitor
             });
             Check("Échec ponctuel : à vérifier", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                Assert(QuotaHealth.State(now.AddSeconds(-30), 1, 60, now) == "À vérifier");
+                Assert(QuotaHealth.State(now.AddSeconds(-30), 1, 60, now) == "Unverified");
             });
             Check("Mesure périmée passe en ancien", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                Assert(QuotaHealth.State(now.AddSeconds(-120), 0, 60, now) == "Ancienne donnée");
+                Assert(QuotaHealth.State(now.AddSeconds(-120), 0, 60, now) == "Stale data");
             });
             Check("Horloge incohérente signale une ancienne donnée", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                Assert(QuotaHealth.State(now.AddMinutes(3), 0, 60, now) == "Ancienne donnée");
+                Assert(QuotaHealth.State(now.AddMinutes(3), 0, 60, now) == "Stale data");
             });
             Check("Backoff exponentiel borné", delegate {
                 Assert(QuotaHealth.Backoff(1,30)==30 && QuotaHealth.Backoff(2,30)==60 && QuotaHealth.Backoff(8,60)==300);
@@ -199,7 +199,7 @@ namespace ShinoCodexMonitor
             Check("Télémétrie locale sans dépendance Codex", delegate {
                 RuntimeMetrics perf = new RuntimeMetrics();
                 perf.Sample(DateTimeOffset.UtcNow);
-                Assert(perf.Summary().Contains("RAM courante"));
+                Assert(perf.Summary().Contains("Current RAM"));
             });
             Check("GitHub Release stable parsée", delegate {
                 PublicRelease r = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v4.5.2\",\"draft\":false,\"prerelease\":false}");
@@ -348,7 +348,7 @@ namespace ShinoCodexMonitor
             });
             Check("Fraîcheur : donnée absente et ancienne", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                Assert(MonitorForm.FreshnessLabel(null, now) == "Aucun relevé");
+                Assert(MonitorForm.FreshnessLabel(null, now) == "No reading");
                 Assert(MonitorForm.FreshnessLabel(now.AddMinutes(-2), now).Contains("2 min"));
             });
             Check("Apparence : fonds sombres acceptés", delegate {
@@ -373,7 +373,7 @@ namespace ShinoCodexMonitor
                 Preferences p = Preferences.Defaults();
                 p.Opacity = .70; p.Sanitize(); Assert(Math.Abs(p.Opacity - .70) < .001);
                 p.Opacity = 2; p.Sanitize(); Assert(Math.Abs(p.Opacity - .96) < .001);
-                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "5.1.0");
+                Assert(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) == "5.2.0");
             });
             Check("Blocage et reset communiqué conservés ensemble", delegate {
                 Snapshot snap = Parse("{\"ordinaryUsageAllowed\":false,\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":100,\"resetsAt\":1792250000},\"secondary\":{\"windowDurationMins\":10080,\"usedPercent\":62,\"resetsAt\":1792500000}}}");
@@ -383,23 +383,23 @@ namespace ShinoCodexMonitor
             Check("Reset bloqué 5 h : décompte conservé", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 Assert(MonitorForm.ResetLabel(now.AddMinutes(94), "five", "relative", "Circular", true, now) ==
-                    "Reset dans 1h 34min");
+                   "Reset in 1h 34min");
             });
             Check("Reset bloqué hebdo : date conservée", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 string label = MonitorForm.ResetLabel(now.AddDays(5), "week", "absolute", "Circular", true, now);
-                Assert(label.StartsWith("Reset le 22 ") && !label.Contains("bloqué"));
+                Assert(label.StartsWith("Reset on Oct 22 ") && !label.Contains("blocked"));
             });
             Check("Reset circulaire : mode mixte 5 h et semaine", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
-                Assert(MonitorForm.ResetLabel(now.AddMinutes(90), "five", "both", "Circular", true, now).StartsWith("Reset dans "));
-                Assert(MonitorForm.ResetLabel(now.AddDays(5), "week", "both", "Circular", true, now).StartsWith("Reset le "));
+                Assert(MonitorForm.ResetLabel(now.AddMinutes(90), "five", "both", "Circular", true, now).StartsWith("Reset in "));
+                Assert(MonitorForm.ResetLabel(now.AddDays(5), "week", "both", "Circular", true, now).StartsWith("Reset on "));
             });
             Check("Reset modes absolu et relatif distincts à 0%", delegate {
                 DateTimeOffset now = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
                 DateTimeOffset reset = now.AddMinutes(75);
-                Assert(MonitorForm.ResetLabel(reset, "five", "absolute", "Micro", true, now).StartsWith("Reset à "));
-                Assert(MonitorForm.ResetLabel(reset, "five", "relative", "Micro", true, now) == "Reset dans 1h 15min");
+                Assert(MonitorForm.ResetLabel(reset, "five", "absolute", "Micro", true, now).StartsWith("Reset at "));
+                Assert(MonitorForm.ResetLabel(reset, "five", "relative", "Micro", true, now) =="Reset in 1h 15min");
             });
             Check("Reset masqué partout sur demande", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -408,15 +408,15 @@ namespace ShinoCodexMonitor
             });
             Check("Reset absent ou échu explicitement marqué", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                Assert(MonitorForm.ResetLabel(null, "five", "relative", "Circular", true, now) == "Reset non communiqué");
+                Assert(MonitorForm.ResetLabel(null, "five", "relative", "Circular", true, now) =="Reset not provided");
                 Assert(MonitorForm.ResetLabel(now.AddSeconds(-1), "five", "relative", "Circular", true, now) ==
-                    "Reset attendu · vérification...");
+                   "Reset due · checking…");
             });
             Check("Reset ancien non affiché comme actuel", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 Assert(MonitorForm.ResetLabel(now.AddHours(2), "five", "absolute", "Circular", false, now) ==
-                    "Ancienne mesure · reset non vérifié");
-                Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains(" · dans "));
+                    "Stale reading · reset unverified");
+                Assert(MonitorForm.ResetLabel(now.AddDays(3), "week", "both", "Vertical", true, now).Contains( " · in "));
             });
             Check("V5.0.0 : proposée à un utilisateur V4.7.2", delegate {
                 PublicRelease latest = ReleaseUpdater.ParseLatest("{\"tag_name\":\"v5.0.0\"}");
@@ -504,48 +504,48 @@ namespace ShinoCodexMonitor
                 Assert(work.Contains(result) && result.Width == 540 && result.Height == 278);
             });
             Check("V5 : fenêtre Codex absente explicitement annoncée", delegate {
-                Assert(SourceHealth.WindowLine("5 heures", null, true, DateTimeOffset.UtcNow) ==
-                    "5 heures : Fenêtre non communiquée");
+                Assert(SourceHealth.WindowLine("5 hours", null, true, DateTimeOffset.UtcNow) ==
+                    "5 hours : Window not available");
             });
             Check("V5 : fenêtre ancienne jamais présentée comme actuelle", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 37, ResetUtc = now.AddHours(2) };
-                string text = SourceHealth.WindowLine("5 heures", w, false, now);
-                Assert(text.Contains("ancienne donnée") && text.Contains("reset non vérifié") &&
+                string text = SourceHealth.WindowLine("5 hours", w, false, now);
+                Assert(text.Contains("stale data") && text.Contains("reset unverified") &&
                     !text.Contains("dd/MM"));
             });
             Check("V5 : reset futur direct explicitement daté", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 25, ResetUtc = now.AddHours(2) };
-                string text = SourceHealth.WindowLine("5 heures", w, true, now);
-                Assert(text.Contains("25 % restants") && text.Contains("Reset ") &&
-                    !text.Contains("non vérifié"));
+                string text = SourceHealth.WindowLine("5 hours", w, true, now);
+                Assert(text.Contains("25 % remaining") && text.Contains("Reset ") &&
+                    !text.Contains("unverified"));
             });
             Check("V5 : absence ou échéance du reset clairement distinguées", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 QuotaWindow w = new QuotaWindow { Minutes = 300, Remaining = 0 };
-                Assert(SourceHealth.WindowLine("5 heures", w, true, now).Contains("Reset non communiqué"));
+                Assert(SourceHealth.WindowLine("5 hours", w, true, now).Contains("Reset not provided"));
                 w.ResetUtc = now.AddMinutes(-1);
-                Assert(SourceHealth.WindowLine("5 heures", w, true, now).Contains("Reset attendu"));
+                Assert(SourceHealth.WindowLine("5 hours", w, true, now).Contains("Reset due"));
             });
             Check("V5 : état bloqué conservé indépendamment des deux fenêtres", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 Snapshot snap = new Snapshot { CapturedUtc = now, UsageAllowed = false,
                     Five = new QuotaWindow { Minutes = 300, Remaining = 0, ResetUtc = now.AddHours(1) } };
                 string text = SourceHealth.Build(snap, "Direct", now, 0, "", now.AddMinutes(1), now);
-                Assert(text.Contains("Usage ordinaire signalé bloqué") && text.Contains("0 % restants") &&
-                    text.Contains("7 jours : Fenêtre non communiquée"));
+                Assert(text.Contains("Codex reports standard usage blocked") && text.Contains("0 % remaining") &&
+                    text.Contains("7 days : Window not available"));
             });
             Check("V5 : origine et statut indisponible sans valeur inventée", delegate {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                string text = SourceHealth.Build(null, "Indisponible", null, 1,
-                    "Accès refusé (401/403)", now.AddMinutes(2), now);
+                string text = SourceHealth.Build(null, "Unavailable", null, 1,
+                    "Access denied (401/403)", now.AddMinutes(2), now);
                 Assert(text.Contains("Codex CLI / account/rateLimits/read") &&
-                    text.Contains("Statut : Indisponible") && text.Contains("Accès refusé") &&
-                    text.Contains("Dernier relevé valide : Aucun") &&
-                    !text.Contains("% restants"));
+                    text.Contains("Status: Unavailable") && text.Contains("Access denied") &&
+                    text.Contains("Last valid reading: None") &&
+                    !text.Contains("% remaining"));
             });
-            report.Insert(0, "SHINO // CODEX V5.1.0 — " + passed + "/" + total + " autotests réussis\r\n\r\n");
+            report.Insert(0, "CODEX PERISCOPE V5.2.0 — " + passed + "/" + total + " self-tests passed\r\n\r\n");
             return report.ToString();
         }
     }

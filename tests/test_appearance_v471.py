@@ -10,18 +10,18 @@ TESTS=(ROOT/'src/SelfTests.cs').read_text(encoding='utf-8')
 
 
 class AppearancePolishAudit(unittest.TestCase):
-    def test_micro_reserves_close_space(self):
-        m=re.search(r'ClientSize = new Size\((\d+), 122\);.*?PlaceMeter\(week, (\d+), 33, (\d+), true\);',FORM,re.S)
-        self.assertIsNotNone(m)
-        width, x, quota_width=map(int,m.groups())
-        self.assertLessEqual(x+quota_width, width-38-8)
-        self.assertIn('close.SetBounds(ClientSize.Width - 38, micro ? 3 : 10',FORM)
+    def test_micro_geometry_and_header_close_are_separate(self):
+        self.assertIn('width=micro?484:', FORM)
+        self.assertIn('quotaHeight=micro?122:', FORM)
+        self.assertIn('PlaceMeter(week,240,31,232,true)', FORM)
+        self.assertIn('close.Bounds=Units(new Rectangle(width-34,micro?3:7,25,24))', FORM)
+        self.assertIn('m.Face.Bounds=Units(new Rectangle(x,y,width,micro?62:80))', FORM)
 
-    def test_circular_gauges_are_closer(self):
-        self.assertIn('ClientSize = new Size(w, DesktopGeometry.HeightForWidth(w));',FORM)
-        self.assertIn('PlaceCircular(five, 24, 236)',FORM)
-        self.assertIn('PlaceCircular(week, 280, 236)',FORM)
-        self.assertIn('m.Ring.Bounds = DesktopGeometry.ScaleRect(x + (width - 130) / 2, 78, 130, 130, w)',FORM)
+    def test_circular_instruments_share_bounded_inset_faces(self):
+        self.assertIn('quotaHeight=DesktopGeometry.HeightForWidth(width)', FORM)
+        self.assertIn('PlaceCircular(five,14,246)', FORM)
+        self.assertIn('PlaceCircular(week,280,246)', FORM)
+        self.assertIn('m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-118)/2,24,118,118,w))', FORM)
 
     def test_opacity_control_persisted_and_live(self):
         for value in ('70','80','90','96','100'):
@@ -36,14 +36,14 @@ class AppearancePolishAudit(unittest.TestCase):
         self.assertIn('Preferences.IsDarkBackground(hex)',FORM)
         self.assertIn('internal static bool IsDarkBackground(string color)',MODELS)
         self.assertIn('preferences.BackgroundColor = Json.String(',STORE)
-        self.assertIn('five.Ring.BackColor = BackColor;',FORM)
-        self.assertIn('week.Ring.BackColor = BackColor;',FORM)
+        self.assertIn('five.Ring.BackColor = Color.Transparent;',FORM)
+        self.assertIn('week.Ring.BackColor = Color.Transparent;',FORM)
 
     def test_diagnostic_uses_assembly_version(self):
         self.assertIn('runningVersion.ToString(3)',FORM)
         self.assertNotIn('return "Version : 4.6.0',FORM)
-        self.assertIn('MONITOR / V5.1.0',FORM)
-        self.assertIn('SHINO // CODEX V5.1.0 —',TESTS)
+        self.assertIn('PERISCOPE / V5.2.0',FORM)
+        self.assertIn('CODEX PERISCOPE V5.2.0 —',TESTS)
 
     def test_no_codex_reader_changes_or_global_security_bypass(self):
         self.assertNotIn('CodexReader',MODELS)
