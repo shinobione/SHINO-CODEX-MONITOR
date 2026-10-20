@@ -112,6 +112,10 @@ namespace ShinoCodexMonitor
             Opacity = settings.Opacity;
             AutoScaleMode = AutoScaleMode.None;
             DoubleBuffered=true;
+            // Diagnostic HWNDs may exceed a CI runner's virtual desktop. An explicit
+            // maximum avoids the default desktop tracking-size cap truncating a
+            // synthetic 200% capture. Production screen constraints remain native.
+            if (store == null) MaximumSize=new Size(4096,4096);
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - 375, Screen.PrimaryScreen.WorkingArea.Top + 24);
             header = TextLabel("CODEX PERISCOPE", 12, InstrumentStyle.Text, true);

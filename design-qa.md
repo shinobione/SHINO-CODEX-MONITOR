@@ -10,6 +10,8 @@ Scope: adapt the supplied Stitch presentation to the existing native WinForms wi
 - **P2, hidden construction:** reading Control.Visible while the form was hidden allocated no timestamp width. Layout now uses explicit layout mode, so the source and observation time occupy their own bounds before first Show.
 - **P2, minimum circular width:** the elapsed label exceeded the shorter 470-wide activity viewport. Its top is now bounded by actual card height; width-limit tests cover both 470 and 720 at all four scales.
 
+- **P2, CI desktop constraint:** the runner capped wide 200% diagnostic windows at 1044 px. Presentation-only HWNDs now have an explicit maximum size and exact client-size assertions, including a deliberately reproduced smaller tracking limit. Native production constraints are unchanged; this is synthetic geometry proof only. Windows supports overriding its [default tracking dimensions](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-getminmaxinfo).
+
 ## Required fidelity surfaces
 
 | Surface | Native comparison and decision |

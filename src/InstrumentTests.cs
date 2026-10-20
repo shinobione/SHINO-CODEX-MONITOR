@@ -35,6 +35,7 @@ namespace ShinoCodexMonitor
         internal static string Run()
         {
             StringBuilder result=new StringBuilder("SYNTHETIC FIXTURES / full native windows; scaled geometry, fonts and GDI+ (not physical mixed-DPI proof)\r\n");int passed=0,total=0;
+            result.AppendLine("ENV virtual desktop="+SystemInformation.VirtualScreen+"; default max tracking size="+SystemInformation.MaxWindowTrackSize);
             Action<string,Action> check=(name,test)=>{total++;try{test();passed++;result.AppendLine("PASS "+name);}catch(Exception e){result.AppendLine("FAIL "+name+": "+e.Message);}};
             foreach(string layout in new [] {"Circular","Vertical","Compact","Micro"})
             foreach(int percent in new [] {100,125,150,200})
@@ -42,6 +43,8 @@ namespace ShinoCodexMonitor
                 check(layout+" / "+percent+"% / "+count+" turns",delegate {
                     using(MonitorForm window=Window(layout,count,"Direct")) {
                         window.SetPresentationScale(percent/100f);window.Show();Application.DoEvents();BoundsCheck(window,count);
+                        Size logical=layout=="Circular"?new Size(540,398):layout=="Vertical"?new Size(355,383):layout=="Compact"?new Size(670,289):new Size(484,230);
+                        Assert(window.ClientSize==new Size((int)Math.Round(logical.Width*percent/100f),(int)Math.Round(logical.Height*percent/100f)),"Native capture size was constrained by desktop");
                         if(count==1) {
                             int minimum=layout=="Circular"?72:layout=="Vertical"?56:layout=="Compact"?42:28;
                             Assert(window.Missions.Cards.Single().Radar.Width>=(int)(minimum*percent/100f)-1,"Radar below instrument size");
@@ -105,6 +108,14 @@ namespace ShinoCodexMonitor
                     window.WindowState=FormWindowState.Normal;Application.DoEvents();Assert(window.MotionTimerRunning,"Restored clock stopped");
                     System.Reflection.FieldInfo suspended=typeof(MonitorForm).GetField("suspended",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
                     suspended.SetValue(window,true);window.Present(Quotas(false),Tasks(2),Now,"Direct");Assert(!window.MotionTimerRunning,"Suspended timer running");
+                }
+            });
+            check("Oversized native capture survives a smaller tracking limit",delegate {
+                using(MonitorForm window=Window("Compact",2,"Direct")) {
+                    window.MaximumSize=new Size(900,900);window.SetPresentationScale(2);window.Show();Application.DoEvents();
+                    Assert(window.Width<=900,"Fixture did not reproduce native size constraint");
+                    window.MaximumSize=new Size(4096,4096);window.SetPresentationScale(2);Application.DoEvents();
+                    Assert(window.ClientSize==new Size(1340,578),"Native 200% window truncated");BoundsCheck(window,2);
                 }
             });
             foreach(int width in new []{470,720})

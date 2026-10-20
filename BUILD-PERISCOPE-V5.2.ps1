@@ -66,7 +66,10 @@ try {
     $instrumentReport = Join-Path $bin 'INSTRUMENT_TEST_REPORT.txt'
     if (Test-Path -LiteralPath $instrumentReport) { Remove-Item -LiteralPath $instrumentReport -Force }
     $instrumentProc = Start-Process -FilePath $exe -ArgumentList '--instrument-self-test' -WindowStyle Hidden -Wait -PassThru
-    if ($instrumentProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $instrumentReport)) { throw 'Full-window instrument tests failed.' }
+    if ($instrumentProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $instrumentReport)) {
+        if (Test-Path -LiteralPath $instrumentReport) { Get-Content -LiteralPath $instrumentReport }
+        throw 'Full-window instrument tests failed.'
+    }
     $instrumentResult = [IO.File]::ReadAllText($instrumentReport)
     Write-Host $instrumentResult
     if (!$instrumentResult.Contains('All instrument checks passed') -or $instrumentResult.Contains('FAIL ')) { throw 'Instrument checks incomplete.' }

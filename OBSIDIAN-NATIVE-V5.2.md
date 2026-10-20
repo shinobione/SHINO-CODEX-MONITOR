@@ -31,7 +31,7 @@ Circular still supports 470-720 logical pixels. Tight widths and multiple missio
 
 ## Full-window evidence
 
-All inputs are labelled **SYNTHETIC FIXTURE**. Captures render the actual complete native window with controls at the requested scale, rather than enlarging a finished bitmap. The fixture uses opacity 1 for inspectable screenshots; a separate assertion checks the custom opacity preference. This does not establish real DWM transparency or physical mixed-monitor behavior.
+All inputs are labelled **SYNTHETIC FIXTURE**. Captures render the actual complete native window with controls at the requested scale, rather than enlarging a finished bitmap. Presentation-only windows have an explicit 4096 x 4096 maximum so a small CI virtual desktop cannot truncate a 200% native render; exact client dimensions are asserted. Production window constraints are unchanged. The fixture uses opacity 1 for inspectable screenshots; a separate assertion checks the custom opacity preference. This does not establish real DWM transparency or physical mixed-monitor behavior.
 
 Before captures were made first from the baseline composition plus isolated presentation wiring and a frozen fixture clock. They cover all four layouts with 1/2/3 turns and Circular blocked usage at 100%. After captures cover all four layouts at 100/125/150/200%, 0/1/2/3 turns, blocked/offline/stale states, A completed while B stays active, and blocked usage with two independently observed tasks.
 
@@ -48,7 +48,7 @@ Before captures were made first from the baseline composition plus isolated pres
 
 ## Validation and cost
 
-Local suites: 128 Python tests; existing C# 98 application + 46 task + 35 premium + 26 P0 tests. 89 new full-window tests cover all scales/counts, label/control bounds, reachability of overflow, A/B phase continuity, cached-data warnings, preserved preferences, repeated rescaling, motion gating and circular width limits. Native Windows CI repeats the suites and package validation. The exact final commit, CI run and artifact identities are recorded in the handoff/verification receipt after CI completes.
+Local suites: 128 Python tests; existing C# 98 application + 46 task + 35 premium + 26 P0 tests. 90 new full-window tests cover all scales/counts, label/control bounds, reachability of overflow, A/B phase continuity, cached-data warnings, preserved preferences, repeated rescaling, motion gating and circular width limits. Native Windows CI repeats the suites and package validation. The exact final commit, CI run and artifact identities are recorded in the handoff/verification receipt after CI completes.
 
 Local full-window benchmark (12 logical processors, forced rendering of all quotas and three radars into a bitmap on each tick): 635 frames / 30.01 s, 21.16 FPS, 1.484% total-machine CPU / 17.80% of one core. Hidden for five seconds: zero frames, zero active radar clocks, measured 0.000% total-machine CPU. Across 80 whole-window create/scale/render/dispose cycles: GDI 28 -> 28, USER 6 -> 6, private memory 31.81 -> 32.49 MiB. This is a deliberately heavier full-window capture workload, not an idle or field performance claim.
 
