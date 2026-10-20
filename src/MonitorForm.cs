@@ -46,6 +46,7 @@ namespace ShinoCodexMonitor
         private readonly Label close;
         private readonly Label status;
         private readonly Label statusAge;
+        private readonly Label sourceDetail;
         private readonly Panel statusDivider;
         private readonly Label resizeGrip;
         private readonly Meter five;
@@ -136,6 +137,9 @@ namespace ShinoCodexMonitor
             statusAge = TextLabel("Waiting", 8, UiColors.Muted, false);
             statusAge.TextAlign = ContentAlignment.MiddleRight;
             sourceFace.Controls.Add(statusAge);
+            sourceDetail=TextLabel("",8,InstrumentStyle.Muted,false);sourceDetail.Name="QuotaSource";
+            sourceFace.Controls.Add(sourceDetail);
+            status.Name="QuotaStatus";statusAge.Name="QuotaObserved";
             Controls.Add(sourceFace);
             statusDivider = new Panel { BackColor = UiColors.Track };
             Controls.Add(statusDivider);
@@ -206,12 +210,13 @@ namespace ShinoCodexMonitor
             m.Name = TextLabel(title, 10, UiColors.Text, true);
             m.Number = TextLabel("—", 17, UiColors.Muted, true);
             m.Number.TextAlign = ContentAlignment.MiddleRight;
-            m.Track = new Panel { BackColor = UiColors.Track, Height = 9 };
+            m.Track = new InstrumentPanel { BackColor = UiColors.Track, Height = 9 };
             m.Fill = new Panel { BackColor = UiColors.Five, Width = 0, Height = 9 };
             m.Track.Controls.Add(m.Fill);
             m.Ring = new CircularGauge();
             m.Reset = TextLabel("Waiting for Codex...", 8, UiColors.Muted, false);
-            m.Face=new InstrumentPanel();m.Hint=TextLabel("REMAINING",6.5f,InstrumentStyle.Muted,false);
+            m.Name.Name="QuotaTitle";m.Number.Name="QuotaValue";m.Reset.Name="QuotaReset";
+            m.Face=new InstrumentPanel();m.Hint=TextLabel("REMAINING",6.5f,InstrumentStyle.Muted,false);m.Hint.Name="QuotaProvenance";
             m.Face.Controls.Add(m.Name); m.Face.Controls.Add(m.Number); m.Face.Controls.Add(m.Track); m.Face.Controls.Add(m.Reset); m.Face.Controls.Add(m.Ring);m.Face.Controls.Add(m.Hint);
             Controls.Add(m.Face);
             return m;
@@ -222,28 +227,28 @@ namespace ShinoCodexMonitor
         {
             int pad=micro?8:12;
             m.Face.Bounds=Units(new Rectangle(x,y,width,micro?62:80));
-            m.Name.Bounds=Units(new Rectangle(pad,micro?5:7,width-90-pad,18));
-            InstrumentStyle.FontFor(m.Name,micro?10:12,FontStyle.Bold);
+            m.Name.Bounds=Units(new Rectangle(pad,micro?5:7,width-108-pad,18));
+            InstrumentStyle.FontFor(m.Name,micro?11:12.5f,FontStyle.Bold);
             m.Name.TextAlign=ContentAlignment.MiddleLeft;
-            m.Number.Bounds=Units(new Rectangle(width-87,2,75,micro?25:32));
-            InstrumentStyle.FontFor(m.Number,micro?18:24,FontStyle.Bold);
-            m.Hint.Bounds=Units(new Rectangle(pad,micro?21:27,width-105-pad,micro?11:12));
-            InstrumentStyle.FontFor(m.Hint,micro?8:9,FontStyle.Regular);
+            m.Number.Bounds=Units(new Rectangle(width-104,2,92,micro?29:32));
+            InstrumentStyle.FontFor(m.Number,micro?20:24,FontStyle.Bold);
+            m.Hint.Bounds=Units(new Rectangle(pad,micro?21:27,width-105-pad,micro?13:15));
+            InstrumentStyle.FontFor(m.Hint,micro?9:10,FontStyle.Regular);
             m.Track.Bounds=Units(new Rectangle(pad,micro?35:43,width-2*pad,micro?5:7));
-            m.Fill.Height=m.Track.Height;
+            m.Fill.Location=new Point(1,1);m.Fill.Height=Math.Max(1,m.Track.Height-2);
             m.Reset.Bounds=Units(new Rectangle(pad,micro?43:54,width-2*pad,micro?17:20));
-            InstrumentStyle.FontFor(m.Reset,micro?10:10.5f,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleLeft;
+            InstrumentStyle.FontFor(m.Reset,micro?11:11.5f,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleLeft;
         }
         private void PlaceCircular(Meter m,int x,int width)
         {
             int w=settings.CircularWidth;float ratio=w/(float)DesktopGeometry.DefaultWidth;
-            m.Face.Bounds=Units(DesktopGeometry.ScaleRect(x,48,width,188,w));
-            m.Name.Bounds=Units(DesktopGeometry.ScaleRect(6,7,width-12,20,w));
+            m.Face.Bounds=Units(DesktopGeometry.ScaleRect(x,44,width,162,w));
+            m.Name.Bounds=Units(DesktopGeometry.ScaleRect(6,4,width-12,20,w));
             m.Name.TextAlign=ContentAlignment.MiddleCenter;
-            InstrumentStyle.FontFor(m.Name,11.5f*ratio,FontStyle.Bold);
-            m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-130)/2,29,130,130,w));
-            m.Reset.Bounds=Units(DesktopGeometry.ScaleRect(7,164,width-14,19,w));
-            InstrumentStyle.FontFor(m.Reset,10.5f*ratio,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleCenter;
+            InstrumentStyle.FontFor(m.Name,12.5f*ratio,FontStyle.Bold);
+            m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-118)/2,24,118,118,w));
+            m.Reset.Bounds=Units(DesktopGeometry.ScaleRect(7,142,width-14,19,w));
+            InstrumentStyle.FontFor(m.Reset,11.5f*ratio,FontStyle.Regular);m.Reset.TextAlign=ContentAlignment.MiddleCenter;
         }
         private void MeterMode(Meter m,bool circular)
         {
@@ -251,7 +256,7 @@ namespace ShinoCodexMonitor
         }
         private void ApplyLayout()
         {
-            if(five==null || week==null || statusAge==null)return;
+            if(five==null || week==null || statusAge==null || sourceDetail==null)return;
             SuspendLayout();
             try {
                 bool micro=settings.Layout=="Micro",circular=settings.Layout=="Circular";
@@ -261,29 +266,34 @@ namespace ShinoCodexMonitor
                 else {width=micro?484:settings.Layout=="Compact"?670:355;quotaHeight=micro?122:settings.Layout=="Compact"?177:257;}
                 ClientSize=new Size(Unit(width),Unit(DesktopGeometry.CombinedHeight(width,quotaHeight,settings.Layout)));
                 header.Bounds=Units(new Rectangle(micro?29:34,micro?4:8,micro?290:width-200,micro?21:24));
-                InstrumentStyle.FontFor(header,micro?11:13,FontStyle.Bold);
+                InstrumentStyle.FontFor(header,micro?13:14,FontStyle.Bold);
                 version.Visible=!micro;version.Text="PERISCOPE / V5.2.0";
                 version.TextAlign=ContentAlignment.MiddleRight;
-                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,9,FontStyle.Regular);
+                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,10.5f,FontStyle.Regular);
                 close.Bounds=Units(new Rectangle(width-34,micro?3:7,25,24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
                 if(circular) {
                     PlaceCircular(five,14,246);PlaceCircular(week,280,246);
-                    sourceFace.Bounds=Units(DesktopGeometry.ScaleRect(14,247,512,27,width));
+                    Rectangle sourceBounds=DesktopGeometry.ScaleRect(14,214,512,37,width);
+                    if(sourceBounds.Height<37) {sourceBounds.Height=37;sourceBounds.Y=DesktopGeometry.ActivityBounds(width,quotaHeight,settings.Layout).Top-42;}
+                    sourceFace.Bounds=Units(sourceBounds);
                 } else if(micro) {
                     PlaceMeter(five,12,31,220,true);PlaceMeter(week,240,31,232,true);
-                    sourceFace.Bounds=Units(new Rectangle(8,98,468,22));
+                    sourceFace.Bounds=Units(new Rectangle(8,98,468,35));
                 } else if(settings.Layout=="Compact") {
                     PlaceMeter(five,14,53,317,false);PlaceMeter(week,339,53,317,false);
-                    sourceFace.Bounds=Units(new Rectangle(14,144,642,27));
+                    sourceFace.Bounds=Units(new Rectangle(14,139,642,39));
                 } else {
                     PlaceMeter(five,14,48,327,false);PlaceMeter(week,14,136,327,false);
-                    sourceFace.Bounds=Units(new Rectangle(14,226,327,28));
+                    sourceFace.Bounds=Units(new Rectangle(14,220,327,39));
                 }
-                statusAge.Visible=circular || settings.Layout=="Compact";statusDivider.Visible=false;
-                int ageWidth=(circular || settings.Layout=="Compact")?Unit(circular?153:210):0;
-                status.SetBounds(Unit(8),Unit(3),Math.Max(1,sourceFace.Width-ageWidth-Unit(16)),sourceFace.Height-Unit(6));
-                statusAge.SetBounds(sourceFace.Width-ageWidth-Unit(7),Unit(3),Math.Max(1,ageWidth),sourceFace.Height-Unit(6));
-                InstrumentStyle.FontFor(status,micro?9:10,FontStyle.Regular);InstrumentStyle.FontFor(statusAge,9,FontStyle.Regular);
+                statusAge.Visible=true;statusDivider.Visible=false;
+                int ageWidth=Unit(micro?124:142);
+                int sourceTop=Math.Max(Unit(2),(sourceFace.Height-Unit(35))/2);
+                status.SetBounds(Unit(9),sourceTop,Math.Max(1,sourceFace.Width-Unit(18)),Unit(micro?17:19));
+                sourceDetail.SetBounds(Unit(9),sourceTop+Unit(micro?17:19),Math.Max(1,sourceFace.Width-ageWidth-Unit(20)),Unit(15));
+                statusAge.SetBounds(sourceFace.Width-ageWidth-Unit(8),sourceTop+Unit(micro?17:19),ageWidth,Unit(15));
+                InstrumentStyle.FontFor(status,micro?12:13,FontStyle.Bold);
+                InstrumentStyle.FontFor(sourceDetail,11,FontStyle.Regular);InstrumentStyle.FontFor(statusAge,11,FontStyle.Regular);
                 taskDock.Bounds=Units(DesktopGeometry.ActivityBounds(width,quotaHeight,settings.Layout));
                 taskDeck.LayoutMode=settings.Layout;PlaceActivityControls(circular,micro);
                 UpdateTaskSurface(UiNow);
@@ -318,7 +328,7 @@ namespace ShinoCodexMonitor
         protected override void WndProc(ref Message m)
         {
             int message=m.Msg;base.WndProc(ref m);
-            if(message==0x02E0 && five!=null && week!=null && statusAge!=null)ApplyLayout();
+            if(message==0x02E0 && five!=null && week!=null && statusAge!=null && sourceDetail!=null)ApplyLayout();
         }
         private void PlaceActivityControls(bool circular, bool micro)
         { taskDeck.PerformLayout(); }
@@ -1290,15 +1300,19 @@ namespace ShinoCodexMonitor
             DrawMeter(five, snapshot == null ? null : snapshot.Five, "five", live, state, blocked);
             DrawMeter(week, snapshot == null ? null : snapshot.Week, "week", live, state, blocked);
             string sample=lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")) : "No observation";
-            if(blocked) {status.Text="USAGE BLOCKED / LAST KNOWN";status.ForeColor=InstrumentStyle.Red;}
-            else if(live) {status.Text="CODEX CLI / DIRECT";status.ForeColor=InstrumentStyle.Teal;}
-            else {status.Text=state.ToUpperInvariant()+" / "+(lastSuccess.HasValue?"LAST KNOWN":"NO QUOTA READING");status.ForeColor=InstrumentStyle.Amber;}
-            statusAge.Text=sample;
-            if(settings.Layout!="Circular" && settings.Layout!="Compact" && lastSuccess.HasValue)status.Text+=" / "+sample;
+            if(blocked) {status.Text="CODEX USAGE BLOCKED";sourceDetail.Text="LAST KNOWN / CLI";status.ForeColor=InstrumentStyle.Red;}
+            else if(live) {status.Text="QUOTAS / DIRECT READING";sourceDetail.Text="SOURCE / CODEX CLI";status.ForeColor=InstrumentStyle.Teal;}
+            else {
+                status.Text=state=="Unavailable" ? "QUOTA SOURCE UNAVAILABLE" : state=="Stale" ? "STALE QUOTA READING" : "QUOTA READING UNVERIFIED";
+                sourceDetail.Text=lastSuccess.HasValue ? "LAST KNOWN / CLI" : "NO QUOTA READING / CLI";status.ForeColor=InstrumentStyle.Amber;
+            }
+            InstrumentStyle.FontFor(status,live?11.5f:settings.Layout=="Micro"?12:13,FontStyle.Bold);
+            statusAge.Text=sample;sourceDetail.ForeColor=InstrumentStyle.Muted;statusAge.ForeColor=InstrumentStyle.Muted;
             sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
+            sourceFace.Rail=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.7);
             string observation="Last Codex reading: "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")) : "none")+
                 "\n"+FreshnessLabel(lastSuccess,UiNow)+". Status: "+(blocked?"Usage blocked":state)+". Task availability is independent.";
-            tooltip.SetToolTip(statusAge,observation);tooltip.SetToolTip(status,observation+"\n"+(live?"Source: Codex CLI / account/rateLimits/read":lastError));
+            tooltip.SetToolTip(statusAge,observation);tooltip.SetToolTip(sourceDetail,observation);tooltip.SetToolTip(status,observation+"\n"+(live?"Source: Codex CLI / account/rateLimits/read":lastError));
             string caption = live && snapshot != null && snapshot.Week != null ?
                 "CODEX PERISCOPE · " + Math.Round(snapshot.Week.Remaining) + "% weekly" : "CODEX PERISCOPE · " + state;
             if (tray != null) tray.Text = caption.Length > 63 ? "CODEX PERISCOPE" : caption;
@@ -1351,7 +1365,7 @@ namespace ShinoCodexMonitor
         private void DrawMeter(Meter meter, QuotaWindow data, string kind, bool live, string state, bool blocked)
         {
             meter.Reset.Visible = settings.ResetStyle != "hidden";
-            meter.Hint.Text=live ? "REMAINING" : data==null ? "NO READING" : "LAST KNOWN / "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("HH:mm:ss") : "time unavailable");
+            meter.Hint.Text=live ? "REMAINING" : data==null ? "NO READING" : "LAST KNOWN";
             if (data == null)
             {
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
@@ -1362,10 +1376,10 @@ namespace ShinoCodexMonitor
             }
             int percent = Math.Max(0, Math.Min(100, (int)Math.Round(data.Remaining, MidpointRounding.AwayFromZero)));
             Color color = live ? QuotaColor(percent) : UiColors.Muted;
-            meter.Number.Text = percent + (live ? "%" : "%*");
+            meter.Number.Text = percent + "%";
             meter.Number.ForeColor = color;
             meter.Ring.SetReading(percent, live, color);
-            meter.Fill.Width = (int)Math.Round(meter.Track.Width * data.Remaining / 100.0);
+            meter.Fill.Width = (int)Math.Round(Math.Max(0,meter.Track.Width-2) * data.Remaining / 100.0);
             meter.Fill.BackColor = color;
             // Blocked ordinary usage does not make a fresh reset timestamp stale.
             // The block remains clearly visible in the status/footer and tooltips.

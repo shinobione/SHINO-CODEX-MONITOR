@@ -112,8 +112,8 @@ namespace ShinoCodexMonitor
                     int quotasHeight = DesktopGeometry.HeightForWidth(width);
                     System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(width, quotasHeight, "Circular");
                     int fullHeight = DesktopGeometry.CombinedHeight(width, quotasHeight, "Circular");
-                    Assert(box.Left >= 0 && box.Top > quotasHeight && box.Right < width &&
-                        box.Bottom < fullHeight && box.Height > 60);
+                    Assert(box.Left >= 0 && box.Top == quotasHeight-DesktopGeometry.Scale(22,width) && box.Right < width &&
+                        box.Bottom < fullHeight && box.Height > 90 && fullHeight == quotasHeight+DesktopGeometry.Scale(8,width)+DesktopGeometry.Scale(100,width)+DesktopGeometry.Scale(12,width));
                 }
             });
             Check("Widget vertical et compact conservent les quotas", delegate {
@@ -128,7 +128,8 @@ namespace ShinoCodexMonitor
             });
             Check("Micro : indicateur intégré sans recouvrir les resets", delegate {
                 System.Drawing.Rectangle box = DesktopGeometry.ActivityBounds(484, 122, "Micro");
-                Assert(box.Top >= 129 && box.Height >= 92 &&
+                Assert(box.Top == 138 && box.Height == 84 &&
+                    DesktopGeometry.CombinedHeight(484,122,"Micro") == 230 &&
                     box.Bottom < DesktopGeometry.CombinedHeight(484, 122, "Micro"));
             });
             Check("Notification : tour sans ID mais même session et début", delegate {

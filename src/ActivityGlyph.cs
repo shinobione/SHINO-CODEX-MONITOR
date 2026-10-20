@@ -160,7 +160,7 @@ namespace ShinoCodexMonitor
                         g.FillPie(trail[brush],ring.X,ring.Y,ring.Width,ring.Height,angle-48+i*48f/count,48f/count+.2f);
                     }
                     double a = angle*Math.PI/180;
-                    Pen stroke = head;
+                    Pen stroke = head;head.Width=Math.Max(1.5f,side*.018f);
                     head.Color = Color.FromArgb((int)(255*fade),55,223,201);
                     g.DrawLine(stroke, cx, cy,cx+(float)Math.Cos(a)*radius,cy+(float)Math.Sin(a)*radius);
                 }
@@ -189,10 +189,6 @@ namespace ShinoCodexMonitor
             else if (state != RadarState.Active) {
                 stateInk.Color = state == RadarState.Failed ? Color.FromArgb(241,106,101) : state == RadarState.Interrupted ? Color.FromArgb(231,183,89) : Color.FromArgb(135,147,165);
                 if (side < 64) g.DrawString(state == RadarState.Failed || state == RadarState.Interrupted ? "×" : "?",stateFont,stateInk,new RectangleF(0,0,Width,Height),centered);
-            }
-            if (side >= 72) {
-                stateInk.Color = state == RadarState.Active ? Color.FromArgb(55,223,201) : state == RadarState.Complete ? Color.FromArgb(72,214,155) : Color.FromArgb(150,168,187);
-                g.DrawString(StateLabel,stateFont,stateInk,new RectangleF(0,Height-side*.24f,Width,side*.15f),centered);
             }
         }
         protected override void Dispose(bool disposing)

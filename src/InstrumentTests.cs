@@ -25,10 +25,17 @@ namespace ShinoCodexMonitor
                 Assert(viewport!=null && !viewport.HorizontalScroll.Visible && !viewport.VerticalScroll.Visible,"Native scrollbar visible");
                 if(count<=2)Assert(viewport.ClientRectangle.Contains(card.Bounds),"Card outside viewport");
                 foreach(Control c in card.Controls.Cast<Control>().Where(c=>c.Visible))Assert(card.ClientRectangle.Contains(c.Bounds),"Card child bounds: "+c.GetType().Name);
+                Label[] labels=card.Controls.OfType<Label>().Where(l=>l.Visible && l.Text.Length>0).ToArray();
+                for(int i=0;i<labels.Length;i++)for(int j=i+1;j<labels.Length;j++)
+                    Assert(!labels[i].Bounds.IntersectsWith(labels[j].Bounds),"Mission text overlaps: "+labels[i].Name+" / "+labels[j].Name);
             }
-            foreach(Label label in Descendants(window).OfType<Label>().Where(l=>l.Visible && !(l.Parent is MissionCard && count>2))) {
+            foreach(Label label in Descendants(window).OfType<Label>().Where(l=>l.Visible)) {
                 Assert(label.Parent.ClientRectangle.Contains(label.Bounds),"Text outside parent: "+label.Text);
                 Assert(label.Height>=label.Font.Height,"Text height: "+label.Text);
+                if(new []{"QuotaValue","QuotaReset","QuotaStatus","QuotaObserved","MissionState","MissionDuration"}.Contains(label.Name)) {
+                    Size text=TextRenderer.MeasureText(label.Text,label.Font,new Size(10000,10000),TextFormatFlags.SingleLine|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix);
+                    Assert(text.Width<=label.Width-6,"Critical text truncates: "+label.Text+" ("+text.Width+" / "+label.Width+")");
+                }
             }
             Assert(!window.Missions.HasOverflow || count>2,"Overflow below three missions");
         }
@@ -76,6 +83,42 @@ namespace ShinoCodexMonitor
                     Assert(Descendants(window).OfType<Label>().Any(l=>l.Text.Contains("USAGE BLOCKED")),"Blocked state absent");
                 }
             });
+            check("Finish Circular promotes the radar within unchanged window bounds",delegate {
+                using(MonitorForm window=Window("Circular",1,"Direct")) {
+                    window.Show();Application.DoEvents();
+                    Assert(window.ClientSize==new Size(540,398),"Circular grew instead of redistributing space");
+                    int radar=window.Missions.Cards.Single().Radar.Width;
+                    Assert(radar>=94 && radar<=110,"Circular radar is still secondary");
+                }
+            });
+            check("Finish blocked warning is a readable integrated alert",delegate {
+                using(MonitorForm window=Window("Circular",2,"Blocked")) {
+                    window.Show();Application.DoEvents();
+                    Label warning=Descendants(window).OfType<Label>().FirstOrDefault(l=>l.Text=="CODEX USAGE BLOCKED");
+                    Assert(warning!=null && warning.Font.Size>=12,"Critical blocked readout is missing or too small");
+                    Assert(Descendants(window).OfType<Label>().Any(l=>l.Text.Contains("LAST KNOWN")),"Cached provenance missing");
+                }
+            });
+            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})
+            foreach(int count in new []{1,2})
+                check("Finish long labels and critical warnings / "+layout+" / "+count,delegate {
+                    using(MonitorForm window=Window(layout,0,"Direct")) {
+                        window.Show();Snapshot q=Quotas(false);q.Five.Remaining=100;q.Week.Remaining=0;
+                        LiveTaskReport report=Tasks(count);
+                        foreach(LiveTask t in report.Tasks) {t.Workspace="LONG-PROJECT-&-INSTRUMENTATION-WORKSPACE";t.Model="fixture-model-with-a-deliberately-long-name-for-layout-review";t.Effort="extra-high-fixture-effort";t.StartedUtc=Now.AddHours(-18).AddMinutes(-29);}
+                        foreach(string state in new []{"Direct","Stale","Unverified","Unavailable"}) {
+                            window.Present(state=="Unavailable"?null:q,report,Now,state);Application.DoEvents();BoundsCheck(window,count);
+                        }
+                        foreach(LiveTask t in report.Tasks) {t.IdentityUncertain=true;t.StartedUtc=Now.AddDays(1);}
+                        window.Present(q,null,Now,"Unverified");
+                        LiveTaskReport uncertain=new LiveTaskReport {CheckedUtc=Now};uncertain.Tasks.AddRange(report.Tasks.Select(t=>t.Copy()));
+                        window.Present(q,uncertain,Now,"Unverified");Application.DoEvents();BoundsCheck(window,count);
+                        Assert(window.Missions.Cards.All(c=>c.Controls.OfType<Label>().Single(l=>l.Name=="MissionTitle").Text.StartsWith(c.Mission.Number.ToString("00")+" / ")),"Visible mission number lost");
+                        foreach(Label field in Descendants(window).OfType<Label>().Where(l=>l.Name=="MissionModel"||l.Name=="MissionEffort"))
+                            Assert(!field.Visible || (field.AutoEllipsis && field.Height>=field.Font.Height && !field.Text.Contains("\n")),"Metadata wraps into a missing field");
+                        Capture(window,Path.Combine(DirectoryFor("after"),layout+"-long-labels-"+count+"-100.png"),layout+" / intentional project and metadata ellipsis / critical state and duration remain visible");
+                    }
+                });
             check("Stale and unavailable never animate",delegate {
                 using(MonitorForm window=Window("Circular",2,"Unverified")) {
                     LiveTaskReport report=Tasks(2);report.CheckedUtc=Now.AddMinutes(-2);window.Present(Quotas(false),report,Now,"Unverified");
@@ -168,7 +211,7 @@ namespace ShinoCodexMonitor
                 using (Graphics g=Graphics.FromImage(evidence))
                 using (Font font=new Font("Segoe UI",8,FontStyle.Bold)) {
                     g.Clear(Color.FromArgb(4,7,11)); g.DrawImageUnscaled(surface,0,0);
-                    g.DrawString("SYNTHETIC FIXTURE | "+label,font,Brushes.White,5,window.Height+7);
+                    g.DrawString("SYNTHETIC TEST DATA | "+label,font,Brushes.White,5,window.Height+7);
                 }
                 evidence.Save(path,ImageFormat.Png);
             }
@@ -183,13 +226,16 @@ namespace ShinoCodexMonitor
                     window.SetPresentationScale(percent/100f);
                     Capture(window,Path.Combine(directory,layout+"-"+count+"-"+percent+".png"),layout+" / "+count+" turns / "+percent+"% synthetic scale");
                 }
-                foreach(string state in new []{"Blocked","Offline","Stale"})
+                foreach(string state in new []{"Blocked","Offline","Stale","Unverified","Unavailable"})
                 using(MonitorForm window=Window(layout,state=="Stale"?2:0,state=="Offline"?"Unverified":state=="Stale"?"Unverified":state)) {
                     if(state=="Offline") {
                         Snapshot q=Quotas(false);q.CapturedUtc=Now.AddMinutes(-20);window.Present(q,null,Now,"Unverified");
                     } else if(state=="Stale") {
-                        Snapshot q=Quotas(false);q.CapturedUtc=Now.AddMinutes(-20);LiveTaskReport report=Tasks(2);report.CheckedUtc=Now.AddMinutes(-2);window.Present(q,report,Now,"Unverified");
-                    }
+                        Snapshot q=Quotas(false);q.CapturedUtc=Now.AddMinutes(-20);LiveTaskReport report=Tasks(2);report.CheckedUtc=Now.AddMinutes(-2);window.Present(q,report,Now,"Stale");
+                    } else if(state=="Unverified") {
+                        window.Present(null,null,Now,"Unverified");
+                        LiveTaskReport uncertain=Tasks(1);uncertain.Tasks[0].IdentityUncertain=true;window.Present(Quotas(false),uncertain,Now,"Unverified");
+                    } else if(state=="Unavailable")window.Present(null,null,Now,"Unavailable");
                     window.SetPresentationScale(percent/100f);
                     Capture(window,Path.Combine(directory,layout+"-"+state+"-"+percent+".png"),layout+" / "+state+" / "+percent+"% synthetic scale");
                 }

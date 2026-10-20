@@ -43,18 +43,23 @@ namespace ShinoCodexMonitor
         }
         private Bitmap bezel;
         private Color bezelColor;
+        private Font numberFont,captionFont;
         private void EnsureBezel()
         {
             Color background=BackColor.A==0 && Parent!=null ? Parent.BackColor : BackColor;
             if(bezel!=null && bezel.Size==ClientSize && bezelColor==background)return;
             if(bezel!=null)bezel.Dispose();bezel=new Bitmap(Math.Max(1,Width),Math.Max(1,Height));bezelColor=background;
+            if(numberFont!=null)numberFont.Dispose();if(captionFont!=null)captionFont.Dispose();
+            float unit=PeriscopeWindow.ScaleFor(this),size=Math.Min(Width,Height);
+            numberFont=new Font("Segoe UI",size*.275f,FontStyle.Bold,GraphicsUnit.Pixel);
+            captionFont=new Font("Segoe UI",Math.Max(10.5f*unit,size*.078f),FontStyle.Bold,GraphicsUnit.Pixel);
             using(Graphics g=Graphics.FromImage(bezel)) {
                 g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;
                 float side=Math.Min(Width,Height),cx=Width/2f,cy=Height/2f,r=side*.44f;
                 using(GraphicsPath path=new GraphicsPath()) {
                     path.AddEllipse(cx-r,cy-r,r*2,r*2);
                     using(PathGradientBrush fill=new PathGradientBrush(path)) {
-                        fill.CenterColor=InstrumentStyle.Blend(background,Color.Black,.2);fill.SurroundColors=new []{InstrumentStyle.Blend(background,Color.FromArgb(21,40,56),.5)};
+                        fill.CenterColor=InstrumentStyle.Blend(background,Color.Black,.4);fill.SurroundColors=new []{InstrumentStyle.Blend(background,Color.FromArgb(21,40,56),.5)};
                         g.FillEllipse(fill,cx-r,cy-r,r*2,r*2);
                     }
                 }
@@ -65,7 +70,9 @@ namespace ShinoCodexMonitor
                     }
                     g.DrawEllipse(tick,cx-side*.37f,cy-side*.37f,side*.74f,side*.74f);
                 }
-                using(Pen track=new Pen(Color.FromArgb(26,43,57),side*.058f))g.DrawEllipse(track,cx-r,cy-r,r*2,r*2);
+                using(Pen shadow=new Pen(Color.FromArgb(105,0,0,0),side*.09f))g.DrawEllipse(shadow,cx-r,cy-r,r*2,r*2);
+                using(Pen track=new Pen(Color.FromArgb(35,55,72),side*.06f))g.DrawEllipse(track,cx-r,cy-r,r*2,r*2);
+                using(Pen rim=new Pen(Color.FromArgb(85,106,141,168),Math.Max(1,side*.006f)))g.DrawEllipse(rim,cx-side*.475f,cy-side*.475f,side*.95f,side*.95f);
             }
         }
         protected override void OnPaint(PaintEventArgs e)
@@ -78,16 +85,14 @@ namespace ShinoCodexMonitor
                 using(Pen fill=new Pen(current ? accent : ColorTranslator.FromHtml("#8BA0B1"),side*.058f)) {
                     fill.StartCap=fill.EndCap=LineCap.Round;g.DrawArc(fill,circle,-90,360f*percentage.Value/100);
                 }
-            string text=!percentage.HasValue ? "--" : percentage.Value+(current?"%":"%*");
-            using(Font number=new Font("Segoe UI",side*.25f,FontStyle.Bold,GraphicsUnit.Pixel))
+            string text=!percentage.HasValue ? "--" : percentage.Value+"%";
             using(Brush ink=new SolidBrush(!percentage.HasValue || !current ? InstrumentStyle.Muted : InstrumentStyle.Text))
             using(StringFormat center=new StringFormat {Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center})
-                g.DrawString(text,number,ink,new RectangleF(0,-side*.04f,Width,Height),center);
-            using(Font label=new Font("Segoe UI",side*.066f,FontStyle.Bold,GraphicsUnit.Pixel))
+                g.DrawString(text,numberFont,ink,new RectangleF(0,-side*.04f,Width,Height),center);
             using(Brush ink=new SolidBrush(current?InstrumentStyle.Muted:InstrumentStyle.Amber))
             using(StringFormat center=new StringFormat {Alignment=StringAlignment.Center})
-                g.DrawString(!percentage.HasValue?"NO READING":current?"REMAINING":"LAST KNOWN",label,ink,new RectangleF(0,Height/2f+side*.12f,Width,side*.13f),center);
+                g.DrawString(!percentage.HasValue?"NO READING":current?"REMAINING":"LAST KNOWN",captionFont,ink,new RectangleF(0,Height/2f+side*.17f,Width,side*.19f),center);
         }
-        protected override void Dispose(bool disposing){if(disposing && bezel!=null){bezel.Dispose();bezel=null;}base.Dispose(disposing);}
+        protected override void Dispose(bool disposing){if(disposing){if(bezel!=null){bezel.Dispose();bezel=null;}if(numberFont!=null)numberFont.Dispose();if(captionFont!=null)captionFont.Dispose();}base.Dispose(disposing);}
     }
 }

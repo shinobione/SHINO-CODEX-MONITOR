@@ -13,7 +13,7 @@ class BlockedResetRegressionTests(unittest.TestCase):
         self.assertIn("if (!sourceCurrent) return \"Stale reading · reset unverified\";", FORM)
 
     def test_block_state_remains_visible_outside_reset_label(self):
-        self.assertIn('status.Text="USAGE BLOCKED / LAST KNOWN"', FORM)
+        self.assertIn('status.Text="CODEX USAGE BLOCKED"', FORM)
         self.assertIn('if(blocked)', FORM)
         self.assertIn('status.ForeColor=InstrumentStyle.Red', FORM)
 

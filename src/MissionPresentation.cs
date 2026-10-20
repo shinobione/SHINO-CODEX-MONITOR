@@ -64,36 +64,40 @@ namespace ShinoCodexMonitor
     internal sealed class MissionCard : InstrumentPanel
     {
         internal readonly ActivityGlyph Radar=new ActivityGlyph();
-        private readonly Label title=new InstrumentLabel(), status=new InstrumentLabel(), elapsed=new InstrumentLabel(), metadata=new InstrumentLabel();
+        private readonly Label title=new InstrumentLabel(), status=new InstrumentLabel(), elapsed=new InstrumentLabel(), model=new InstrumentLabel(), effort=new InstrumentLabel();
         private readonly ToolTip tooltip=new ToolTip();
+        private string elapsedReadout;
         internal MissionView Mission { get; private set; }
         internal string LayoutMode="Circular";
         internal bool Condensed;
         internal MissionCard()
         {
             TabStop=true;
-            foreach(Label label in new [] {title,status,elapsed,metadata}) {
+            foreach(Label label in new [] {title,status,elapsed,model,effort}) {
                 label.AutoEllipsis=true;label.BackColor=Color.Transparent;label.ForeColor=InstrumentStyle.Text;
                 Controls.Add(label);
             }
+            title.Name="MissionTitle";status.Name="MissionState";elapsed.Name="MissionDuration";model.Name="MissionModel";effort.Name="MissionEffort";
             Controls.Add(Radar);
         }
         internal void Update(MissionView mission, DateTimeOffset now)
         {
             Mission=mission; LiveTask task=mission.Task;
-            title.Text=mission.Label;
+            title.Text=mission.Number.ToString("00",CultureInfo.InvariantCulture)+" / "+(task.Workspace=="Project not provided"?"Codex task":task.Workspace);
             status.Text=mission.State==RadarState.Active ? "ACTIVE / OBSERVED" : mission.State==RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
             bool current=mission.State==RadarState.Active;
             bool durationKnown=!task.IdentityUncertain && task.StartedUtc<=now.AddSeconds(5) && task.LastWriteUtc>=task.StartedUtc && task.LastWriteUtc<=now.AddSeconds(5) &&
                 (!task.FinishedUtc.HasValue || (task.FinishedUtc.Value>=task.StartedUtc && task.FinishedUtc.Value<=now.AddSeconds(5)));
-            elapsed.Text=durationKnown ? (current ? "Elapsed  " : "Recorded  ")+task.Duration(current ? now : task.LastWriteUtc) : "Duration unverified";
-            metadata.Text="MODEL / "+task.Model+"\nEFFORT / "+task.Effort;
+            elapsedReadout=durationKnown ? (current ? "Elapsed  " : "Recorded  ")+task.Duration(current ? now : task.LastWriteUtc) : "Duration unverified";
+            elapsed.Text=elapsedReadout;
+            model.Text="MODEL  "+task.Model;effort.Text="EFFORT  "+task.Effort;
             status.ForeColor=mission.State==RadarState.Active ? InstrumentStyle.Teal : mission.State==RadarState.Complete ? Color.FromArgb(72,214,155) :
                 mission.State==RadarState.Failed ? InstrumentStyle.Red : InstrumentStyle.Amber;
-            Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.23);
+            Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.3);
+            Rail=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.4);
             LiveTaskPhase phase=mission.State==RadarState.Unverified ? LiveTaskPhase.Unconfirmed : task.Phase;
             Radar.SetObservation(phase,mission.State!=RadarState.Stale,false);
-            string detail=mission.Label+"\n"+status.Text+" / "+elapsed.Text+"\n"+metadata.Text+
+            string detail=mission.Label+"\n"+status.Text+" / "+elapsed.Text+"\n"+model.Text+"\n"+effort.Text+
                 "\nLast source observation: "+task.LastWriteUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB"))+
                 (mission.Missing ? "\nNot present in latest bounded read; completion unverified." : "\nLocal JSONL observation; active Desktop tab not guaranteed.");
             AccessibleName=title.Text+", "+status.Text;AccessibleDescription=detail;
@@ -104,26 +108,36 @@ namespace ShinoCodexMonitor
             base.OnLayout(e);if(title==null)return;
             float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
             int w=(int)Math.Round(Width/scale),h=(int)Math.Round(Height/scale);
-            bool shortRow=h<52;
-            int desired=LayoutMode=="Micro" ? 40 : LayoutMode=="Compact" ? 60 : LayoutMode=="Vertical" ? 78 : 96;
-            if(Condensed)desired=Math.Min(desired,64);
-            if(shortRow)desired=32;
-            int radar=Math.Max(20,Math.Min(desired,h-2));
-            Radar.Bounds=new Rectangle(u(4),u((h-radar)/2),u(radar),u(radar));Radar.BackColor=Color.Transparent;
-            int x=radar+12, available=Math.Max(1,w-x-8);
-            title.SetBounds(u(x),u(shortRow?3:6),u(available),u(shortRow?15:19));
-            InstrumentStyle.FontFor(title,shortRow?10:11.5f,FontStyle.Bold);
-            status.SetBounds(u(x),u(shortRow?20:27),u(available),u(15));
-            InstrumentStyle.FontFor(status,shortRow?9:10,FontStyle.Bold);
-            elapsed.Visible=!shortRow || available>=180;
-            elapsed.SetBounds(u(shortRow ? w-106 : x),u(shortRow?20:Math.Min(47,h-19)),u(shortRow?98:available),u(17));
-            InstrumentStyle.FontFor(elapsed,shortRow?9:11,FontStyle.Regular);
-            elapsed.ForeColor=InstrumentStyle.Text;
-            if(shortRow && elapsed.Visible)status.Width=Math.Max(1,elapsed.Left-status.Left-u(4));
-            metadata.Visible=w>=390 && h>=64;
-            if(metadata.Visible) {
-                int mx=Math.Max(x+170,w*3/5);metadata.SetBounds(u(mx),u(30),u(w-mx-8),u(Math.Min(37,h-31)));
-                elapsed.Width=u(mx-x-8);InstrumentStyle.FontFor(metadata,10,FontStyle.Regular);metadata.ForeColor=InstrumentStyle.Muted;
+            bool shortRow=h<50,tight=h<68,flat=h<78,spacious=h>=94 && !Condensed && LayoutMode=="Circular";
+            int desired=LayoutMode=="Micro" ? 40 : LayoutMode=="Compact" ? 60 : LayoutMode=="Vertical" ? 78 : 104;
+            if(Condensed)desired=Math.Min(desired,76);
+            if(shortRow)desired=30;
+            int radar=Math.Max(20,Math.Min(desired,h-4));
+            Radar.Bounds=new Rectangle(u(6),u((h-radar)/2),u(radar),u(radar));Radar.BackColor=Color.Transparent;
+            int x=radar+18,available=Math.Max(1,w-x-9);
+            title.SetBounds(u(x),u(shortRow?2:flat && !tight?3:4),u(available),u(shortRow?17:tight?18:flat?21:23));
+            InstrumentStyle.FontFor(title,shortRow?11.5f:spacious?15:Condensed?12.5f:tight?12:14,FontStyle.Bold);
+            int sy=shortRow?21:tight?23:flat?26:32,ey=shortRow?21:tight?39:spacious?62:Math.Min(55,h-21);
+            int stateHeight=shortRow||tight?15:flat?17:18,elapsedHeight=shortRow||tight?16:19;
+            status.SetBounds(u(x),u(sy),u(available),u(stateHeight));
+            InstrumentStyle.FontFor(status,shortRow?10.5f:tight?11:12,FontStyle.Bold);
+            if(Mission!=null)status.Text=Mission.State==RadarState.Active ? (shortRow || available<145?"ACTIVE":"ACTIVE / OBSERVED") : Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
+            elapsed.Visible=true;elapsed.Text=elapsedReadout ?? "";
+            if(shortRow || available<160)elapsed.Text=elapsed.Text.Replace("Elapsed  ","Elapsed ").Replace("Recorded  ","Recorded ").Replace(" h ","h ").Replace(" min","m").Replace(" d ","d ").Replace("Duration unverified","Time unverified");
+            elapsed.SetBounds(u(x),u(ey),u(available),u(elapsedHeight));
+            InstrumentStyle.FontFor(elapsed,shortRow?10.5f:tight?11.5f:spacious?14:13,FontStyle.Regular);elapsed.ForeColor=InstrumentStyle.Text;
+            if(shortRow) {
+                int ew=Math.Min(132,available/2);
+                elapsed.SetBounds(u(w-ew-9),u(ey),u(ew),u(elapsedHeight));status.Width=Math.Max(1,elapsed.Left-status.Left-u(8));
+            }
+            bool metadataFits=w>=390 && h>=55;
+            model.Visible=effort.Visible=metadataFits;
+            if(metadataFits) {
+                int mx=Math.Max(x+184,w*3/5),mw=Math.Max(1,w-mx-9);
+                model.SetBounds(u(mx),u(sy),u(mw),u(tight?15:17));effort.SetBounds(u(mx),u(ey),u(mw),u(tight?15:17));
+                status.Width=elapsed.Width=u(mx-x-9);
+                InstrumentStyle.FontFor(model,tight?10.5f:11.5f,FontStyle.Regular);InstrumentStyle.FontFor(effort,tight?10.5f:11.5f,FontStyle.Regular);
+                model.ForeColor=effort.ForeColor=InstrumentStyle.Muted;
             }
         }
         protected override void Dispose(bool disposing) {if(disposing)tooltip.Dispose();base.Dispose(disposing);}
@@ -175,8 +189,8 @@ namespace ShinoCodexMonitor
                 } else card.Update(view,now);
             }
             heading.Text=views.Count<=1 ? "CODEX ACTIVITY / LOCAL OBSERVATION" : views.Count+" LOCAL TURNS / "+views.Count(v=>v.State==RadarState.Active)+" OBSERVED ACTIVE";
-            emptyTitle.Text=report==null ? "SOURCE UNAVAILABLE" : "NO VERIFIED ACTIVE TURN";
-            emptyDetail.Text="Local JSONL / partial observation";
+            emptyTitle.Text=report==null ? "LOCAL ACTIVITY UNAVAILABLE" : "LOCAL ACTIVITY UNVERIFIED";
+            emptyDetail.Text="LOCAL JSONL / partial observation";
             emptyRadar.SetObservation(LiveTaskPhase.Unconfirmed,true,report==null);
             emptyRadar.Visible=emptyTitle.Visible=emptyDetail.Visible=cards.Count==0;
             Arrange();
@@ -191,9 +205,9 @@ namespace ShinoCodexMonitor
             arranging=true;
             try {
                 float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=v=>(int)Math.Round(v*scale);
-                int inset=u(4),gap=u(4),top=u(21);
-                heading.SetBounds(u(9),u(4),Math.Max(1,Width-u(18)),u(15));
-                InstrumentStyle.FontFor(heading,9,FontStyle.Bold);
+                int inset=u(4),gap=u(4),top=u(24);
+                heading.SetBounds(u(9),u(4),Math.Max(1,Width-u(18)),u(18));
+                InstrumentStyle.FontFor(heading,10.5f,FontStyle.Bold);
                 int width=Math.Max(1,Width-2*inset),height=Math.Max(1,Height-top-inset);
                 int columns=cards.Count>1 && width>=u(420) ? 2 : 1;
                 int rows=(cards.Count+columns-1)/columns;
@@ -210,11 +224,11 @@ namespace ShinoCodexMonitor
                     card.LayoutMode=layoutMode;card.Condensed=cards.Count>1;card.BackColor=InstrumentStyle.Blend(BackColor,Color.Black,.16);
                     card.SetBounds(i%columns*(cw+gap),i/columns*(rowHeight+gap)-scroll.Offset,cw,rowHeight);card.PerformLayout();i++;
                 }
-                int radar=Math.Min(u(layoutMode=="Micro"?40:72),Math.Max(1,height-u(4)));
+                int radar=Math.Min(u(layoutMode=="Micro"?40:layoutMode=="Circular"?100:72),Math.Max(1,height-u(4)));
                 emptyRadar.SetBounds(u(6),(height-radar)/2,radar,radar);emptyRadar.BackColor=Color.Transparent;
                 emptyTitle.SetBounds(radar+u(16),Math.Max(u(4),height/2-u(18)),Math.Max(1,viewport.Width-radar-u(24)),u(18));
                 emptyDetail.SetBounds(emptyTitle.Left,emptyTitle.Bottom+u(2),emptyTitle.Width,u(17));
-                InstrumentStyle.FontFor(emptyTitle,10.5f,FontStyle.Bold);InstrumentStyle.FontFor(emptyDetail,10,FontStyle.Regular);
+                InstrumentStyle.FontFor(emptyTitle,11.5f,FontStyle.Bold);InstrumentStyle.FontFor(emptyDetail,11,FontStyle.Regular);
             } finally {arranging=false;}
         }
         internal void ConfirmCompletion(LiveTask task)

@@ -36,7 +36,7 @@ class CircularLayoutAudit(unittest.TestCase):
         self.assertIn('meter.Ring.SetReading(percent, live, color)',FORM)
         self.assertIn('meter.Ring.SetReading(null, false',FORM)
         self.assertIn('current ? accent : ColorTranslator.FromHtml("#8BA0B1")',PALETTE)
-        self.assertIn('statusAge.Visible=circular || settings.Layout=="Compact"',FORM)
+        self.assertIn('statusAge.Visible=true;statusDivider.Visible=false;',FORM)
         self.assertIn('FreshnessLabel(lastSuccess,UiNow)',FORM)
 
     def test_double_buffer_low_cost(self):

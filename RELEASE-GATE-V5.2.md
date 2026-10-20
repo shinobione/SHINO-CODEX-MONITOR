@@ -8,6 +8,8 @@
 
 **October 20 native redesign:** [Stitch Obsidian -> full-window WinForms candidate](OBSIDIAN-NATIVE-V5.2.md) addresses issue #15 with complete native fixture captures. Fresh owner screenshot approval is required; the earlier visual failure is not cleared by synthetic QA or CI. PR #14 stays Draft and stable Release stays HOLD.
 
+**October 20 Obsidian finish:** the follow-up to verified head `f14a9a7` redistributes Circular space for a 98 px radar, refines typography/surfaces and makes source validity explicit. All four outer window sizes, including Micro 484 x 230, are preserved. Local validation passes 128 Python and 305 C# checks, with 154 current full-window synthetic captures. A same-host forced-render comparison shows 21.18 versus 21.22 FPS, 1.379% versus 1.449% total-machine CPU, zero hidden frames, unchanged GDI/USER behavior and final private memory 32.45 versus 32.43 MiB. These are source/fixture measurements; owner visual acceptance and every uncompleted field gate below remain **HOLD**.
+
 **Status (October 19, 2026):** V5.2 Preview, PR #14 remains **Draft**; main and published V5.1 are unchanged. No automatic installation, autostart, merge, public tag or Release was performed for this audit.
 
 ## Verified in source and Windows CI

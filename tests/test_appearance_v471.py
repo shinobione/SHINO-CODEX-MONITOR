@@ -21,7 +21,7 @@ class AppearancePolishAudit(unittest.TestCase):
         self.assertIn('quotaHeight=DesktopGeometry.HeightForWidth(width)', FORM)
         self.assertIn('PlaceCircular(five,14,246)', FORM)
         self.assertIn('PlaceCircular(week,280,246)', FORM)
-        self.assertIn('m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-130)/2,29,130,130,w))', FORM)
+        self.assertIn('m.Ring.Bounds=Units(DesktopGeometry.ScaleRect((width-118)/2,24,118,118,w))', FORM)
 
     def test_opacity_control_persisted_and_live(self):
         for value in ('70','80','90','96','100'):

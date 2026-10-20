@@ -39,7 +39,12 @@ namespace ShinoCodexMonitor
             int gap = circular ? Scale(8, width) : 8;
             int activityHeight = circular ? Scale(100, width) :
                 layout == "Micro" ? 92 : layout == "Compact" ? 96 : 110;
-            return new Rectangle(margin, baseHeight + gap,
+            int top=baseHeight+gap;
+            // Rebalance existing space; preserve the exact outer dimensions even
+            // when independent logical-pixel rounding differs at custom widths.
+            if(circular) { int bottom=top+activityHeight;top=baseHeight-Scale(22,width);activityHeight=bottom-top; }
+            if(layout=="Micro") { top+=8;activityHeight-=8; }
+            return new Rectangle(margin, top,
                 Math.Max(1, width - 2 * margin), activityHeight);
         }
         internal static int CombinedHeight(int width, int baseHeight, string layout)
