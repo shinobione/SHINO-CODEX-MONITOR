@@ -1,3 +1,41 @@
+# Final Target Match — current candidate (2026-10-21)
+
+The five individual Stitch references in project `7199182866908450683` remain the sole visual source. Project and screen identities were reconfirmed through MCP; original PNG/HTML files were reused without regeneration. See the reference ID table in the archived implementation record below. Current evidence: `bin/final-target-match-20261020/COMPARAISON.html` and `LIVRAISON.md`; diagnostics are local/ignored.
+
+**GO for owner visual review; visual acceptance, field validation and release: HOLD.** This continues separate Draft PR #17 from verified PR #14 head `074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f`. PR #14 and #16 remain intact. No install, merge, tag, Release or autostart change.
+
+## One selection model and information contract
+
+Appearance -> Layout has exactly Circular, Vertical, Compact and Micro. Selecting one explicitly activates its target composition. The extra Obsidian checkbox is removed. The private compatibility preference remains to load older installations without silently resizing their existing window; selecting a target preserves legacy width, position, colors and other stored settings. New sizes are 680 x 480, 360 x 580, 640 x 260 and **484 x 230**, respectively. Blocked is a source state, never a fifth selectable mode; two missions are variants of each composition.
+
+All targets share product/layout-version header, material and typography roles, quota/reset semantics, source/read time, actual `ResetsAvailable` and independent mission model/effort/state/duration. Missing count is `Resets --`; cached count explicitly says cached. No count is inferred from reset timestamps. Micro abbreviates metadata on a dedicated line; two-task elapsed is prefixed `T`, with full meaning and details in tooltips. No metadata is silently omitted. Fonts use installed Windows Consolas; no font was downloaded or installed.
+
+## Root cause and rendering changes
+
+An isolated native regression reproduced **80 quota ParentChanged events and 40 card material changes per ten identical Compact reports**; Vertical had 40 material changes. Compact repeatedly detached/reattached quota HWNDs; MissionDeck and MissionCard alternated the card background. Both were unnecessary for a value refresh.
+
+Quotas now remain in stable Form parents. Compact owns three disjoint zones: radar column, quota stack and mission details. Existing radar controls move only on layout/identity changes, not report refresh. Stable geometry keys skip full layout on unchanged reports. Values, state and duration refresh independently. Target materials no longer oscillate between legacy and target paths. Ten unchanged updates now produce zero parent, HWND, material **and geometry-pass** changes in both layouts.
+
+Centralized typography/material roles, tracked captions, luminous header dot, neutral borders and fixed footer unify the four layouts. Gauge percentages separate the 30 px number and 20 px percent sign, retain resolved accent on REMAINING, and use cached arc glow. Radar faces retain the luminous dish, four range rings, crosshair, diffuse beam and ping; surplus double bezels and microticks were removed in target mode.
+
+Circular uses twin quota cards, a single source strip and structured activity metadata. Vertical now has a central 100 px radar, rule, centered mission and inset metadata; its two-task variant keeps a centered radar in each module. Compact uses non-overlapping 96/256/240 px zones inside its 640 px window. Micro retains its original 484 x 230 outer geometry and zero scroll. Blocked now uses a top warning banner, red title material and restrained cached card surfaces. No illustrative 429, PID, retry or suspension is copied.
+
+Reliable unblocked raw zero alone permits EXHAUSTED; fractional rounded zero and blocked/stale historical zero do not. Quota blockage cannot suspend an independently observed active mission. Contradictory events stay unverified. A's completion does not stop B.
+
+## Validation and residuals
+
+Local suites: **128 Python and 347 C# checks** (98 application, 46 task, 35 premium, 26 P0, 123 instrument, 19 final-target). The latter exercise identical-report stability, unified selection/header/counter, authoritative versus unknown/cached reset count, and visible model/effort/duration at 100/125/150/200% in every single/two-task layout. Existing instrument checks retain width/reset preferences, contradictory events, source states, raw zero semantics and handle disposal. CI repeats all suites and packages a seven-file private Preview artifact; only its actual current run may establish CI success.
+
+Evidence includes twenty new labeled final-target PNGs, the regenerated instrument state/DPI set and actual desktop-pixel videos of synthetic Vertical and Compact windows. Each video spans one -> two -> A-completed/B-active with periodic reports. Raw frame timestamps, bright-pixel probes and HWND/material events accompany the clips. Video sampling cannot establish absence of a sub-frame scanout defect; physical mixed-DPI and real owner sessions remain untested.
+
+Residual P2: Windows Consolas differs from Stitch's web fonts; GDI+ falloff and text rasterization are not CSS blur/kerning. Decorative pin/minimize/footer copy is intentionally limited to supported behavior. User-selected quota colors/background remain authoritative. P0 factual differences are intentional: no source-derived proof means no fictional exhausted/429/suspended status. Owner review must decide visual acceptance; no pixel-identical or field-success claim is made. Full current measurements and local artifact hashes live in the delivery report.
+
+---
+
+# Archived implementation record — df1779b (superseded by Final Target Match)
+
+The text below describes the previous candidate, including the removed checkbox/reparenting model and older measurements. It is retained as history, not the current behavior.
+
 # Obsidian Visual Parity - individual Stitch references (2026-10-20)
 
 **Separate Draft candidate based on PR #14 head `074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f`. Owner visual acceptance / release: HOLD.** PR #14 and Release Engineering PR #16 are not changed or merged. No tag, Release, installation or autostart change is authorized by this work.

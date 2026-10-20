@@ -13,7 +13,7 @@ try {
     if (!(Test-Path -LiteralPath $csc)) { throw 'Windows .NET Framework C# compiler unavailable.' }
     New-Item -ItemType Directory -Path $bin -Force | Out-Null
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report -Force }
-    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryData.cs','HistoryWindow.cs','PremiumTests.cs','P0Tests.cs','InstrumentTests.cs','InstrumentStyle.cs','MissionPresentation.cs','PeriscopeWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
+    $files = @('AssemblyInfo.cs','Models.cs','WakeGuard.cs','RuntimeMetrics.cs','CodexReader.cs','LiveTaskMonitor.cs','ActivityGlyph.cs','LiveTaskTests.cs','LocalStore.cs','HistoryData.cs','HistoryWindow.cs','PremiumTests.cs','P0Tests.cs','InstrumentTests.cs','InstrumentStyle.cs','TargetSource.cs','TargetTests.cs','MissionPresentation.cs','PeriscopeWindow.cs','AlertRules.cs','QuotaTrayIcon.cs','CircularGauge.cs','DesktopGeometry.cs','SourceHealth.cs','MonitorForm.cs','ReleaseUpdater.cs','ReleasePackage.cs','UpdateHandoff.cs','UpdateDownloadSmoke.cs','SelfTests.cs','Program.cs')
     $sources = @($files | ForEach-Object { Join-Path $root ('src\' + $_) })
     foreach ($source in $sources) { if (!(Test-Path -LiteralPath $source)) { throw ('Missing source: ' + $source) } }
     $identity = [IO.File]::ReadAllText((Join-Path $root 'src\AssemblyInfo.cs'))
@@ -73,6 +73,15 @@ try {
     $instrumentResult = [IO.File]::ReadAllText($instrumentReport)
     Write-Host $instrumentResult
     if (!$instrumentResult.Contains('All instrument checks passed') -or $instrumentResult.Contains('FAIL ')) { throw 'Instrument checks incomplete.' }
+    $targetReport = Join-Path $bin 'TARGET_TEST_REPORT.txt'
+    if (Test-Path -LiteralPath $targetReport) { Remove-Item -LiteralPath $targetReport -Force }
+    $targetProc = Start-Process -FilePath $exe -ArgumentList '--target-self-test' -WindowStyle Hidden -Wait -PassThru
+    if ($targetProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $targetReport)) { throw 'Final target tests failed.' }
+    $targetResult = [IO.File]::ReadAllText($targetReport)
+    Write-Host $targetResult
+    if ($targetResult.Contains('FAIL ') -or !$targetResult.Contains('final target checks passed')) { throw 'Final target tests incomplete.' }
+    $captureProc = Start-Process -FilePath $exe -ArgumentList '--target-captures' -WindowStyle Hidden -Wait -PassThru
+    if ($captureProc.ExitCode -ne 0) { throw 'Final target captures failed.' }
     # V5.2 preview installer; never mix with V5.1 files.
     $resolvedOutput = [IO.Path]::GetFullPath($output).TrimEnd('\') + '\'
     $resolvedStaging = [IO.Path]::GetFullPath($staging)

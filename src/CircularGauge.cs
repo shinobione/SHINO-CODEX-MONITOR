@@ -26,6 +26,7 @@ namespace ShinoCodexMonitor
         private bool current;
         private Color accent = Color.Gray;
         private bool exhausted;
+        internal bool Target;
         private Bitmap arc;
         private void ClearArc(){if(arc!=null){arc.Dispose();arc=null;}}
         internal CircularGauge()
@@ -49,7 +50,7 @@ namespace ShinoCodexMonitor
         }
         private Bitmap bezel;
         private Color bezelColor;
-        private Font numberFont,captionFont;
+        private Font numberFont,captionFont,percentFont;
         private void EnsureBezel()
         {
             Color background=BackColor.A==0 && Parent!=null ? Parent.BackColor : BackColor;
@@ -57,6 +58,7 @@ namespace ShinoCodexMonitor
             if(bezel!=null)bezel.Dispose();bezel=new Bitmap(Math.Max(1,Width),Math.Max(1,Height));bezelColor=background;
             if(numberFont!=null)numberFont.Dispose();if(captionFont!=null)captionFont.Dispose();
             float unit=PeriscopeWindow.ScaleFor(this),size=Math.Min(Width,Height);
+            if(percentFont!=null)percentFont.Dispose();percentFont=new Font("Consolas",size*.139f,FontStyle.Bold,GraphicsUnit.Pixel);
             ClearArc();numberFont=new Font("Consolas",size*.21f,FontStyle.Bold,GraphicsUnit.Pixel);
             captionFont=new Font("Consolas",Math.Max(9*unit,size*.0625f),FontStyle.Bold,GraphicsUnit.Pixel);
             using(Graphics g=Graphics.FromImage(bezel)) {
@@ -96,14 +98,19 @@ namespace ShinoCodexMonitor
                     }
                 }
             }g.DrawImageUnscaled(arc,0,0);
-            string text=!percentage.HasValue ? "--" : percentage.Value+"%";
+            string digits=!percentage.HasValue ? "--" : Target && percentage.Value>0?percentage.Value.ToString("00"):percentage.Value.ToString();
             using(Brush ink=new SolidBrush(!percentage.HasValue || !current ? InstrumentStyle.Muted : accent))
-            using(StringFormat center=new StringFormat {Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center})
-                g.DrawString(text,numberFont,ink,new RectangleF(0,-side*.04f,Width,Height),center);
+            using(StringFormat center=new StringFormat {Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center}) {
+                if(Target && percentage.HasValue) {
+                    SizeF n=g.MeasureString(digits,numberFont,PointF.Empty,StringFormat.GenericTypographic),p=g.MeasureString("%",percentFont,PointF.Empty,StringFormat.GenericTypographic);
+                    float x=(Width-n.Width-p.Width)/2,y=Height/2f-side*.21f;
+                    g.DrawString(digits,numberFont,ink,new PointF(x,y),StringFormat.GenericTypographic);g.DrawString("%",percentFont,ink,new PointF(x+n.Width,y+side*.065f),StringFormat.GenericTypographic);
+                } else g.DrawString(digits+(percentage.HasValue?"%":""),numberFont,ink,new RectangleF(0,-side*.04f,Width,Height),center);
+            }
             using(Brush ink=new SolidBrush(current?accent:InstrumentStyle.Muted))
             using(StringFormat center=new StringFormat {Alignment=StringAlignment.Center})
                 g.DrawString(!percentage.HasValue?"NO READING":current?(exhausted?"EXHAUSTED":"REMAINING"):"LAST KNOWN",captionFont,ink,new RectangleF(0,Height/2f+side*.17f,Width,side*.19f),center);
         }
-        protected override void Dispose(bool disposing){if(disposing){ClearArc();if(bezel!=null){bezel.Dispose();bezel=null;}if(numberFont!=null)numberFont.Dispose();if(captionFont!=null)captionFont.Dispose();}base.Dispose(disposing);}
+        protected override void Dispose(bool disposing){if(disposing){ClearArc();if(bezel!=null){bezel.Dispose();bezel=null;}if(numberFont!=null)numberFont.Dispose();if(captionFont!=null)captionFont.Dispose();if(percentFont!=null)percentFont.Dispose();}base.Dispose(disposing);}
     }
 }

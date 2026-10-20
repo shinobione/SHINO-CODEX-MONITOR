@@ -1,3 +1,27 @@
+# Final Target Match visual review — 2026-10-21
+
+Current full-size reference/native viewer: `bin/final-target-match-20261020/COMPARAISON.html`. Five individual Stitch PNG/HTML references are unchanged. All native inputs and motion videos are explicitly synthetic. The old board and the previous df1779b comparisons are historical only.
+
+| Screen | Corrected convergence | Residual / intentional difference |
+|---|---|---|
+| Circular | Twin gauge geometry, 03% with smaller percent sign, glow, accent-aligned REMAINING, structured mission metadata, one-line source/count/read time, common footer. | Native Consolas metrics and GDI+ blur differ; unsupported pin/minimize decoration is omitted. |
+| Vertical | Source at top, stacked quota bars, central radar, centered title, metadata inset and elapsed row; two missions retain two centered scopes with independent states. | Two-task modules reduce each radar to 48 px; metadata remains visible at all tested scales. |
+| Compact | Stable disjoint radar / quota / mission zones; caption/value hierarchy and bottom source/read/count strip. No quota reparenting or material churn during identical updates. | Global reset count lives in shared footer rather than being duplicated as a mission property; no fictional PID. |
+| Micro | 484 x 230, compact quota/reset bands, mission strip, dedicated model/effort and time line; zero scroll with two missions. | Long metadata can ellipsize with full tooltip; two-task time prefix is `T`. |
+| Blocked | Strong banner above quotas, red header/cached materials, real source time/count provenance and independently factual activity state. | Historical zero remains LAST KNOWN; no illustrative 429/retry/SUSPENDED. Unverified activity is identified rather than falsely paused. |
+
+P0 diagnosis: the previous two-toggle model exposed legacy and target compositions inconsistently. Shared count and header fields varied between layouts. Compact detached and reparented quotas on each refresh; both Compact and Vertical alternated card colors. These paths are now separated into compatibility loading, explicit target selection, stable geometry and value updates. Authoritative data remains independent of presentation.
+
+P1 comparison/correction loop: initial native captures exposed spacing errors, hidden Vertical metadata and overlong multi-task duration. Corrected label advances, z-order/background treatment, metadata grouping and compact duration copy; rerendered the complete target set. DPI/bounds tests caught one-pixel metadata intersections and narrow elapsed text; corrected placement rather than weakening assertions. Full before/after and raw optical references remain local.
+
+Native screen-pixel clips for Vertical and Compact include one mission, arrival of B, and completion of A with B active. CSV records exact frame timestamps and observed parent/handle/material events. Zero blank probes and zero refresh churn are bounded evidence from those sampled clips, not a physical-display guarantee. Final owner approval and field validation remain HOLD.
+
+P2 residuals: font substitution, native glyph metrics, exact CSS blur, decorative shell details and compact long strings. Existing geometry and color preferences are deliberately preserved until explicit layout selection. No independent reviewer/subagent was available; source/diff and frozen-core checks were reviewed inline. Current exact tests, performance and artifact identities are in `LIVRAISON.md`.
+
+---
+
+# Archived reviews — superseded candidates
+
 # Current visual parity review - individual Stitch screens
 
 **Internal synthetic review; owner visual sign-off HOLD.** Source project `7199182866908450683`, five unchanged individual PNG/HTML references. Earlier miniature-board reviews below are archived and are not the source of truth for this pass.

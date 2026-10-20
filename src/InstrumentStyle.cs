@@ -5,6 +5,7 @@ using System.Windows.Forms;
 
 namespace ShinoCodexMonitor
 {
+    internal enum InstrumentType { Product,Panel,Label,Value,Badge,Metadata,Technical,Body,MicroValue }
     internal static class InstrumentStyle
     {
         internal static readonly Color Teal=ColorTranslator.FromHtml("#32E0C4");
@@ -18,6 +19,15 @@ namespace ShinoCodexMonitor
         internal static readonly Color Canvas=ColorTranslator.FromHtml("#080D14"),QuotaFace=ColorTranslator.FromHtml("#0E1620"),ActivityFace=ColorTranslator.FromHtml("#0B1219");
         internal static readonly Color Hairline=ColorTranslator.FromHtml("#1D2A37"),Track=ColorTranslator.FromHtml("#172331"),Bright=ColorTranslator.FromHtml("#F2F6F9");
         internal static readonly Color Violet=ColorTranslator.FromHtml("#A477FF"),AlertFace=ColorTranslator.FromHtml("#241013");
+        internal static readonly Color Titlebar=ColorTranslator.FromHtml("#0C131C"),FooterFace=ColorTranslator.FromHtml("#070B10"),Metadata=ColorTranslator.FromHtml("#688299"),Caption=ColorTranslator.FromHtml("#99A9B8"),Secondary=ColorTranslator.FromHtml("#BAC7D5"),Shell=ColorTranslator.FromHtml("#2B3A48");
+        internal static void Type(Label control,InstrumentType role)
+        {
+            InstrumentLabel label=control as InstrumentLabel;if(label==null)return;
+            label.Family="Consolas";
+            float pixels=role==InstrumentType.Product?12:role==InstrumentType.Panel?11:role==InstrumentType.Label?9:role==InstrumentType.Value?20:role==InstrumentType.MicroValue?14:role==InstrumentType.Badge?9:role==InstrumentType.Metadata?9:role==InstrumentType.Body?13:10;
+            label.Tracking=role==InstrumentType.Product?1.5f:role==InstrumentType.Panel?1f:role==InstrumentType.Label?.65f:0;
+            label.SetFont(pixels*PeriscopeWindow.ScaleFor(control),role==InstrumentType.Metadata || role==InstrumentType.Technical?FontStyle.Regular:FontStyle.Bold);
+        }
         internal static Color MissionAccent(int number) {return new []{Teal,Blue,Violet,Amber}[Math.Max(0,number-1)%4];}
         internal static bool IsStale(string state) {return state=="Stale" || state=="Stale data";}
         internal static bool Exhausted(double? raw,bool current) {return current && raw.HasValue && raw.Value==0;}
@@ -58,6 +68,8 @@ namespace ShinoCodexMonitor
     {
         internal string Family="Segoe UI";
         internal bool Framed;
+        internal float Tracking;
+        internal Color Marker=Color.Transparent;
         private Font owned;
         internal InstrumentLabel() {UseMnemonic=false;}
         internal void SetFont(float pixels, FontStyle style)
@@ -68,7 +80,17 @@ namespace ShinoCodexMonitor
         }
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);if(!Framed || Width<2 || Height<2)return;
+            if(Tracking==0 && Marker.A==0)base.OnPaint(e);else {
+                float scale=PeriscopeWindow.ScaleFor(this),gap=Tracking*scale;string text=Text;
+                int inset=Marker.A>0?(int)Math.Round(11*scale):0;
+                Func<string,float> measure=t=>t.Length*Font.Size*.6f+Math.Max(0,t.Length-1)*gap;
+                if(AutoEllipsis && measure(text)>Width-inset-4) {while(text.Length>0 && measure(text+"...")>Width-inset-4)text=text.Substring(0,text.Length-1);text+="...";}
+                float x=TextAlign==ContentAlignment.MiddleCenter?(Width-measure(text))/2:inset,y=Math.Max(0,(Height-Font.Height)/2);
+                foreach(char c in text) {string letter=c.ToString();TextRenderer.DrawText(e.Graphics,letter,Font,new Point((int)Math.Round(x),(int)Math.Round(y)),ForeColor,TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix|TextFormatFlags.SingleLine);x+=measure(letter)+gap;}
+                e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+                if(Marker.A>0)using(Brush ink=new SolidBrush(Marker))e.Graphics.FillEllipse(ink,scale,Height/2f-2.5f*scale,5*scale,5*scale);
+            }
+            if(!Framed || Width<2 || Height<2)return;
             using(Pen p=new Pen(Color.FromArgb(100,ForeColor)))
             using(GraphicsPath path=InstrumentStyle.Rounded(new RectangleF(.5f,.5f,Width-1,Height-1),3*PeriscopeWindow.ScaleFor(this))) {
                 e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;e.Graphics.DrawPath(p,path);
@@ -81,6 +103,10 @@ namespace ShinoCodexMonitor
     internal class InstrumentPanel : Panel
     {
         internal bool Warning;
+        internal int FooterRule;
+        private bool strip,topRule;
+        internal bool Strip {get{return strip;}set{if(strip==value)return;strip=value;ClearFace();}}
+        internal bool TopRule {get{return topRule;}set{if(topRule==value)return;topRule=value;ClearFace();}}
         private bool flat;
         internal bool Flat {get{return flat;}set{if(flat==value)return;flat=value;ClearFace();}}
         private Bitmap face;
@@ -102,7 +128,7 @@ namespace ShinoCodexMonitor
                 using(LinearGradientBrush fill=new LinearGradientBrush(ClientRectangle,
                     flat?BackColor:InstrumentStyle.Blend(BackColor,Color.FromArgb(44,66,86),.26),flat?BackColor:InstrumentStyle.Blend(BackColor,Color.Black,.22),90))
                 using(Pen border=new Pen(edge))
-                using(Pen inset=new Pen(Color.FromArgb(38,190,215,234)))
+                using(Pen inset=new Pen(Color.FromArgb(flat?14:38,190,215,234)))
                 using(GraphicsPath shape=InstrumentStyle.Rounded(new RectangleF(.5f,.5f,Width-1,Height-1),4*PeriscopeWindow.ScaleFor(this))) {
                     g.Clear(Parent==null?BackColor:Parent.BackColor);g.SmoothingMode=SmoothingMode.AntiAlias;
                     g.FillPath(fill,shape);g.DrawPath(border,shape);
@@ -111,12 +137,15 @@ namespace ShinoCodexMonitor
                     if(rail.A>0)using(Pen accent=new Pen(rail,2*PeriscopeWindow.ScaleFor(this)))g.DrawLine(accent,2,7,2,Height-8);
                 }
             }
-            e.Graphics.DrawImageUnscaled(face,0,0);
+            if(strip) {e.Graphics.Clear(BackColor);using(Pen line=new Pen(edge))e.Graphics.DrawLine(line,0,topRule?0:Height-1,Width,topRule?0:Height-1);}
+            else e.Graphics.DrawImageUnscaled(face,0,0);
         }
         protected override void Dispose(bool disposing) { if(disposing)ClearFace(); base.Dispose(disposing); }
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);if(!Warning)return;float s=PeriscopeWindow.ScaleFor(this);
+            base.OnPaint(e);
+            if(FooterRule>0)using(Pen rule=new Pen(InstrumentStyle.Hairline))e.Graphics.DrawLine(rule,16*PeriscopeWindow.ScaleFor(this),FooterRule,Width-16*PeriscopeWindow.ScaleFor(this),FooterRule);
+            if(!Warning)return;float s=PeriscopeWindow.ScaleFor(this);
             using(Pen p=new Pen(InstrumentStyle.Red,1.4f*s)) {
                 e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
                 e.Graphics.DrawPolygon(p,new []{new PointF(8*s,15*s),new PointF(14*s,4*s),new PointF(20*s,15*s)});

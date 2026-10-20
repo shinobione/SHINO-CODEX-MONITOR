@@ -47,7 +47,9 @@ class CircularLayoutAudit(unittest.TestCase):
     def test_menu_has_five_color_options(self):
         for label in ('76–100 %','51–75 %','26–50 %','11–25 %','0–10 %'):
             self.assertIn(label,FORM)
-        self.assertIn('Circular · 2 gauges',FORM)
+        self.assertIn('SelectTargetLayout(layout)',FORM)
+        self.assertIn('new ToolStripMenuItem(mode)',FORM)
+        self.assertNotIn('Obsidian visual parity layout',FORM)
 
 if __name__=='__main__':
     unittest.main()

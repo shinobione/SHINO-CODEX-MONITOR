@@ -141,6 +141,8 @@ jobs:
             bin/P0_PERFORMANCE_REPORT.txt
             bin/instrument-qa/after/*.png
             bin/instrument-qa/parity/*.png
+            bin/target-qa/*.png
+            bin/TARGET_TEST_REPORT.txt
             bin/PARITY_PERFORMANCE_REPORT.txt
             bin/INSTRUMENT_TEST_REPORT.txt
             bin/INSTRUMENT_PERFORMANCE_REPORT.txt
