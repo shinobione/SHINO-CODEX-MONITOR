@@ -269,6 +269,22 @@ namespace ShinoCodexMonitor
                     Assert(direct.B>direct.R && window.Missions.Cards.All(c=>c.Radar.State==RadarState.Active),"Warning material or mission state persisted after recovery");
                 }
             });
+            foreach(int width in new []{470,720})foreach(int count in new []{1,2})
+                check("Parity width and reset preferences / "+width+" / "+count,delegate {
+                    Preferences p=Preferences.Defaults();p.ObsidianLayout=true;p.ObsidianCircularWidth=width;p.Layout="Circular";p.Top=false;p.TaskAnimations=false;
+                    using(MonitorForm window=new MonitorForm(p)) {
+                        window.Location=new Point(-30000,-30000);window.Show();
+                        foreach(float scale in new []{1f,1.25f,1.5f,2f})foreach(string reset in new []{"both","absolute","relative","hidden"}) {
+                            LiveTaskReport longRun=Tasks(count);foreach(LiveTask t in longRun.Tasks)t.StartedUtc=Now.AddHours(-20).AddMinutes(-29);
+                            p.ResetStyle=reset;window.Present(Quotas(false),longRun,Now,"Direct");window.SetPresentationScale(scale);BoundsCheck(window,count);
+                            window.Present(Quotas(false),longRun,Now,"Stale data");BoundsCheck(window,count);
+                            foreach(LiveTask t in longRun.Tasks)t.IdentityUncertain=true;
+                            LiveTaskReport uncertain=new LiveTaskReport {CheckedUtc=Now};uncertain.Tasks.AddRange(longRun.Tasks.Select(t=>t.Copy()));
+                            window.Present(Quotas(false),uncertain,Now,"Direct");BoundsCheck(window,count);
+                        }
+                        Assert(p.CircularWidth==540 && p.ObsidianCircularWidth==width,"Width preferences crossed");
+                    }
+                });
             CaptureAll("after");result.AppendLine(passed+"/"+total+" instrument checks passed");
             if(passed==total)result.AppendLine("All instrument checks passed. Owner visual acceptance and physical mixed-DPI: HOLD.");return result.ToString();
         }

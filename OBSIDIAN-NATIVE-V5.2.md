@@ -30,7 +30,7 @@ Local source receipt, original PNG/HTML and extracted tokens remain in `bin/stit
 
 ## Validation and remaining differences
 
-Current local checks: **128 Python; C# 98 application + 46 task + 35 premium + 26 P0 + 119 instrument = 324**. Instrument evidence includes synthetic 100/125/150/200% native geometry/fonts, all four layouts, raw/fractional/cached/missing zero, source transitions, uncertain/future contradictory events, independent identities, recorded preference load/save/toggle, filled halo pixels, Compact visible pixels with zero/one/two missions, critical text bounds and disposal.
+Current local checks: **128 Python; C# 98 application + 46 task + 35 premium + 26 P0 + 123 instrument = 328**. Instrument evidence includes synthetic 100/125/150/200% native geometry/fonts, all four layouts, raw/fractional/cached/missing zero, source transitions, uncertain/future contradictory events, independent identities, recorded preference load/save/toggle, all reset styles and 470/720 circular width limits, filled halo pixels, Compact visible pixels with zero/one/two missions, critical text bounds and disposal.
 
 There are **88 opt-in PNGs** in `instrument-qa/parity`: 64 direct/blocked x four scales x four layouts x one/two missions, four A-completed/B-active, sixteen exhausted/fractional/stale/unverified, and four unavailable. The existing 154 legacy full-window captures remain a separate regression set. Every image carries an explicit synthetic-data footer outside the native client bounds. The CI QA artifact uploads both sets; no fixture or capture enters the seven-file portable Preview ZIP.
 

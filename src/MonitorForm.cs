@@ -572,7 +572,7 @@ namespace ShinoCodexMonitor
                     ((ToolStripMenuItem)layouts.DropDownItems[i]).Checked = choices[i] == settings.Layout;
             };
             ToolStripMenuItem circularSize = Menu(appearance, "Gauge size", null);
-            circularSize.ToolTipText = "Pinned circular mode only; drag the handle to resize.";
+            circularSize.ToolTipText = "Circular layout width; legacy pinned mode also supports the resize handle.";
             foreach (int value in new int[] { 480, 540, 620, 700 })
             {
                 int pixels = value;
@@ -591,13 +591,14 @@ namespace ShinoCodexMonitor
             ToolStripMenuItem customSizeInfo = new ToolStripMenuItem() { Enabled = false };
             circularSize.DropDownItems.Add(customSizeInfo);
             circularSize.DropDownOpening += delegate {
+                int activeWidth=settings.ObsidianLayout?settings.ObsidianCircularWidth:settings.CircularWidth;
                 foreach (ToolStripItem child in circularSize.DropDownItems)
                 {
                     ToolStripMenuItem option = child as ToolStripMenuItem;
                     if (option != null && option.Tag is int)
-                        option.Checked = (int)option.Tag == settings.CircularWidth;
+                        option.Checked = (int)option.Tag == activeWidth;
                 }
-                customSizeInfo.Text = "Current size: " + settings.CircularWidth + " px";
+                customSizeInfo.Text = "Current size: " + activeWidth + " px";
             };
             ToolStripMenuItem opacity = Menu(appearance, "Opacity", null);
             foreach (int value in new int[] { 70, 75, 80, 85, 90, 95, 96, 98, 100 })
@@ -1493,12 +1494,12 @@ namespace ShinoCodexMonitor
                 settings.Layout, live || blocked, UiNow);
             if(settings.ObsidianLayout) {
                 int total=meter.Face.Width-Unit(20);meter.Reset.Width=total;
-                if(settings.Layout=="Micro" && !live && !blocked)meter.Reset.Text="Reset unverified";
+                if(total<Unit(220) && !live && !blocked)meter.Reset.Text="Reset unverified";
                 if(settings.ResetStyle=="both" && (live||blocked) && data.ResetUtc.HasValue) {
                     meter.Reset.Text=ResetLabel(data.ResetUtc,kind,"absolute",settings.Layout,true,UiNow).Replace("Reset on ","Reset ").Replace(" at "," ");
                     meter.Relative.Text=ResetLabel(data.ResetUtc,kind,"relative",settings.Layout,true,UiNow).Replace("Reset ","");
-                    if(settings.Layout=="Micro")meter.Reset.Text=data.ResetUtc.Value.ToLocalTime().ToString("dd MMM HH:mm",CultureInfo.GetCultureInfo("en-GB"));
                     int rw=Unit(settings.Layout=="Micro"?82:90);meter.Reset.Width=Math.Max(1,total-rw-Unit(5));
+                    if(meter.Reset.Width<Unit(132))meter.Reset.Text=data.ResetUtc.Value.ToLocalTime().ToString("dd MMM HH:mm",CultureInfo.GetCultureInfo("en-GB"));
                     meter.Relative.SetBounds(meter.Face.Width-Unit(10)-rw,meter.Reset.Top,rw,meter.Reset.Height);meter.Relative.Visible=true;meter.Relative.ForeColor=live?color:UiColors.Muted;
                 }
             }

@@ -159,8 +159,9 @@ namespace ShinoCodexMonitor
             title.TextAlign=vertical?ContentAlignment.MiddleCenter:ContentAlignment.MiddleLeft;
             title.SetBounds(u(x),u(vertical?164:small?4:32),u(available),u(21));
             status.SetBounds(u(x),u(small?27:8),u(available),u(17));
-            status.Text=Mission==null?"":Mission.State==RadarState.Active?"ACTIVE / OBSERVED":Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
+            status.Text=Mission==null?"":Mission.State==RadarState.Active?(available<130?"ACTIVE":"ACTIVE / OBSERVED"):Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
             elapsed.Text=elapsedReadout ?? "";elapsed.Visible=true;
+            if(available<160)elapsed.Text=elapsed.Text.Replace("Elapsed  ","Elapsed ").Replace("Recorded  ","Recorded ").Replace(" h ","h ").Replace(" min","m").Replace(" d ","d ").Replace("Duration unverified","Time unverified");
             elapsed.SetBounds(u(x),u(vertical?242:small?47:70),u(available),u(20));
             observation.Visible=!small;observation.SetBounds(u(x),u(8),u(Math.Max(1,available-138)),u(16));
             if(!small)status.SetBounds(u(w-140),u(8),u(128),u(17));
@@ -181,6 +182,7 @@ namespace ShinoCodexMonitor
                 model.Visible=true;effort.Visible=false;model.SetBounds(u(x),u(33),u(170),u(17));elapsed.SetBounds(u(x+182),u(32),u(available-182),u(19));
             }
             if(micro && Condensed) {title.Top=u(3);title.Height=u(18);status.Top=u(24);status.Height=u(15);elapsed.Top=u(43);elapsed.Height=u(17);}
+            if(elapsed.Width<u(175))elapsed.Text=elapsed.Text.Replace("Elapsed  ","Elapsed ").Replace("Recorded  ","Recorded ").Replace(" h ","h ").Replace(" min","m").Replace(" d ","d ").Replace("Duration unverified","Time unverified");
             InstrumentStyle.FontFor(title,small?12:vertical?13:15,FontStyle.Bold);
             InstrumentStyle.FontFor(status,small?10:11,FontStyle.Bold);InstrumentStyle.FontFor(elapsed,small?11:12.5f,FontStyle.Regular);
             InstrumentStyle.FontFor(observation,9.5f,FontStyle.Bold);InstrumentStyle.FontFor(model,10.5f,FontStyle.Regular);InstrumentStyle.FontFor(effort,10.5f,FontStyle.Regular);
