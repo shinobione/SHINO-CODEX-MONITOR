@@ -55,7 +55,7 @@ namespace ShinoCodexMonitor
                 Label mark=new InstrumentLabel {Text="SYNTHETIC QA / NATIVE MOTION",ForeColor=InstrumentStyle.Amber,BackColor=InstrumentStyle.Titlebar};
                 window.Controls.Add(mark);mark.SetBounds(31,8,170,24);InstrumentStyle.Type(mark,InstrumentType.Metadata);mark.BringToFront();
                 DateTimeOffset epoch=InstrumentTests.Now;LiveTaskReport fixture=InstrumentTests.Tasks(2);foreach(LiveTask t in fixture.Tasks){t.StartedUtc=epoch.AddSeconds(-79);t.Model="gpt-6.1-sol";t.Effort="Medium";}
-                int frames=0,report=-1,parents=0,handles=0,materials=0,blank=0;double previous=0;StringBuilder csv=new StringBuilder("frame,seconds,delta_ms,missions,bright_quota_pixels,bright_mission_pixels,parent_events,handle_events,material_events\r\n");
+                int frames=0,report=-1,parents=0,handles=0,materials=0,blank=0,sampledParents=0,sampledHandles=0,sampledMaterials=0;double previous=0;StringBuilder csv=new StringBuilder("frame,seconds,delta_ms,missions,bright_quota_pixels,bright_mission_pixels,parent_events,handle_events,material_events\r\n");
                 var watch=new System.Diagnostics.Stopwatch();LiveTaskReport initial=new LiveTaskReport {CheckedUtc=epoch};initial.Tasks.Add(fixture.Tasks[0].Copy());window.Present(Quotas(),initial,epoch,"Direct");window.Show();window.BringToFront();Application.DoEvents();
                 foreach(Control c in Walk(window)) {c.ParentChanged+=delegate{parents++;};c.HandleCreated+=delegate{handles++;};c.HandleDestroyed+=delegate{handles++;};if(c is InstrumentPanel)c.BackColorChanged+=delegate{materials++;};}
                 using(var timer=new System.Windows.Forms.Timer {Interval=16}) {
@@ -67,21 +67,22 @@ namespace ShinoCodexMonitor
                             window.Present(Quotas(),tasks,now,"Direct");
                         }
                         window.Missions.SetMotion(true);window.Missions.Advance();
+                        sampledParents=parents;sampledHandles=handles;sampledMaterials=materials;
                         using(Bitmap image=new Bitmap(window.ClientSize.Width,window.ClientSize.Height)) {
                             window.DrawToBitmap(image,window.ClientRectangle);
                             Rectangle quota=layout=="Vertical"?new Rectangle(220,90,110,40):new Rectangle(230,50,130,35);
                             Rectangle mission=layout=="Vertical"?new Rectangle(20,278,310,250):new Rectangle(395,55,230,160);
                             Func<Rectangle,int> bright=r=>{int n=0;for(int y=r.Top;y<r.Bottom;y+=2)for(int x=r.Left;x<r.Right;x+=2){Color c=image.GetPixel(x,y);if(Math.Max(c.R,Math.Max(c.G,c.B))>150)n++;}return n;};
                             int q=bright(quota),m=bright(mission);if(q<5 || m<5)blank++;
-                            csv.AppendLine(string.Join(",",frames,seconds.ToString("F4",System.Globalization.CultureInfo.InvariantCulture),((seconds-previous)*1000).ToString("F2",System.Globalization.CultureInfo.InvariantCulture),window.Missions.Count,q,m,parents,handles,materials));previous=seconds;
+                            csv.AppendLine(string.Join(",",frames,seconds.ToString("F4",System.Globalization.CultureInfo.InvariantCulture),((seconds-previous)*1000).ToString("F2",System.Globalization.CultureInfo.InvariantCulture),window.Missions.Count,q,m,sampledParents,sampledHandles,sampledMaterials));previous=seconds;
                             image.Save(Path.Combine(folder,frames.ToString("00000")+".png"),System.Drawing.Imaging.ImageFormat.Png);frames++;
                         }
-                        if(seconds>=8){File.WriteAllText(Path.Combine(folder,"stable-window-events.txt"),"Before teardown: parent="+parents+"; HWND="+handles+"; material="+materials+"; consult frame CSV for event timing / identity transition. ");timer.Stop();Application.ExitThread();}
+                        if(seconds>=8){File.WriteAllText(Path.Combine(folder,"stable-window-events.txt"),"During sampled frames, before window teardown: parent="+sampledParents+"; HWND="+sampledHandles+"; material="+sampledMaterials+".");timer.Stop();Application.ExitThread();}
                     };
                     watch.Start();timer.Start();Application.Run();
                 }
                 File.WriteAllText(Path.Combine(folder,"frames.csv"),csv.ToString());
-                File.WriteAllText(Path.Combine(folder,"measurement.txt"),"SYNTHETIC native WinForms DrawToBitmap client pixels; "+frames+" frames / "+watch.Elapsed.TotalSeconds.ToString("F3")+" seconds; blank quota/mission samples="+blank+"; structure transitions at 0/2/5 seconds. Parent events="+parents+"; HWND="+handles+"; material="+materials+". Not a physical mixed-DPI or sub-frame scanout proof.");
+                File.WriteAllText(Path.Combine(folder,"measurement.txt"),"SYNTHETIC native WinForms DrawToBitmap client pixels; "+frames+" frames / "+watch.Elapsed.TotalSeconds.ToString("F3")+" seconds; blank quota/mission samples="+blank+"; structure transitions at 0/2/5 seconds. During sampled frames: parent="+sampledParents+"; HWND="+sampledHandles+"; material="+sampledMaterials+". Normal teardown is not counted. Not a physical mixed-DPI or sub-frame scanout proof.");
                 window.Hide();
             }
         }
