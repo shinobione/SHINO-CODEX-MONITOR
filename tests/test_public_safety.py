@@ -19,7 +19,8 @@ TOP_LEVEL = {
     'INSTALL-PERISCOPE-V5.2.ps1','INSTALL-PERISCOPE-V5.2.bat',
     'UNINSTALL-PERISCOPE-V5.2.ps1','README-EN.txt','BRANDING-V5.2.md',
     'RELEASE-GATE-V5.2.md','PREMIUM-POLISH-V5.2.md','CODEX-PERISCOPE.ico','P0-MULTI-TASK-V5.2.md',
-    'OBSIDIAN-NATIVE-V5.2.md','design-qa.md','DELEGATED-OBSERVATION-V5.2.md'
+    'OBSIDIAN-NATIVE-V5.2.md','design-qa.md','DELEGATED-OBSERVATION-V5.2.md',
+    'P0-OBSERVABILITY-DIAGNOSTICS.md'
 }
 ALLOW_DIRECTORIES = {'.github/workflows','src','tests'}
 ALLOW_EXT = {'.cs','.py','.yml','.json'}
@@ -81,4 +82,3 @@ class PublicSafety(unittest.TestCase):
         self.assertIn('unittest discover -s tests',workflow)
 
 if __name__ == '__main__': unittest.main()
-
