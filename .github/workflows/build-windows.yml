@@ -69,6 +69,17 @@ jobs:
             & .\BUILD-RELEASE-V5.0.ps1
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify every Preview ZIP entry and checksum (NO INSTALL)
+        if: hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $PWD 'dist/CODEX_PERISCOPE_V5_2_PREVIEW_WINDOWS.zip'
+          python -m zipfile -t $archive
+          if ($LASTEXITCODE -ne 0) { throw 'Preview ZIP CRC validation failed.' }
+          $item = Get-Item -LiteralPath $archive
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+          Write-Host "Preview ZIP size=$($item.Length) bytes; SHA-256=$hash; all entry CRC checks passed."
       - name: Record repeated-refresh native composition evidence (synthetic)
         if: hashFiles('src/TargetTests.cs') != ''
         shell: powershell
