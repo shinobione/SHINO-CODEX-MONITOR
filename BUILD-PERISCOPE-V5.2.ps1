@@ -48,7 +48,7 @@ try {
     $taskProc = Start-Process -FilePath $exe -ArgumentList '--live-task-self-test' -Wait -PassThru
     if ($taskProc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskReport)) { throw 'Task self-tests did not run.' }
     $taskResult = [IO.File]::ReadAllText($taskReport)
-    if (!$taskResult.Contains('63/63') -or $taskResult.Contains('FAIL ')) { throw 'Task self-tests incomplete.' }
+    if (!$taskResult.Contains('69/69') -or $taskResult.Contains('FAIL ')) { throw 'Task self-tests incomplete.' }
     $premiumReport = Join-Path $bin 'PREMIUM_TEST_REPORT.txt'
     if (Test-Path -LiteralPath $premiumReport) { Remove-Item -LiteralPath $premiumReport -Force }
     $premiumProc = Start-Process -FilePath $exe -ArgumentList '--premium-self-test' -WindowStyle Hidden -Wait -PassThru
@@ -126,3 +126,4 @@ try {
     exit 0
 }
 catch { Write-Host ('ERROR: ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
+

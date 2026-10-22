@@ -23,6 +23,10 @@ namespace ShinoCodexMonitor
         {
             if (!condition) throw new InvalidOperationException("Assertion failed.");
         }
+        private static void Assert(bool condition,string message)
+        {
+            if(!condition)throw new InvalidOperationException(message);
+        }
         private static string Event(string name, string id, int secondsAgo, string extras = "")
         {
             return "{\"timestamp\":\"" + Now.AddSeconds(-secondsAgo).ToString("o") +
@@ -473,6 +477,16 @@ namespace ShinoCodexMonitor
                     Child("root-thread","child-file",Now.AddMinutes(-4),Now.AddSeconds(-120)));
                 Assert(m.State==RadarState.Unverified&&m.ActiveChildCount==0);
             });
+            Check("Tracker prioritizes fresh missions while preserving historical numbers", delegate {
+                MissionTracker tracker=new MissionTracker();
+                LiveTask old=Root("old-root","old-file",Now.AddMinutes(-8),Now.AddMinutes(-2));
+                LiveTask fresh=Root("fresh-root","fresh-file",Now.AddMinutes(-1),Now.AddSeconds(-2));
+                tracker.Update(Report(Now,old,fresh));List<MissionView> views=tracker.At(Now);
+                Assert(views.Count==2&&views[0].Number==2&&views[0].State==RadarState.Active&&
+                    views[1].Number==1&&views[1].State==RadarState.Stale&&
+                    views.Single(v=>v.Task.ThreadId=="old-root").Number==1&&
+                    views.Single(v=>v.Task.ThreadId=="fresh-root").Number==2);
+            });
             Check("Terminal enfant ne produit ni événement ni replay de notification racine", delegate {
                 LiveTask child=Child("root-thread","child-file",Now.AddMinutes(-2),Now.AddSeconds(-2),LiveTaskPhase.Completed);
                 child.FinishedUtc=Now.AddSeconds(-2);child.IsRootConfirmed=false;
@@ -480,6 +494,13 @@ namespace ShinoCodexMonitor
                 LiveTaskReport current=Report(Now,child);
                 Assert(TaskNotificationRules.NewTerminals(previous,current).Count==0&&
                     TaskNotificationRules.NewTerminals(current,Report(Now.AddSeconds(40),child)).Count==0);
+            });
+            Check("Terminal reconstruit après récupération partielle ne rejoue aucune notification", delegate {
+                LiveTask previous=Root("root","session",Now.AddSeconds(-8),Now.AddSeconds(-7));previous.IdentityUncertain=true;previous.Phase=LiveTaskPhase.Unconfirmed;previous.FinishedUtc=null;
+                previous.SessionKey="rollout";LiveTask terminal=previous.Copy();terminal.IdentityUncertain=false;terminal.IsRootConfirmed=true;
+                terminal.Phase=LiveTaskPhase.Completed;terminal.FinishedUtc=Now.AddSeconds(-1);terminal.LastWriteUtc=Now.AddSeconds(-1);
+                LiveTaskReport before=Report(Now.AddSeconds(-2),previous),after=Report(Now,terminal);
+                Assert(TaskNotificationRules.NewTerminals(before,after).Count==0);
             });
             Check("Reprise bornée récupère un terminal avant plus de 512 Kio de lignes non pertinentes", delegate {
                 string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fixture-"+Guid.NewGuid().ToString("N"));
@@ -496,13 +517,99 @@ namespace ShinoCodexMonitor
                         for(int i=0;i<11000;i++)writer.WriteLine(filler);
                     }
                     System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-2).UtcDateTime);
-                    LiveTaskReader.ClearCacheForTests();LiveTaskReport data=LiveTaskReader.Read(Now);
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport data=null;long totalBytes=0,totalMs=0;int cycles=0;
+                    do {data=LiveTaskReader.Read(Now);cycles++;totalBytes+=data.RecoveryBytesRead;totalMs+=data.RecoveryDurationMs;}
+                    while(data.RecoveryLimitedSessions>0&&cycles<8);
                     LiveTask recovered=data.Tasks.FirstOrDefault(t=>t.IsRootConfirmed);
-                    Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Completed&&data.RecoveryBytesRead>9*1024*1024&&data.RecoveryLimitedSessions==0);
-                    report.AppendLine("Synthetic recovery measurement: bytes="+data.RecoveryBytesRead.ToString(CultureInfo.InvariantCulture)+
-                        "; sessions="+data.RecoverySessions.ToString(CultureInfo.InvariantCulture)+"; elapsed_ms="+
-                        data.RecoveryDurationMs.ToString(CultureInfo.InvariantCulture)+"; limited="+
+                    Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Completed&&totalBytes>9*1024*1024&&data.RecoveryLimitedSessions==0);
+                    report.AppendLine("Synthetic recovery measurement: cycles="+cycles.ToString(CultureInfo.InvariantCulture)+"; bytes="+totalBytes.ToString(CultureInfo.InvariantCulture)+
+                        "; elapsed_ms="+totalMs.ToString(CultureInfo.InvariantCulture)+"; limited="+
                         data.RecoveryLimitedSessions.ToString(CultureInfo.InvariantCulture));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Reprise progressive atteint un démarrage placé à 18,88 Mio", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-progressive-fixture-"+Guid.NewGuid().ToString("N"));
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);
+                    string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));
+                    System.IO.Directory.CreateDirectory(dir);string path=System.IO.Path.Combine(dir,"rollout-progressive.jsonl");
+                    byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"private-thread\",\"thread_source\":\"user\"}}\n");
+                    byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}\n");
+                    long eventOffset=(long)(18.88*1024*1024);
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
+                        stream.Write(header,0,header.Length);
+                        while(stream.Position<eventOffset)stream.Write(filler,0,filler.Length);
+                        byte[] start=Encoding.UTF8.GetBytes(Event("task_started","private-turn",2)+"\n");stream.Write(start,0,start.Length);
+                        byte[] context=Encoding.UTF8.GetBytes(Context("private-turn","fixture-model","high")+"\n");stream.Write(context,0,context.Length);
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();
+                    LiveTaskReport data=null;long totalBytes=0;for(int cycle=0;cycle<32;cycle++){data=LiveTaskReader.Read(Now);totalBytes+=data.RecoveryBytesRead;}
+                    LiveTask recovered=data.Tasks.FirstOrDefault(t=>t.IsRootConfirmed&&!t.IsSubagent&&t.Id=="private-turn");
+                    Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Active&&!recovered.IdentityUncertain&&
+                        data.RecoveryLimitedSessions==0&&totalBytes>eventOffset);
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Frontière UTF-8 partielle reprend la ligne sans confirmer avant son enregistrement", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-utf8-boundary-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-utf8.jsonl");byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"utf8-root\",\"thread_source\":\"user\"}}\n");
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
+                        stream.Write(header,0,header.Length);
+                        while(stream.Position<700000)stream.WriteByte((byte)' ');
+                        stream.WriteByte(10);
+                        while(stream.Position<1400000)stream.WriteByte((byte)' ');
+                        stream.WriteByte(10);
+                        byte[] prefix=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"content\":\"");stream.Write(prefix,0,prefix.Length);
+                        while(stream.Position<2097151)stream.WriteByte((byte)'x');
+                        byte[] emoji=Encoding.UTF8.GetBytes("🙂\"}}\n");stream.Write(emoji,0,emoji.Length);
+                        byte[] start=Encoding.UTF8.GetBytes(Event("task_started","utf8-turn",2)+"\n");stream.Write(start,0,start.Length);
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();
+                    LiveTaskReport first=LiveTaskReader.Read(Now);Assert(first.Tasks.Count==0,"A record crossing the slice boundary was interpreted early");
+                    LiveTaskReport second=LiveTaskReader.Read(Now);LiveTask recovered=second.Tasks.FirstOrDefault(t=>t.Id=="utf8-turn");
+                    Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Active&&!recovered.IdentityUncertain,"UTF-8 record was lost at the slice boundary");
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Remplacement ou troncature invalide le checkpoint et relit le nouvel en-tête", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-replace-checkpoint-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-replaced.jsonl");byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"old-root\",\"thread_source\":\"user\"}}\n");
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
+                        stream.Write(header,0,header.Length);byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"content\":\""+new string('x',900)+"\"}}\n");
+                        while(stream.Position<3*1024*1024)stream.Write(filler,0,filler.Length);
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();LiveTaskReader.Read(Now);
+                    System.IO.File.Delete(path);System.IO.File.WriteAllLines(path,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"new-root\",\"thread_source\":\"user\"}}",Event("task_started","replacement-turn",2)});
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReport replaced=LiveTaskReader.Read(Now);
+                    Assert(replaced.Tasks.Any(t=>t.Id=="replacement-turn"&&t.IsRootConfirmed&&t.Phase==LiveTaskPhase.Active),"Replacement inherited the old source checkpoint/header");
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Reprise équitable de deux gros JSONL survit à la croissance", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fair-fixture-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}\n");
+                    foreach(string id in new[]{"fair-a","fair-b"}) {
+                        string path=System.IO.Path.Combine(dir,"rollout-"+id+".jsonl");
+                        using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
+                            byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\""+id+"\",\"thread_source\":\"user\"}}\n");stream.Write(header,0,header.Length);
+                            while(stream.Position<5*1024*1024)stream.Write(filler,0,filler.Length);
+                        }
+                        System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);
+                    }
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport reportNow=LiveTaskReader.Read(Now);long totalBytes=reportNow.RecoveryBytesRead;
+                    Assert(reportNow.Tasks.Count==0,"No start event should be invented");
+                    foreach(string id in new[]{"fair-a","fair-b"}) {
+                        string path=System.IO.Path.Combine(dir,"rollout-"+id+".jsonl");
+                        using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_started",id+"-turn",2));writer.WriteLine(Context(id+"-turn","fixture-model","high"));}
+                        System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);
+                    }
+                    for(int cycle=0;cycle<5;cycle++){reportNow=LiveTaskReader.Read(Now);totalBytes+=reportNow.RecoveryBytesRead;}
+                    Assert(reportNow.Tasks.Count(t=>t.IsRootConfirmed&&t.Phase==LiveTaskPhase.Active)==2&&totalBytes>6*1024*1024,
+                        "Both growing sources must resume at their own checkpoints");
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
             Check("Cache vidé puis relu à froid reconstruit l'historique sans notification ancienne", delegate {
@@ -605,11 +712,12 @@ namespace ShinoCodexMonitor
                         stream.Write(header,0,header.Length);stream.SetLength(LiveTaskReader.RecoveryMaxBytes+1L);
                     }
                     System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();
-                    LiveTaskReport data=LiveTaskReader.Read(Now);string diagnostic=data.RedactedDiagnostics(Now);
+                    LiveTaskReport data=null;for(int cycle=0;cycle<33;cycle++)data=LiveTaskReader.Read(Now);string diagnostic=data.RedactedDiagnostics(Now);
                     Assert(data.RecoveryLimitedSessions==1&&data.RecoveryLimitedBySize==1&&
                         data.RecoveryLimitedByInvalidLine==1&&data.RecoveryLimitedByPartialRead==1&&
                         diagnostic.Contains("size=1")&&diagnostic.Contains("invalid-line=1")&&diagnostic.Contains("partial-read=1")&&
-                        !diagnostic.Contains("private-session-id")&&!diagnostic.Contains("rollout-limited-private"));
+                        !diagnostic.Contains("private-session-id")&&!diagnostic.Contains("rollout-limited-private"),
+                        "recovery reasons="+data.RecoveryLimitedBySize+"/"+data.RecoveryLimitedByInvalidLine+"/"+data.RecoveryLimitedByPartialRead);
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
             Check("Diagnostic : six derniers terminés ne masquent pas la preuve racine active", delegate {
@@ -630,3 +738,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+

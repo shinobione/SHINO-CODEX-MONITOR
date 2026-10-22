@@ -128,7 +128,7 @@ jobs:
           }
           $content = [IO.File]::ReadAllText($report)
           Write-Host $content
-          if (!$content.Contains('63/63') -or $content.Contains('FAIL ')) {
+          if (!$content.Contains('69/69') -or $content.Contains('FAIL ')) {
             throw 'Live task lifecycle validation failed.'
           }
       - name: Measure native synthetic radar performance (no live collectors)
@@ -304,3 +304,4 @@ jobs:
           path: dist/SHINO_CODEX_MONITOR_V5_0_WINDOWS.zip
           if-no-files-found: error
           retention-days: 30
+

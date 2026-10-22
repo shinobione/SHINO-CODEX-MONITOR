@@ -103,6 +103,7 @@ namespace ShinoCodexMonitor
             Check("Three independent observed missions remain visible in collection",delegate {
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,Task("A","a",40),Task("B","b",30),Task("C","c",20)));
                 Assert(tracker.At(Now).Count == 3,"Third task dropped"); });
+            Check("Active and delegated missions lead all eight layouts without partial cards",delegate { CheckPriorityLayouts(); });
             Check("Sanitized cached starts survive a growing tail",delegate { CheckReaderCache(); });
             Check("Cold concurrent long root sessions share a bounded expansion budget",delegate { CheckColdSources(); });
             Check("Completed history cannot permanently saturate the turn cache",delegate {
@@ -203,6 +204,30 @@ namespace ShinoCodexMonitor
                 }
             }
         }
+        private static void CheckPriorityLayouts()
+        {
+            foreach(bool parity in new[]{false,true})foreach(string layout in new[]{"Circular","Vertical","Compact","Micro"})
+            using(Form host=new Form())using(MissionDeck deck=new MissionDeck()) {
+                int width=layout=="Vertical"?327:layout=="Compact"?642:layout=="Micro"?484:512;
+                int height=layout=="Vertical"?230:layout=="Compact"?230:layout=="Micro"?230:230;
+                host.ShowInTaskbar=false;host.StartPosition=FormStartPosition.Manual;host.Location=new Point(-32000,-32000);host.ClientSize=new Size(width,height);
+                deck.Dock=DockStyle.Fill;deck.Parity=parity;deck.LayoutMode=layout;host.Controls.Add(deck);host.Show();
+                LiveTask active=Task("ACTIVE","root-active",2);
+                LiveTask delegated=Task("DELEGATED","root-delegated",180);delegated.ThreadId="parent-delegated";
+                LiveTask child=Task("CHILD","child-session",1);child.IsSubagent=true;child.IsRootConfirmed=false;child.ParentThreadId="parent-delegated";
+                LiveTask staleA=Task("STALE-A","old-a",240),staleB=Task("STALE-B","old-b",300);
+                active.LastWriteUtc=Now.AddSeconds(-2);delegated.LastWriteUtc=Now.AddSeconds(-180);child.LastWriteUtc=Now.AddSeconds(-1);
+                staleA.LastWriteUtc=Now.AddSeconds(-240);staleB.LastWriteUtc=Now.AddSeconds(-300);
+                deck.UpdateReport(Report(Now,staleA,staleB,delegated,child,active),Now);
+                List<MissionView> ordered=deck.At(Now);
+                Assert(ordered.Count==4&&ordered[0].Task.Id=="ACTIVE"&&ordered[0].State==RadarState.Active&&
+                    ordered[1].Task.Id=="DELEGATED"&&ordered[1].State==RadarState.Delegated,"Priority order/status mismatch: "+parity+"/"+layout+" => "+string.Join(",",ordered.Select(v=>v.Task.Id+":"+v.State)));
+                MissionCard activeCard=deck.Cards.Single(c=>c.Mission.Task.Id=="ACTIVE");
+                Assert(activeCard.Bounds.Top==0&&activeCard.Bounds.Bottom<=deck.QuotaEmptyHost.Height,"Active card not fully visible first: "+parity+"/"+layout);
+                Assert(deck.Cards.Where(c=>c.Bounds.Bottom>0&&c.Bounds.Top<deck.QuotaEmptyHost.Height).All(c=>c.Bounds.Top>=0&&c.Bounds.Bottom<=deck.QuotaEmptyHost.Height),"Initial viewport clipped a card");
+                if(deck.HasOverflow){deck.ScrollBy(100000);Assert(deck.Cards.Where(c=>c.Bounds.Bottom>0&&c.Bounds.Top<deck.QuotaEmptyHost.Height).All(c=>c.Bounds.Top>=0&&c.Bounds.Bottom<=deck.QuotaEmptyHost.Height),"Scroll started mid-card");}
+            }
+        }
         private sealed class IconProbe : PeriscopeWindow
         { internal void Recreate() { RecreateHandle(); } }
         private static void CheckWindowIcons()
@@ -281,3 +306,4 @@ namespace ShinoCodexMonitor
         [DllImport("user32.dll")] private static extern int GetGuiResources(IntPtr process,int flags);
     }
 }
+
