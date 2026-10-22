@@ -116,7 +116,7 @@ namespace ShinoCodexMonitor
             Check("Three independent observed missions remain visible in collection",delegate {
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,Task("A","a",40),Task("B","b",30),Task("C","c",20)));
                 Assert(tracker.At(Now).Count == 3,"Third task dropped"); });
-            Check("Active and delegated missions lead all eight layouts without partial cards",delegate { CheckPriorityLayouts(); });
+            Check("Direct root proof overrides completed children; active/delegated layout priority",delegate { CheckFreshRootAfterChild(); CheckPriorityLayouts(); });
             Check("Sanitized cached starts survive a growing tail",delegate { CheckReaderCache(); });
             Check("Cold concurrent long root sessions share a bounded expansion budget",delegate { CheckColdSources(); });
             Check("Completed history cannot permanently saturate the turn cache",delegate {
@@ -216,6 +216,54 @@ namespace ShinoCodexMonitor
                     }
                 }
             }
+        }
+        private static void CheckFreshRootAfterChild()
+        {
+            // Reproduces the field contradiction: global ROOT ACTIVE (recent primary
+            // proof) while the presentation used to say UNVERIFIED merely because a
+            // previous guardian_review child was linked but has now completed.
+            LiveTask root=Task("ROOT","root-session",8);
+            root.ThreadId="verified-parent";
+            LiveTask child=Task("GUARDIAN","child-session",35);
+            child.IsSubagent=true;child.IsRootConfirmed=false;
+            child.ParentThreadId="verified-parent";
+            child.Phase=LiveTaskPhase.Completed;
+            child.FinishedUtc=Now.AddSeconds(-2);
+            child.LastWriteUtc=child.FinishedUtc.Value;
+            LiveTaskReport data=Report(Now,root,child);
+            Assert(data.DisplayAt(Now).Kind==TaskDisplayKind.ObservedActive,
+                "Fixture does not reproduce ROOT ACTIVE in the global diagnostic");
+            MissionTracker tracker=new MissionTracker();tracker.Update(data);
+            MissionView live=tracker.At(Now).Single();
+            Assert(live.DelegatedEvidenceSeen && live.ActiveChildCount==0,
+                "The completed linked child did not reach the tracker");
+            Assert(live.State==RadarState.Active,
+                "A completed guardian_review child suppressed fresh root ACTIVE");
+            using(Form host=new Form())using(MissionDeck deck=new MissionDeck()) {
+                host.Controls.Add(deck);deck.SetBounds(0,0,520,180);
+                deck.UpdateReport(data,Now);
+                Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.State==RadarState.Active,
+                    "Global ROOT ACTIVE was not displayed as an ACTIVE mission card");
+            }
+
+            // The same root still takes priority when a linked child is fresh:
+            // direct parent evidence must not be mislabeled as purely delegated.
+            LiveTask working=Task("SUBAGENT","working-child",3);
+            working.IsSubagent=true;working.IsRootConfirmed=false;
+            working.ParentThreadId=root.ThreadId;
+            tracker.Update(Report(Now.AddSeconds(1),root.Copy(),working));
+            Assert(tracker.At(Now.AddSeconds(1)).Single().State==RadarState.Active,
+                "Fresh direct root evidence was displaced by child activity");
+
+            // No direct proof: a root with an old event and a completed child must
+            // stay unverified even if its file mtime changes recently.
+            LiveTask silent=Task("ROOT","root-session",200);
+            silent.ThreadId=root.ThreadId;silent.Phase=LiveTaskPhase.Active;
+            silent.LastWriteUtc=Now.AddSeconds(-1); // mtime only
+            LiveTask oldChild=child.Copy();
+            tracker.Update(Report(Now.AddSeconds(2),silent,oldChild));
+            Assert(tracker.At(Now.AddSeconds(2)).Single().State==RadarState.Unverified,
+                "A recent file mtime invented confirmed root activity");
         }
         private static void CheckPriorityLayouts()
         {
