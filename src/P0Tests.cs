@@ -71,7 +71,20 @@ namespace ShinoCodexMonitor
                 LiveTask a=Task("A","source-a",30),b=Task("B","source-b",20);
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,a,b)); tracker.Update(Report(Now.AddSeconds(5),b.Copy()));
                 List<MissionView> views=tracker.At(Now.AddSeconds(5));
-                Assert(views.Count == 2 && views.Single(v => v.Task.Id == "A").State == RadarState.Unverified && !a.FinishedUtc.HasValue,"Missing source invented completion"); });
+                Assert(views.Count == 2 && views.Single(v => v.Task.Id == "A").State == RadarState.Unverified && !a.FinishedUtc.HasValue,"Missing source invented completion");
+                // The historical identity remains available for reconciliation, but
+                // a missing turn must not occupy a CURRENT task card for 30 minutes.
+                using(Form host=new Form()) using(MissionDeck deck=new MissionDeck()) {
+                    host.Controls.Add(deck);deck.SetBounds(0,0,560,190);
+                    deck.UpdateReport(Report(Now,a.Copy(),b.Copy()),Now);
+                    Assert(deck.Cards.Count()==2,"Initial turns not displayed");
+                    deck.UpdateReport(Report(Now.AddSeconds(5),b.Copy()),Now.AddSeconds(5));
+                    Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.Task.Id=="B","Missing historical A remains a live card");
+                    Assert(deck.At(Now.AddSeconds(5)).Count==2 && deck.At(Now.AddSeconds(5)).Any(v=>v.Task.Id=="A"&&v.Missing),
+                        "Missing history was deleted instead of being retained as uncertain");
+                    deck.UpdateReport(Report(Now.AddSeconds(10)),Now.AddSeconds(10));
+                    Assert(deck.Cards.Count()==0,"Missing turns must not remain in live deck");
+                } });
             Check("Anonymous overlapping starts do not fabricate a second mission",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","",40),Event("task_started","",30));
                 Assert(tasks.Count == 1 && tasks[0].Phase == LiveTaskPhase.Unconfirmed,"Ambiguous anonymous missions invented"); });
