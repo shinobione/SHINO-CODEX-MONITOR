@@ -71,7 +71,20 @@ namespace ShinoCodexMonitor
                 LiveTask a=Task("A","source-a",30),b=Task("B","source-b",20);
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,a,b)); tracker.Update(Report(Now.AddSeconds(5),b.Copy()));
                 List<MissionView> views=tracker.At(Now.AddSeconds(5));
-                Assert(views.Count == 2 && views.Single(v => v.Task.Id == "A").State == RadarState.Unverified && !a.FinishedUtc.HasValue,"Missing source invented completion"); });
+                Assert(views.Count == 2 && views.Single(v => v.Task.Id == "A").State == RadarState.Unverified && !a.FinishedUtc.HasValue,"Missing source invented completion");
+                // The historical identity remains available for reconciliation, but
+                // a missing turn must not occupy a CURRENT task card for 30 minutes.
+                using(Form host=new Form()) using(MissionDeck deck=new MissionDeck()) {
+                    host.Controls.Add(deck);deck.SetBounds(0,0,560,190);
+                    deck.UpdateReport(Report(Now,a.Copy(),b.Copy()),Now);
+                    Assert(deck.Cards.Count()==2,"Initial turns not displayed");
+                    deck.UpdateReport(Report(Now.AddSeconds(5),b.Copy()),Now.AddSeconds(5));
+                    Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.Task.Id=="B","Missing historical A remains a live card");
+                    Assert(deck.At(Now.AddSeconds(5)).Count==2 && deck.At(Now.AddSeconds(5)).Any(v=>v.Task.Id=="A"&&v.Missing),
+                        "Missing history was deleted instead of being retained as uncertain");
+                    deck.UpdateReport(Report(Now.AddSeconds(10)),Now.AddSeconds(10));
+                    Assert(deck.Cards.Count()==0,"Missing turns must not remain in live deck");
+                } });
             Check("Anonymous overlapping starts do not fabricate a second mission",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","",40),Event("task_started","",30));
                 Assert(tasks.Count == 1 && tasks[0].Phase == LiveTaskPhase.Unconfirmed,"Ambiguous anonymous missions invented"); });
@@ -103,7 +116,7 @@ namespace ShinoCodexMonitor
             Check("Three independent observed missions remain visible in collection",delegate {
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,Task("A","a",40),Task("B","b",30),Task("C","c",20)));
                 Assert(tracker.At(Now).Count == 3,"Third task dropped"); });
-            Check("Active and delegated missions lead all eight layouts without partial cards",delegate { CheckPriorityLayouts(); });
+            Check("Direct root proof overrides completed children; active/delegated layout priority",delegate { CheckFreshRootAfterChild(); CheckPriorityLayouts(); });
             Check("Sanitized cached starts survive a growing tail",delegate { CheckReaderCache(); });
             Check("Cold concurrent long root sessions share a bounded expansion budget",delegate { CheckColdSources(); });
             Check("Completed history cannot permanently saturate the turn cache",delegate {
@@ -203,6 +216,69 @@ namespace ShinoCodexMonitor
                     }
                 }
             }
+        }
+        private static void CheckFreshRootAfterChild()
+        {
+            // Reproduces the field contradiction: global ROOT ACTIVE (recent primary
+            // proof) while the presentation used to say UNVERIFIED merely because a
+            // previous guardian_review child was linked but has now completed.
+            LiveTask root=Task("ROOT","root-session",8);
+            root.ThreadId="verified-parent";
+            LiveTask child=Task("GUARDIAN","child-session",35);
+            child.IsSubagent=true;child.IsRootConfirmed=false;
+            child.ParentThreadId="verified-parent";
+            child.Phase=LiveTaskPhase.Completed;
+            child.FinishedUtc=Now.AddSeconds(-2);
+            child.LastWriteUtc=child.FinishedUtc.Value;
+            LiveTaskReport data=Report(Now,root,child);
+            Assert(data.DisplayAt(Now).Kind==TaskDisplayKind.ObservedActive,
+                "Fixture does not reproduce ROOT ACTIVE in the global diagnostic");
+            MissionTracker tracker=new MissionTracker();tracker.Update(data);
+            MissionView live=tracker.At(Now).Single();
+            Assert(live.DelegatedEvidenceSeen && live.ActiveChildCount==0,
+                "The completed linked child did not reach the tracker");
+            Assert(live.State==RadarState.Active,
+                "A completed guardian_review child suppressed fresh root ACTIVE");
+            using(Form host=new Form())using(MissionDeck deck=new MissionDeck()) {
+                host.Controls.Add(deck);deck.SetBounds(0,0,520,180);
+                deck.UpdateReport(data,Now);
+                Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.State==RadarState.Active,
+                    "Global ROOT ACTIVE was not displayed as an ACTIVE mission card");
+            }
+
+            // The same root still takes priority when a linked child is fresh:
+            // direct parent evidence must not be mislabeled as purely delegated.
+            LiveTask working=Task("SUBAGENT","working-child",3);
+            working.IsSubagent=true;working.IsRootConfirmed=false;
+            working.ParentThreadId=root.ThreadId;
+            tracker.Update(Report(Now.AddSeconds(1),root.Copy(),working));
+            Assert(tracker.At(Now.AddSeconds(1)).Single().State==RadarState.Active,
+                "Fresh direct root evidence was displaced by child activity");
+
+            // Reproduce the field report where the verified start is several
+            // minutes old but uniquely attributed ongoing JSONL activity is fresh.
+            // The global selector already reports ROOT ACTIVE in this case.
+            LiveTask ongoing=Task("ROOT","root-session",370);
+            ongoing.ThreadId=root.ThreadId;
+            ongoing.Phase=LiveTaskPhase.Active; // the reader verified one open turn
+            ongoing.LastWriteUtc=Now.AddSeconds(-7);
+            Assert(Report(Now,ongoing,child).DisplayAt(Now).Kind==TaskDisplayKind.ObservedActive,
+                "The field fixture must reproduce global ROOT ACTIVE");
+            // This is a different synthetic turn from the eight-second fixture.
+            // Use an independent tracker: reusing the same one legitimately retains
+            // the earlier turn for up to 30 minutes, making Single() invalid.
+            MissionTracker longRunningTracker=new MissionTracker();
+            longRunningTracker.Update(Report(Now.AddSeconds(2),ongoing,child.Copy()));
+            Assert(longRunningTracker.At(Now.AddSeconds(2)).Single().State==RadarState.Active,
+                "Global ROOT ACTIVE was suppressed by historical guardian child");
+
+            // An unconfirmed root never becomes active from a recent file mtime
+            // alone, even when its previous child was observed.
+            LiveTask silent=ongoing.Copy();silent.Phase=LiveTaskPhase.Unconfirmed;
+            silent.LastWriteUtc=Now.AddSeconds(-1);
+            longRunningTracker.Update(Report(Now.AddSeconds(3),silent,child.Copy()));
+            Assert(longRunningTracker.At(Now.AddSeconds(3)).Single().State==RadarState.Unverified,
+                "An unconfirmed turn was promoted by file mtime alone");
         }
         private static void CheckPriorityLayouts()
         {
