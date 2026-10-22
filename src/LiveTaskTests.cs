@@ -580,6 +580,9 @@ namespace ShinoCodexMonitor
                     System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);sample=LiveTaskReader.Read(Now);
                     Assert(sample.Tasks.Any(t=>t.Id=="fresh-after-cap"&&t.Phase==LiveTaskPhase.Active&&!t.IdentityUncertain),"new activity starved after source cap");
                     Assert(sample.RecentTailBytesRead<=524288,"recent tail exceeded source budget");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_complete","fresh-after-cap",1));}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);sample=LiveTaskReader.Read(Now);
+                    Assert(sample.Tasks.Any(t=>t.Id=="fresh-after-cap"&&t.Phase==LiveTaskPhase.Completed&&!t.IdentityUncertain),"fresh parent terminal event was hidden by incomplete history");
                     report.AppendLine("Synthetic >64 MiB: history_progress="+sample.RecoveryProgressBytes.ToString(CultureInfo.InvariantCulture)+"; poll_history_bytes="+sample.RecoveryBytesRead.ToString(CultureInfo.InvariantCulture)+"; tail_bytes="+sample.RecentTailBytesRead.ToString(CultureInfo.InvariantCulture)+"; elapsed_ms="+sample.RecoveryDurationMs.ToString(CultureInfo.InvariantCulture));
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
