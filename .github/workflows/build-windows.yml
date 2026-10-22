@@ -99,7 +99,9 @@ jobs:
               frames[0].save(root / layout / "anti-blink.gif", save_all=True, append_images=frames[1:], duration=100, loop=0, optimize=True)
               for frame in frames: frame.close()
           '@
-          python -c $gifScript
+          $gifScriptPath = Join-Path $env:TEMP ('periscope-motion-' + [guid]::NewGuid().ToString('N') + '.py')
+          [IO.File]::WriteAllText($gifScriptPath,$gifScript,(New-Object System.Text.UTF8Encoding($false)))
+          python $gifScriptPath
           if ($LASTEXITCODE -ne 0) { throw 'Animated QA GIF encoding failed.' }
       - name: Test 46 full-turn, subagent, diagnostic and notification fixtures
         if: hashFiles('src/LiveTaskTests.cs') != ''
