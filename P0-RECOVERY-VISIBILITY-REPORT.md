@@ -33,7 +33,7 @@ The scanner remains local and read-only. It does not call a model or read authen
 
 ## Not yet verified
 
-- No CI has run on a new commit. The local Git object for PR #18's requested start point is absent and the sandbox does not permit Git writes. The existing PR #19 branch is the intended parent; a new Draft PR must be stacked on it to remain transitively based on #18.
+- Draft PR [#20](https://github.com/shinobione/SHINO-CODEX-MONITOR/pull/20) is created on `codex/p0-recovery-visibility`, based on PR #19 head `59d733cb4d45dc3bddc3ad5e5f88be2922c15db9`; PR #19 remains based on #18. GitHub Actions has not started for #20 because the Windows workflow's `pull_request` branch filter does not include this stacked base and the connected GitHub API exposes no workflow-dispatch action. The Actions page provides a manual **Run workflow** control; select `codex/p0-recovery-visibility` to validate exact head `bd2640aac8257acd60bdf11c28eaf6b8888d1f78`.
 - No preview ZIP has been generated locally. `BUILD-PERISCOPE-V5.2.ps1` runs the installer `-ValidateOnly` gate, and that gate refuses to proceed while Periscope is open. The running instance was not closed or bypassed. CI can execute the gate in its clean runner and produce the ZIP artifact if the workflow publishes it.
 - The layout captures are synthetic native-control renders. No real-PC 100% DPI capture set or anti-blinking video was produced. No three-mission field reproduction was performed.
 - No before/after CPU, RAM, FPS, GDI or USER comparison was available under identical conditions.
