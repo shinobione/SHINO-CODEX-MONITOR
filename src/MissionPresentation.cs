@@ -76,6 +76,13 @@ namespace ShinoCodexMonitor
                 else if (view.Missing || task.IdentityUncertain) view.State=RadarState.Unverified;
                 else if (task.FinishedUtc.HasValue && (task.FinishedUtc.Value<task.StartedUtc || task.FinishedUtc.Value>now.AddSeconds(5))) view.State=RadarState.Unverified;
                 else if (task.FinishedUtc.HasValue) view.State=RadarMotion.Map(task.Phase,true,false);
+                // A fresh identified event from the root wins over historical child
+                // observations. A finished guardian/subagent cannot suppress a live root.
+                // Require direct event evidence; a file mtime alone is never proof.
+                else if (task.Phase==LiveTaskPhase.Active && task.RecentDirectEvidence &&
+                    (now-task.DirectEvidenceUtc).TotalSeconds>=-5 &&
+                    (now-task.DirectEvidenceUtc).TotalSeconds<=LiveTaskReader.ActivityMaxAgeSeconds &&
+                    age>=-5 && age<=LiveTaskReader.ActivityMaxAgeSeconds) view.State=RadarState.Active;
                 else if (view.ActiveChildCount>0 && (now-view.ChildEvidenceUtc).TotalSeconds>=-5 &&
                     (now-view.ChildEvidenceUtc).TotalSeconds<=LiveTaskReader.ActivityMaxAgeSeconds) view.State=RadarState.Delegated;
                 else if (view.DelegatedEvidenceSeen) view.State=RadarState.Unverified;
