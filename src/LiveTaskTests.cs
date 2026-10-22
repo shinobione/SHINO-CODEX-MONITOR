@@ -548,8 +548,81 @@ namespace ShinoCodexMonitor
             Check("Diagnostic : aucune session ne signifie pas terminé", delegate {
                 LiveTaskReport r = Report(Now);
                 string diagnostic = r.RedactedDiagnostics(Now);
-                Assert(diagnostic.Contains("NotVerified") &&
-                    diagnostic.Contains("No primary turn observed."));
+                Assert(diagnostic.Contains("UNVERIFIED") &&
+                    diagnostic.Contains("Last primary turns (up to 6):") && diagnostic.Contains("  none"));
+            });
+            Check("Diagnostic : plafond racines exact à 12, 13 et 20 candidates", delegate {
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-root-cap-"+Guid.NewGuid().ToString("N"));
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);
+                    string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));
+                    System.IO.Directory.CreateDirectory(dir);
+                    foreach(int count in new[]{12,13,20}) {
+                        foreach(string file in System.IO.Directory.GetFiles(dir))System.IO.File.Delete(file);
+                        LiveTaskReader.ClearCacheForTests();
+                        for(int n=0;n<count;n++) {
+                            string path=System.IO.Path.Combine(dir,"rollout-root-"+n.ToString("00",CultureInfo.InvariantCulture)+".jsonl");
+                            System.IO.File.WriteAllLines(path,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"root-"+n+"\",\"thread_source\":\"user\"}}",Event("task_started","root-turn-"+n,3)});
+                            System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);
+                        }
+                        LiveTaskReport data=LiveTaskReader.Read(Now);
+                        Assert(data.RootSessionCandidates==count&&data.ExaminedRoots==Math.Min(count,12)&&
+                            data.RootSessionsExcludedByCap==Math.Max(0,count-12));
+                    }
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Diagnostic : guardian_review lié, enfant non lié, âges et statut ROOT DELEGATED", delegate {
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-child-diagnostic-"+Guid.NewGuid().ToString("N"));
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string root=System.IO.Path.Combine(dir,"rollout-root.jsonl");
+                    System.IO.File.WriteAllLines(root,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"root-identifier-private\",\"thread_source\":\"user\"}}",Event("task_started","root-turn",180)});
+                    System.IO.File.SetLastWriteTimeUtc(root,Now.AddSeconds(-180).UtcDateTime);
+                    string linked=System.IO.Path.Combine(dir,"rollout-linked.jsonl");
+                    System.IO.File.WriteAllLines(linked,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"child-id-private\",\"parent_thread_id\":\"root-identifier-private\",\"thread_source\":\"guardian_review\"}}",Event("task_started","child-turn",2)});
+                    System.IO.File.SetLastWriteTimeUtc(linked,Now.AddSeconds(-1).UtcDateTime);
+                    string unlinked=System.IO.Path.Combine(dir,"rollout-unlinked.jsonl");
+                    System.IO.File.WriteAllLines(unlinked,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"unlinked-id-private\",\"parent_thread_id\":\"missing-parent-private\",\"thread_source\":\"guardian_review\"}}",Event("task_started","unlinked-turn",2)});
+                    System.IO.File.SetLastWriteTimeUtc(unlinked,Now.AddSeconds(-1).UtcDateTime);
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport data=LiveTaskReader.Read(Now);string diagnostic=data.RedactedDiagnostics(Now);
+                    Assert(data.ChildSessionCandidates==2&&data.ChildSessionsLinked==1&&data.ChildSessionsUnlinked==1&&data.ActiveChildSessions==2);
+                    Assert(diagnostic.Contains("ROOT DELEGATED")&&diagnostic.Contains("guardian_review")&&
+                        diagnostic.Contains("Last primary evidence age (s): 180")&&diagnostic.Contains("Last child evidence age (s): 1")&&
+                        !diagnostic.Contains("root-identifier-private")&&!diagnostic.Contains("child-id-private")&&
+                        !diagnostic.Contains("missing-parent-private"));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Diagnostic : raisons agrégées d'une récupération limitée restent anonymes", delegate {
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-recovery-reasons-"+Guid.NewGuid().ToString("N"));
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-limited-private.jsonl");
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
+                        byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"private-session-id\",\"thread_source\":\"user\"}}\n");
+                        stream.Write(header,0,header.Length);stream.SetLength(LiveTaskReader.RecoveryMaxBytes+1L);
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();
+                    LiveTaskReport data=LiveTaskReader.Read(Now);string diagnostic=data.RedactedDiagnostics(Now);
+                    Assert(data.RecoveryLimitedSessions==1&&data.RecoveryLimitedBySize==1&&
+                        data.RecoveryLimitedByInvalidLine==1&&data.RecoveryLimitedByPartialRead==1&&
+                        diagnostic.Contains("size=1")&&diagnostic.Contains("invalid-line=1")&&diagnostic.Contains("partial-read=1")&&
+                        !diagnostic.Contains("private-session-id")&&!diagnostic.Contains("rollout-limited-private"));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Diagnostic : six derniers terminés ne masquent pas la preuve racine active", delegate {
+                List<LiveTask> tasks=new List<LiveTask>();
+                LiveTask active=Root("root","root-file",Now.AddHours(-1),Now.AddSeconds(-1),LiveTaskPhase.Active);tasks.Add(active);
+                for(int n=0;n<6;n++) {
+                    DateTimeOffset started=Now.AddMinutes(-10+n);
+                    tasks.Add(new LiveTask { Id="terminal-"+n,SessionKey="fixture",ThreadId="root",IsRootConfirmed=true,
+                        StartedUtc=started,LastWriteUtc=started,FinishedUtc=started.AddSeconds(5),Phase=LiveTaskPhase.Completed });
+                }
+                string diagnostic=Report(Now,tasks.ToArray()).RedactedDiagnostics(Now);
+                Assert(diagnostic.Contains("Global mission selection: ROOT ACTIVE")&&
+                    diagnostic.Contains("the six latest turns are terminal history")&&diagnostic.Contains("Last primary turns (up to 6):"));
             });
             report.Insert(0, "CODEX PERISCOPE TASKS — " + passed + "/" + total +
                 " simulated tests passed\r\n");
@@ -557,4 +630,3 @@ namespace ShinoCodexMonitor
         }
     }
 }
-
