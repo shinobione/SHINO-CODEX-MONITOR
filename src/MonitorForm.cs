@@ -281,9 +281,9 @@ namespace ShinoCodexMonitor
                 ClientSize=new Size(Unit(width),Unit(DesktopGeometry.CombinedHeight(width,quotaHeight,settings.Layout)));
                 header.Bounds=Units(new Rectangle(micro?29:34,micro?4:8,micro?290:width-200,micro?21:24));
                 InstrumentStyle.FontFor(header,micro?13:14,FontStyle.Bold);
-                version.Visible=true;version.Text=settings.Layout.ToUpperInvariant()+" \u00b7 v5.2.0";
+                version.Visible=true;version.Text=LayoutVersionLabel(settings.ObsidianLayout,settings.Layout);
                 version.TextAlign=ContentAlignment.MiddleRight;
-                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,10.5f,FontStyle.Regular);
+                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,settings.ObsidianLayout?10.5f:8.5f,FontStyle.Regular);
                 close.Bounds=Units(new Rectangle(width-34,micro?3:7,25,24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
                 if(circular) {
                     PlaceCircular(five,14,246);PlaceCircular(week,280,246);
@@ -357,10 +357,23 @@ namespace ShinoCodexMonitor
         private void PlaceActivityControls(bool circular, bool micro)
         { taskDeck.PerformLayout(); }
 
+        internal static string LayoutVersionLabel(bool obsidian,string layout)
+        {
+            string name=layout=="Compact"?"COMPACT":layout=="Micro"?"MICRO":layout=="Vertical"?"VERTICAL":"CIRCULAR";
+            return (obsidian?name:"CLASSIC "+name)+" \u00b7 v5.2.0";
+        }
+        internal static void SyncLayoutChoices(ToolStripMenuItem classic,ToolStripMenuItem obsidian,bool activeObsidian,string activeLayout)
+        {
+            foreach(ToolStripMenuItem option in classic.DropDownItems)option.Checked=!activeObsidian && option.Text==activeLayout;
+            foreach(ToolStripMenuItem option in obsidian.DropDownItems)option.Checked=activeObsidian && option.Text==activeLayout;
+        }
         internal void SelectTargetLayout(string layout)
+        { SelectTargetLayout(layout,true); }
+        internal void SelectTargetLayout(string layout,bool obsidian)
         {
             if(!new []{"Circular","Vertical","Compact","Micro"}.Contains(layout))throw new ArgumentException("Unknown layout");
-            settings.Layout=layout;settings.ObsidianLayout=true;ApplyLayout();Save();
+            if(settings.Layout==layout && settings.ObsidianLayout==obsidian)return;
+            settings.Layout=layout;settings.ObsidianLayout=obsidian;ApplyLayout();Save();
         }
         private void PlaceParityMeter(Meter m,int x,int y,int w,int h,bool circle)
         {
@@ -391,8 +404,8 @@ namespace ShinoCodexMonitor
             int w=circle?settings.ObsidianCircularWidth:micro?484:vertical?360:640,h=circle?480:micro?230:vertical?580:260;
             ClientSize=new Size(Unit(w),Unit(h));BackColor=ColorTranslator.FromHtml(settings.BackgroundColor);
             header.SetBounds(Unit(31),Unit(micro?4:8),Unit(170),Unit(24));InstrumentStyle.Type(header,InstrumentType.Product);header.ForeColor=InstrumentStyle.Bright;
-            version.Visible=true;version.Text=settings.Layout.ToUpperInvariant()+" \u00b7 v5.2.0";version.TextAlign=ContentAlignment.MiddleRight;
-            version.SetBounds(Unit(w-178),Unit(micro?6:10),Unit(138),Unit(18));InstrumentStyle.Type(version,InstrumentType.Metadata);version.ForeColor=InstrumentStyle.Metadata;
+            version.Visible=true;version.Text=LayoutVersionLabel(settings.ObsidianLayout,settings.Layout);version.TextAlign=ContentAlignment.MiddleRight;
+            version.SetBounds(Unit(w-178),Unit(micro?6:10),Unit(138),Unit(18));InstrumentStyle.Type(version,InstrumentType.Metadata);if(!settings.ObsidianLayout)InstrumentStyle.FontFor(version,8.5f,FontStyle.Regular);version.ForeColor=InstrumentStyle.Metadata;
             close.SetBounds(Unit(w-31),Unit(micro?3:7),Unit(23),Unit(24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
             taskDeck.Parity=true;taskDeck.Flat=true;taskDeck.LayoutMode=settings.Layout;taskDeck.BackColor=InstrumentStyle.Canvas;taskDeck.Edge=Color.Transparent;
             compactRadars.Visible=compact;
@@ -432,15 +445,30 @@ namespace ShinoCodexMonitor
             footerLeft.SetBounds(Unit(12),Unit(h-21),Unit(vertical?104:300),Unit(17));footerRead.SetBounds(Unit(vertical?118:w-260),Unit(h-21),Unit(vertical?128:130),Unit(17));footerState.SetBounds(Unit(w-(vertical?112:128)),Unit(h-21),Unit(vertical?100:116),Unit(17));
             resizeGrip.Visible=false;taskDeck.PerformLayout();UpdateTaskSurface(UiNow);PaintSnapshot();ClearChrome();
         }
-        private void PaintTargetSource(string state,bool blocked)
+        private void PaintClassicSource(TargetSource view,string state,bool blocked,bool live)
         {
-            TargetSource view=TargetSource.From(snapshot,state,lastSuccess,UiNow);bool footer=settings.Layout=="Compact"||settings.Layout=="Micro",vertical=settings.Layout=="Vertical";
-            status.Text=footer || (settings.Layout=="Circular" && Width<Unit(600) && !blocked)?view.CompactStatus:vertical?(view.Current?"CLI Direct":view.CompactStatus):view.Status;
-            status.ForeColor=blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
+            if(blocked){status.Text="CODEX USAGE BLOCKED";sourceDetail.Text="LAST KNOWN / CLI · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Red;}
+            else if(live){status.Text="QUOTAS / DIRECT READING";sourceDetail.Text="SOURCE / CLI · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Teal;}
+            else {
+                status.Text=state=="Unavailable"?"QUOTA SOURCE UNAVAILABLE":InstrumentStyle.IsStale(state)?"STALE QUOTA READING":"QUOTA READING UNVERIFIED";
+                sourceDetail.Text=(lastSuccess.HasValue?"LAST KNOWN / CLI":"NO READING")+" · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Amber;
+            }
+            InstrumentStyle.FontFor(status,live?11.5f:settings.Layout=="Micro"?12:13,FontStyle.Bold);
+            statusAge.Text=lastSuccess.HasValue?lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")):"No observation";
+            statusAge.ForeColor=sourceDetail.ForeColor=InstrumentStyle.Muted;
+            sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
+            sourceFace.Rail=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.7);sourceFace.Warning=blocked;status.Left=Unit(blocked?27:9);
+            status.Width=Math.Max(1,sourceFace.Width-status.Left-Unit(9));
+        }
+        private void PaintTargetSource(TargetSource view)
+        {
+            bool footer=settings.Layout=="Compact"||settings.Layout=="Micro",vertical=settings.Layout=="Vertical";
+            status.Text=footer || (settings.Layout=="Circular" && Width<Unit(600) && !view.Blocked)?view.CompactStatus:vertical?(view.Current?"CLI Direct":view.CompactStatus):view.Status;
+            status.ForeColor=view.Blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
             resetCount.Text=view.ResetCount;resetCount.ForeColor=InstrumentStyle.Metadata;resetCount.Visible=true;
             statusAge.Text=view.ReadTime;statusAge.ForeColor=InstrumentStyle.Metadata;
-            sourceFace.BackColor=blocked?InstrumentStyle.AlertFace:footer?InstrumentStyle.FooterFace:InstrumentStyle.Canvas;sourceFace.Rail=Color.Transparent;sourceFace.Warning=blocked && settings.Layout=="Circular";
-            footerLeft.Text="LOCAL JSONL / PARTIAL";footerRead.Text=view.ReadTime;footerState.Text=view.Footer;footerState.ForeColor=blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
+            sourceFace.BackColor=view.Blocked?InstrumentStyle.AlertFace:footer?InstrumentStyle.FooterFace:InstrumentStyle.Canvas;sourceFace.Rail=Color.Transparent;sourceFace.Warning=view.Blocked && settings.Layout=="Circular";
+            footerLeft.Text="LOCAL JSONL / PARTIAL";footerRead.Text=view.ReadTime;footerState.Text=view.Footer;footerState.ForeColor=view.Blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
             string detail=view.Freshness+" / "+(lastSuccess.HasValue?lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")):"No reading")+"\nResetsAvailable is the explicit CLI field; absent is unknown, never inferred from timestamps.\nLocal activity is independently observed JSONL, not guaranteed Desktop state.";
             foreach(Control c in new Control[]{status,statusAge,resetCount,footerRead,footerState})tooltip.SetToolTip(c,detail);
         }
@@ -597,23 +625,22 @@ namespace ShinoCodexMonitor
             // APPEARANCE: layout, sizes, opacity, palette and the tray icon.
             ToolStripMenuItem appearance = Menu(context, "Appearance", null);
             ToolStripMenuItem layouts = Menu(appearance, "Layout", null);
-            foreach (string mode in new string[] { "Circular", "Vertical", "Compact", "Micro" })
+            ToolStripMenuItem classicLayouts=Menu(layouts,"CLASSIC",null);
+            ToolStripMenuItem obsidianLayouts=Menu(layouts,"OBSIDIAN",null);
+            foreach (string family in new string[] { "CLASSIC", "OBSIDIAN" })
             {
-                string layout = mode;
-                ToolStripMenuItem option = new ToolStripMenuItem(mode);
-                option.ToolTipText="Select this target layout explicitly; saved legacy geometry is retained separately.";
-                option.Click += delegate {
-                    SelectTargetLayout(layout);
-                    foreach (ToolStripItem child in layouts.DropDownItems)
-                        ((ToolStripMenuItem)child).Checked = child == option;
-                };
-                layouts.DropDownItems.Add(option);
+                ToolStripMenuItem familyMenu=family=="CLASSIC"?classicLayouts:obsidianLayouts;
+                bool obsidian=family=="OBSIDIAN";
+                foreach (string mode in new string[] { "Circular", "Vertical", "Compact", "Micro" })
+                {
+                    string layout = mode;
+                    ToolStripMenuItem option = new ToolStripMenuItem(mode);
+                    option.ToolTipText="Select the "+family+" "+layout+" presentation.";
+                    option.Click += delegate { SelectTargetLayout(layout,obsidian); };
+                    familyMenu.DropDownItems.Add(option);
+                }
             }
-            layouts.DropDownOpening += delegate {
-                string[] choices = { "Circular", "Vertical", "Compact", "Micro" };
-                for (int i = 0; i < choices.Length; i++)
-                    ((ToolStripMenuItem)layouts.DropDownItems[i]).Checked = choices[i] == settings.Layout;
-            };
+            layouts.DropDownOpening += delegate { SyncLayoutChoices(classicLayouts,obsidianLayouts,settings.ObsidianLayout,settings.Layout); };
             ToolStripMenuItem circularSize = Menu(appearance, "Gauge size", null);
             circularSize.ToolTipText = "Circular layout width; legacy pinned mode also supports the resize handle.";
             foreach (int value in new int[] { 480, 540, 620, 700 })
@@ -1414,22 +1441,9 @@ namespace ShinoCodexMonitor
             }
             DrawMeter(five, snapshot == null ? null : snapshot.Five, "five", live, state, blocked);
             DrawMeter(week, snapshot == null ? null : snapshot.Week, "week", live, state, blocked);
-            string sample=lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")) : "No observation";
-            if(settings.ObsidianLayout)PaintTargetSource(state,blocked);
-            else {
-            if(blocked) {status.Text="CODEX USAGE BLOCKED";sourceDetail.Text="LAST KNOWN / CLI";status.ForeColor=InstrumentStyle.Red;}
-            else if(live) {status.Text="QUOTAS / DIRECT READING";sourceDetail.Text="SOURCE / CODEX CLI";status.ForeColor=InstrumentStyle.Teal;}
-            else {
-                status.Text=state=="Unavailable" ? "QUOTA SOURCE UNAVAILABLE" : InstrumentStyle.IsStale(state) ? "STALE QUOTA READING" : "QUOTA READING UNVERIFIED";
-                sourceDetail.Text=lastSuccess.HasValue ? "LAST KNOWN / CLI" : "NO QUOTA READING / CLI";status.ForeColor=InstrumentStyle.Amber;
-            }
-            InstrumentStyle.FontFor(status,live?11.5f:settings.Layout=="Micro"?12:13,FontStyle.Bold);
-            statusAge.Text=sample;sourceDetail.ForeColor=InstrumentStyle.Muted;statusAge.ForeColor=InstrumentStyle.Muted;
-            sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
-            sourceFace.Rail=settings.ObsidianLayout?Color.Transparent:InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.7);
-            sourceFace.Warning=blocked;status.Left=Unit(blocked?27:9);
-            status.Width=Math.Max(1,sourceFace.Width-status.Left-Unit(settings.ObsidianLayout && settings.Layout=="Micro"?160:9));
-            }
+            TargetSource source=TargetSource.From(snapshot,state,lastSuccess,UiNow);
+            if(settings.ObsidianLayout)PaintTargetSource(source);
+            else PaintClassicSource(source,state,blocked,live);
             string observation="Last Codex reading: "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")) : "none")+
                 "\n"+FreshnessLabel(lastSuccess,UiNow)+". Status: "+(blocked?"Usage blocked":state)+". Task availability is independent.";
             tooltip.SetToolTip(statusAge,observation);tooltip.SetToolTip(sourceDetail,observation);tooltip.SetToolTip(status,observation+"\n"+(live?"Source: Codex CLI / account/rateLimits/read":lastError));

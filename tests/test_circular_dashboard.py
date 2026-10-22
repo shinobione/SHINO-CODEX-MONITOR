@@ -47,8 +47,11 @@ class CircularLayoutAudit(unittest.TestCase):
     def test_menu_has_five_color_options(self):
         for label in ('76–100 %','51–75 %','26–50 %','11–25 %','0–10 %'):
             self.assertIn(label,FORM)
-        self.assertIn('SelectTargetLayout(layout)',FORM)
-        self.assertIn('new ToolStripMenuItem(mode)',FORM)
+        self.assertIn('SelectTargetLayout(layout,obsidian)',FORM)
+        self.assertIn('new string[] { "Circular", "Vertical", "Compact", "Micro" }',FORM)
+        self.assertIn('Menu(layouts,"CLASSIC",null)',FORM)
+        self.assertIn('Menu(layouts,"OBSIDIAN",null)',FORM)
+        self.assertIn('SyncLayoutChoices(classicLayouts,obsidianLayouts,settings.ObsidianLayout,settings.Layout)',FORM)
         self.assertNotIn('Obsidian visual parity layout',FORM)
 
 if __name__=='__main__':

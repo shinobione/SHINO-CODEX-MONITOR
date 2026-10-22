@@ -7,7 +7,7 @@ namespace ShinoCodexMonitor
     internal sealed class TargetSource
     {
         internal bool Current,Blocked,Cached;
-        internal string Status,CompactStatus,ReadTime,Freshness,ResetCount,Footer;
+        internal string Status,CompactStatus,ReadTime,Freshness,ResetCount,ResetCountShort,Footer;
         internal static TargetSource From(Snapshot snapshot,string state,DateTimeOffset? observed,DateTimeOffset now)
         {
             TargetSource value=new TargetSource();value.Blocked=state=="Direct" && snapshot!=null && snapshot.UsageAllowed==false;
@@ -18,6 +18,7 @@ namespace ShinoCodexMonitor
             value.Freshness=MonitorForm.FreshnessLabel(observed,now);
             int? count=snapshot==null?(int?)null:snapshot.ResetsAvailable;
             value.ResetCount=count.HasValue?count.Value.ToString(CultureInfo.InvariantCulture)+(value.Cached?" resets cached":" resets avail"):"Resets --";
+            value.ResetCountShort=count.HasValue?count.Value.ToString(CultureInfo.InvariantCulture)+(value.Cached?" CACHED":" RESETS"):"RESETS --";
             value.Footer=value.Blocked?"BLOCKED / CACHED":value.Current?"DIRECT / CLI":InstrumentStyle.IsStale(state)?"STALE / CLI":"UNVERIFIED / CLI";
             return value;
         }

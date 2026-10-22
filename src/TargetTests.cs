@@ -16,30 +16,35 @@ namespace ShinoCodexMonitor
         {foreach(Control child in root.Controls){yield return child;foreach(Control nested in Walk(child))yield return nested;}}
         internal static Snapshot Quotas(bool blocked=false)
         {Snapshot q=InstrumentTests.Quotas(blocked);q.Five.Remaining=blocked?0:3;q.Week.Remaining=blocked?16:17;q.ResetsAvailable=2;return q;}
-        internal static MonitorForm TargetWindow(string layout,bool motion=false)
+        internal static MonitorForm TargetWindow(string layout,bool motion=false,bool obsidian=true)
         {
-            Preferences p=Preferences.Defaults();p.ObsidianLayout=true;p.BackgroundColor="#080D14";p.Color0="#F35A65";p.Color11="#E9B85C";p.Layout=layout;p.Top=false;p.InTaskbar=false;p.TaskAnimations=motion;p.Opacity=1;
+            Preferences p=Preferences.Defaults();p.ObsidianLayout=obsidian;p.BackgroundColor=obsidian?"#080D14":"#111926";p.Color0="#F35A65";p.Color11="#E9B85C";p.Layout=layout;p.Top=false;p.InTaskbar=false;p.TaskAnimations=motion;p.Opacity=1;
             MonitorForm window=new MonitorForm(p);window.Location=new Point(-30000,-30000);return window;
         }
         internal static void Capture()
         {
             string folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"target-qa");Directory.CreateDirectory(folder);
-            foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})foreach(string variant in new []{"single","double","A-completed-B-active","blocked-unverified","blocked-active"}) {
+            foreach(bool obsidian in new[]{false,true})foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})foreach(string variant in new []{"single","double","A-completed-B-active","blocked-unverified","blocked-active","stale","unavailable","unverified"}) {
                 bool blocked=variant.StartsWith("blocked");int count=variant=="single" || variant=="blocked-unverified"?1:2;
-                using(MonitorForm window=TargetWindow(layout)) {
+                using(MonitorForm window=TargetWindow(layout,false,obsidian)) {
                     LiveTaskReport tasks=InstrumentTests.Tasks(count);
                     foreach(LiveTask t in tasks.Tasks){t.Model="gpt-6.1-sol";t.Effort="Medium";t.StartedUtc=InstrumentTests.Now.AddSeconds(-79);}
                     tasks.Tasks[0].Workspace="SHINO-TV-V06-AUDIT";
                     if(variant=="A-completed-B-active"){tasks.Tasks[0].Phase=LiveTaskPhase.Completed;tasks.Tasks[0].FinishedUtc=InstrumentTests.Now;tasks.Tasks[0].LastWriteUtc=InstrumentTests.Now;}
-                    if(variant=="blocked-unverified")foreach(LiveTask t in tasks.Tasks)t.IdentityUncertain=true;
-                    window.Present(Quotas(blocked),tasks,InstrumentTests.Now,"Direct");window.SetPresentationScale(1);
+                    if(variant=="blocked-unverified" || variant=="unverified")foreach(LiveTask t in tasks.Tasks)t.IdentityUncertain=true;
+                    if(variant=="stale")window.Present(Quotas(),tasks,InstrumentTests.Now,"Stale data");
+                    else if(variant=="unavailable")window.Present(null,tasks,InstrumentTests.Now,"Unavailable");
+                    else if(variant=="unverified")window.Present(null,tasks,InstrumentTests.Now,"Unverified");
+                    else window.Present(Quotas(blocked),tasks,InstrumentTests.Now,"Direct");
+                    window.SetPresentationScale(1);
                     window.Show();Application.DoEvents();int phase=0;foreach(MissionCard c in window.Missions.Cards)c.Radar.SetSharedMotion(false,1,phase++*.25);
                     if(layout=="Vertical" && variant=="single")File.WriteAllLines(Path.Combine(folder,"vertical-controls.txt"),Walk(window).Select(c=>c.GetType().Name+" "+c.Text+" "+c.Bounds+" visible="+c.Visible));
-                    InstrumentTests.Capture(window,Path.Combine(folder,layout+"-"+variant+"-100.png"),layout+" / "+variant+" / explicit target fixture");
+                    string family=obsidian?"Obsidian":"Classic";
+                    InstrumentTests.Capture(window,Path.Combine(folder,family+"-"+layout+"-"+variant+"-100.png"),family+" / "+layout+" / "+variant+" / explicit target fixture");
                 }
             }
         }
-        // Samples actual composed desktop pixels from this synthetic window only.
+        // Samples the composed native WinForms client surface; this remains usable on headless CI.
         // No owner window is opened, closed or captured.
         internal static void Video()
         {
@@ -63,7 +68,7 @@ namespace ShinoCodexMonitor
                         }
                         window.Missions.SetMotion(true);window.Missions.Advance();
                         using(Bitmap image=new Bitmap(window.ClientSize.Width,window.ClientSize.Height)) {
-                            using(Graphics g=Graphics.FromImage(image))g.CopyFromScreen(window.PointToScreen(Point.Empty),Point.Empty,image.Size,CopyPixelOperation.SourceCopy);
+                            window.DrawToBitmap(image,window.ClientRectangle);
                             Rectangle quota=layout=="Vertical"?new Rectangle(220,90,110,40):new Rectangle(230,50,130,35);
                             Rectangle mission=layout=="Vertical"?new Rectangle(20,278,310,250):new Rectangle(395,55,230,160);
                             Func<Rectangle,int> bright=r=>{int n=0;for(int y=r.Top;y<r.Bottom;y+=2)for(int x=r.Left;x<r.Right;x+=2){Color c=image.GetPixel(x,y);if(Math.Max(c.R,Math.Max(c.G,c.B))>150)n++;}return n;};
@@ -76,7 +81,7 @@ namespace ShinoCodexMonitor
                     watch.Start();timer.Start();Application.Run();
                 }
                 File.WriteAllText(Path.Combine(folder,"frames.csv"),csv.ToString());
-                File.WriteAllText(Path.Combine(folder,"measurement.txt"),"SYNTHETIC actual desktop client pixels; "+frames+" frames / "+watch.Elapsed.TotalSeconds.ToString("F3")+" seconds; blank quota/mission samples="+blank+"; structure transitions at 0/2/5 seconds. Parent events="+parents+"; HWND="+handles+"; material="+materials+". Not a physical mixed-DPI or sub-frame scanout proof.");
+                File.WriteAllText(Path.Combine(folder,"measurement.txt"),"SYNTHETIC native WinForms DrawToBitmap client pixels; "+frames+" frames / "+watch.Elapsed.TotalSeconds.ToString("F3")+" seconds; blank quota/mission samples="+blank+"; structure transitions at 0/2/5 seconds. Parent events="+parents+"; HWND="+handles+"; material="+materials+". Not a physical mixed-DPI or sub-frame scanout proof.");
                 window.Hide();
             }
         }
@@ -102,7 +107,7 @@ namespace ShinoCodexMonitor
                 check("Layout/version header / "+layout,delegate {
                     using(MonitorForm window=InstrumentTests.ParityWindow(layout,1,false)) {
                         window.Show();Application.DoEvents();
-                        Assert(Walk(window).OfType<Label>().Any(l=>l.Visible && l.Text==layout.ToUpperInvariant()+" \u00b7 v5.2.0"),"Missing layout/version heading");
+                        Assert(Walk(window).OfType<Label>().Any(l=>l.Visible && l.Text==MonitorForm.LayoutVersionLabel(true,layout)),"Missing layout/version heading");
                         Assert(!Walk(window).OfType<Label>().Any(l=>l.Visible && l.Text.Contains("PERISCOPE / V5")),"Duplicate product title");
                     }
                 });
@@ -118,6 +123,28 @@ namespace ShinoCodexMonitor
                     }
                 });
             }
+            foreach(bool obsidian in new[]{false,true})foreach(string layout in new[]{"Circular","Vertical","Compact","Micro"})
+                check("Shared quota/source/reset contract / "+(obsidian?"Obsidian ":"Classic ")+layout,delegate {
+                    using(MonitorForm window=TargetWindow(layout,false,obsidian)) {
+                        window.Show();Application.DoEvents();
+                        LiveTaskReport missions=InstrumentTests.Tasks(1);window.Present(Quotas(),missions,InstrumentTests.Now,"Direct");
+                        string fieldName=obsidian?"QuotaResets":"QuotaSource";
+                        Label resets=Walk(window).OfType<Label>().FirstOrDefault(l=>l.Name==fieldName && l.Visible);
+                        Assert(resets!=null && resets.Text.Contains(obsidian?"2 resets avail":"2 RESETS"),"Available reset count is not visible");
+                        Snapshot zero=Quotas();zero.ResetsAvailable=0;window.Present(zero,missions,InstrumentTests.Now,"Direct");
+                        Assert(resets.Text.Contains(obsidian?"0 resets avail":"0 RESETS"),"Zero resets is confused with missing information");
+                        Snapshot missing=Quotas();missing.ResetsAvailable=null;window.Present(missing,missions,InstrumentTests.Now,"Direct");
+                        Assert(resets.Text.IndexOf("RESETS --",StringComparison.OrdinalIgnoreCase)>=0,"Missing reset count was inferred");
+                        Snapshot stale=Quotas();window.Present(stale,missions,InstrumentTests.Now,"Stale data");
+                        Assert(resets.Text.IndexOf("cached",StringComparison.OrdinalIgnoreCase)>=0 || resets.Text.IndexOf("CACHED",StringComparison.Ordinal)>=0,"Cached reset count lacks provenance");
+                        Assert(Walk(window).OfType<Label>().Any(l=>l.Name=="QuotaStatus" && l.Text.IndexOf("STALE",StringComparison.OrdinalIgnoreCase)>=0),"Stale source state is hidden");
+                        window.Present(null,missions,InstrumentTests.Now,"Unavailable");
+                        Assert(resets.Text.IndexOf("RESETS --",StringComparison.OrdinalIgnoreCase)>=0 && window.Missions.Cards.Any(c=>c.Radar.State==RadarState.Active),"Unavailable quotas fabricated resets or suspended observed mission");
+                        Snapshot resetTimes=Quotas();window.Present(resetTimes,missions,InstrumentTests.Now,"Direct");
+                        string[] resetLabels=Walk(window).OfType<Label>().Where(l=>l.Name=="QuotaReset").Select(l=>l.Text).ToArray();
+                        Assert(resetLabels.Count(t=>t.IndexOf("Reset",StringComparison.OrdinalIgnoreCase)>=0)>=2,"Both reset times are missing from quota controls");
+                    }
+                });
             foreach(string layout in new[]{"Circular","Vertical","Compact","Micro"})foreach(int count in new[]{1,2})check("Target metadata and truth / "+layout+" / "+count,delegate {
                 using(MonitorForm window=TargetWindow(layout)) {
                     window.Present(Quotas(),InstrumentTests.Tasks(count),InstrumentTests.Now,"Direct");window.Show();Application.DoEvents();
@@ -138,9 +165,42 @@ namespace ShinoCodexMonitor
             check("One explicit layout selector adopts target without replacing saved width",delegate {
                 Preferences p=Preferences.Defaults();p.CircularWidth=620;p.Top=false;
                 using(MonitorForm window=new MonitorForm(p)) {
-                    var select=typeof(MonitorForm).GetMethod("SelectTargetLayout",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                    var select=typeof(MonitorForm).GetMethod("SelectTargetLayout",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic,null,new[]{typeof(string)},null);
                     Assert(select!=null,"No unified selection action");select.Invoke(window,new object[]{"Circular"});
                     Assert(p.ObsidianLayout && p.CircularWidth==620 && window.ClientSize==new Size(680,480),"Explicit selection crosses legacy geometry or misses target");
+                }
+            });
+            foreach(bool obsidian in new[]{false,true})foreach(string layout in new[]{"Circular","Vertical","Compact","Micro"})
+                check("Explicit family/layout identity and selection / "+(obsidian?"Obsidian ":"Classic ")+layout,delegate {
+                    Preferences p=Preferences.Defaults();p.Layout=layout;p.ObsidianLayout=obsidian;p.Top=false;p.TaskAnimations=false;p.CircularWidth=620;p.ObsidianCircularWidth=700;p.Opacity=.83;p.ResetStyle="relative";
+                    using(MonitorForm window=new MonitorForm(p)) {
+                        string expected=MonitorForm.LayoutVersionLabel(obsidian,layout);
+                        Assert(Walk(window).OfType<Label>().Any(l=>l.Name=="LayoutVersion" && l.Text==expected) ||
+                            Walk(window).OfType<Label>().Any(l=>l.Text==expected),"Family/layout title is not explicit");
+                        Size before=window.ClientSize;int geometry=window.Missions.GeometryPasses;
+                        window.SelectTargetLayout(layout,obsidian);
+                        Assert(p.Layout==layout && p.ObsidianLayout==obsidian && window.ClientSize==before && window.Missions.GeometryPasses==geometry,"Selecting the current option recomposed or changed its identity");
+                        Assert(p.CircularWidth==620 && p.ObsidianCircularWidth==700 && p.Opacity==.83 && p.ResetStyle=="relative" && !p.Top,"Selection replaced saved dimensions or preferences");
+                    }
+                });
+            check("Appearance menu exposes exactly eight family-specific radio choices",delegate {
+                Preferences p=Preferences.Defaults();p.Layout="Circular";p.ObsidianLayout=false;p.Top=false;
+                using(MonitorForm window=new MonitorForm(p)) {
+                    typeof(MonitorForm).GetMethod("MakeMenu",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(window,null);
+                    var field=typeof(MonitorForm).GetField("context",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                    ContextMenuStrip menu=(ContextMenuStrip)field.GetValue(window);
+                    ToolStripMenuItem appearance=menu.Items.OfType<ToolStripMenuItem>().Single(x=>x.Text=="Appearance");
+                    ToolStripMenuItem layout=appearance.DropDownItems.OfType<ToolStripMenuItem>().Single(x=>x.Text=="Layout");
+                    Assert(layout.DropDownItems.Count==2,"Layout menu must contain only the two family groups");
+                    ToolStripMenuItem classic=(ToolStripMenuItem)layout.DropDownItems[0],obsidian=(ToolStripMenuItem)layout.DropDownItems[1];
+                    Assert(classic.Text=="CLASSIC" && obsidian.Text=="OBSIDIAN","Family group names differ");
+                    Assert(classic.DropDownItems.Count==4 && obsidian.DropDownItems.Count==4,"Expected four choices in each family");
+                    MonitorForm.SyncLayoutChoices(classic,obsidian,p.ObsidianLayout,p.Layout);
+                    Assert(classic.DropDownItems.OfType<ToolStripMenuItem>().Count(x=>x.Checked)==1 &&
+                        classic.DropDownItems.OfType<ToolStripMenuItem>().Single(x=>x.Checked).Text=="Circular" &&
+                        obsidian.DropDownItems.OfType<ToolStripMenuItem>().All(x=>!x.Checked),"Menu did not identify the exact active choice");
+                    obsidian.DropDownItems[0].PerformClick();
+                    Assert(p.ObsidianLayout && p.Layout=="Circular","Obsidian Circular did not switch family explicitly");
                 }
             });
             report.AppendLine(pass+"/"+total+" final target checks passed");return report.ToString();
