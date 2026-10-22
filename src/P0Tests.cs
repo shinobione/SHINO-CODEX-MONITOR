@@ -264,16 +264,20 @@ namespace ShinoCodexMonitor
             ongoing.LastWriteUtc=Now.AddSeconds(-7);
             Assert(Report(Now,ongoing,child).DisplayAt(Now).Kind==TaskDisplayKind.ObservedActive,
                 "The field fixture must reproduce global ROOT ACTIVE");
-            tracker.Update(Report(Now.AddSeconds(2),ongoing,child.Copy()));
-            Assert(tracker.At(Now.AddSeconds(2)).Single().State==RadarState.Active,
+            // This is a different synthetic turn from the eight-second fixture.
+            // Use an independent tracker: reusing the same one legitimately retains
+            // the earlier turn for up to 30 minutes, making Single() invalid.
+            MissionTracker longRunningTracker=new MissionTracker();
+            longRunningTracker.Update(Report(Now.AddSeconds(2),ongoing,child.Copy()));
+            Assert(longRunningTracker.At(Now.AddSeconds(2)).Single().State==RadarState.Active,
                 "Global ROOT ACTIVE was suppressed by historical guardian child");
 
             // An unconfirmed root never becomes active from a recent file mtime
             // alone, even when its previous child was observed.
             LiveTask silent=ongoing.Copy();silent.Phase=LiveTaskPhase.Unconfirmed;
             silent.LastWriteUtc=Now.AddSeconds(-1);
-            tracker.Update(Report(Now.AddSeconds(3),silent,child.Copy()));
-            Assert(tracker.At(Now.AddSeconds(3)).Single().State==RadarState.Unverified,
+            longRunningTracker.Update(Report(Now.AddSeconds(3),silent,child.Copy()));
+            Assert(longRunningTracker.At(Now.AddSeconds(3)).Single().State==RadarState.Unverified,
                 "An unconfirmed turn was promoted by file mtime alone");
         }
         private static void CheckPriorityLayouts()
