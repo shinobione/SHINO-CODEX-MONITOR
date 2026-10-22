@@ -652,9 +652,27 @@ namespace ShinoCodexMonitor
                     System.IO.File.SetLastWriteTimeUtc(childPath,Now.AddSeconds(-1).UtcDateTime);
                     for(int cycle=0;cycle<5;cycle++){reportNow=LiveTaskReader.Read(Now);totalBytes+=reportNow.RecoveryBytesRead;}
                     MissionTracker tracker=new MissionTracker();tracker.Update(reportNow);List<MissionView> views=tracker.At(Now);
+                    // A has both an identified fresh root turn AND a linked fresh child.
+                    // Match the global ROOT ACTIVE selector: direct parent evidence has
+                    // priority; DELEGATED is reserved for a silent/stale parent.
+                    MissionView parent=views.SingleOrDefault(v=>v.Task.SessionKey=="rollout-fair-a.jsonl");
                     Assert(reportNow.Tasks.Count(t=>t.IsRootConfirmed&&!t.IsSubagent&&t.Phase==LiveTaskPhase.Active)==3&&
-                        views.Count==3&&views.Any(v=>v.Task.SessionKey=="rollout-fair-a.jsonl"&&v.State==RadarState.Delegated)&&totalBytes>6*1024*1024,
-                        "three roots, including a confirmed delegated parent, must remain visible");
+                        views.Count==3&&parent!=null&&parent.State==RadarState.Active&&
+                        parent.ActiveChildCount==1&&totalBytes>6*1024*1024,
+                        "three live roots, including a fresh root with a linked child, must remain visible as ACTIVE");
+                    // The same verified parent/child relationship becomes DELEGATED when
+                    // fresh direct root evidence ages out but linked child evidence remains.
+                    LiveTask[] onlyChildFresh=reportNow.Tasks.Select(t=>{
+                        LiveTask copy=t.Copy();
+                        if(copy.IsRootConfirmed&&copy.SessionKey=="rollout-fair-a.jsonl"){
+                            copy.LastWriteUtc=Now.AddMinutes(-3);copy.RecentDirectEvidence=false;
+                        }
+                        return copy;
+                    }).ToArray();
+                    MissionTracker delegatedTracker=new MissionTracker();
+                    delegatedTracker.Update(Report(Now,onlyChildFresh));
+                    Assert(delegatedTracker.At(Now).Single(v=>v.Task.SessionKey=="rollout-fair-a.jsonl").State==RadarState.Delegated,
+                        "a silent root with fresh linked child must remain DELEGATED");
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
             Check("Cache vidé puis relu à froid reconstruit l'historique sans notification ancienne", delegate {
