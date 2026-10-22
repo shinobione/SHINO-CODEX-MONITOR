@@ -39,7 +39,7 @@ class PeriscopeV52ReleaseIdentityTests(unittest.TestCase):
         self.assertIn('INSTALL-PERISCOPE-V5.2.ps1', BUILDER)
         self.assertIn('INSTALL-PERISCOPE-V5.2.ps1', INSTALL)
         self.assertIn('98/98', INSTALL)
-        self.assertIn('69/69', INSTALL)
+        self.assertIn('71/71', INSTALL)
         self.assertIn('ValidateOnly', BUILDER)
         self.assertNotIn('gh release create', CI)
 
