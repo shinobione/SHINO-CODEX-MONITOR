@@ -255,15 +255,26 @@ namespace ShinoCodexMonitor
             Assert(tracker.At(Now.AddSeconds(1)).Single().State==RadarState.Active,
                 "Fresh direct root evidence was displaced by child activity");
 
-            // No direct proof: a root with an old event and a completed child must
-            // stay unverified even if its file mtime changes recently.
-            LiveTask silent=Task("ROOT","root-session",200);
-            silent.ThreadId=root.ThreadId;silent.Phase=LiveTaskPhase.Active;
-            silent.LastWriteUtc=Now.AddSeconds(-1); // mtime only
-            LiveTask oldChild=child.Copy();
-            tracker.Update(Report(Now.AddSeconds(2),silent,oldChild));
-            Assert(tracker.At(Now.AddSeconds(2)).Single().State==RadarState.Unverified,
-                "A recent file mtime invented confirmed root activity");
+            // Reproduce the field report where the verified start is several
+            // minutes old but uniquely attributed ongoing JSONL activity is fresh.
+            // The global selector already reports ROOT ACTIVE in this case.
+            LiveTask ongoing=Task("ROOT","root-session",370);
+            ongoing.ThreadId=root.ThreadId;
+            ongoing.Phase=LiveTaskPhase.Active; // the reader verified one open turn
+            ongoing.LastWriteUtc=Now.AddSeconds(-7);
+            Assert(Report(Now,ongoing,child).DisplayAt(Now).Kind==TaskDisplayKind.ObservedActive,
+                "The field fixture must reproduce global ROOT ACTIVE");
+            tracker.Update(Report(Now.AddSeconds(2),ongoing,child.Copy()));
+            Assert(tracker.At(Now.AddSeconds(2)).Single().State==RadarState.Active,
+                "Global ROOT ACTIVE was suppressed by historical guardian child");
+
+            // An unconfirmed root never becomes active from a recent file mtime
+            // alone, even when its previous child was observed.
+            LiveTask silent=ongoing.Copy();silent.Phase=LiveTaskPhase.Unconfirmed;
+            silent.LastWriteUtc=Now.AddSeconds(-1);
+            tracker.Update(Report(Now.AddSeconds(3),silent,child.Copy()));
+            Assert(tracker.At(Now.AddSeconds(3)).Single().State==RadarState.Unverified,
+                "An unconfirmed turn was promoted by file mtime alone");
         }
         private static void CheckPriorityLayouts()
         {
