@@ -204,6 +204,36 @@ namespace ShinoCodexMonitor
                     Assert(p.ObsidianLayout && p.Layout=="Circular","Obsidian Circular did not switch family explicitly");
                 }
             });
+            check("Appearance choice persists through isolated restart with saved geometry/preferences",delegate {
+                string path=Path.Combine(InstrumentTests.DirectoryFor("layout-persistence"),"synthetic-settings.json");
+                LocalStore isolated=(LocalStore)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(LocalStore));
+                typeof(LocalStore).GetField("settingPath",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(isolated,path);
+                Preferences saved=Preferences.Defaults();saved.Layout="Vertical";saved.ObsidianLayout=false;saved.CircularWidth=620;saved.ObsidianCircularWidth=700;saved.X=123;saved.Y=234;saved.Top=false;saved.Pinned=false;saved.Opacity=.83;saved.ResetStyle="relative";saved.Color0="#AB3456";isolated.Save(saved);
+                using(MonitorForm window=new MonitorForm(saved)) {
+                    typeof(MonitorForm).GetField("store",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(window,isolated);
+                    typeof(MonitorForm).GetMethod("MakeMenu",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(window,null);
+                    ContextMenuStrip menu=(ContextMenuStrip)typeof(MonitorForm).GetField("context",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(window);
+                    ToolStripMenuItem appearance=menu.Items.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="Appearance");Assert(appearance!=null,"Appearance menu was not built before save");
+                    ToolStripMenuItem layouts=appearance.DropDownItems.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="Layout");Assert(layouts!=null,"Layout menu missing before save");
+                    ToolStripMenuItem obsidian=layouts.DropDownItems.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="OBSIDIAN");Assert(obsidian!=null,"Obsidian family menu missing before save");
+                    ToolStripMenuItem micro=obsidian.DropDownItems.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="Micro");Assert(micro!=null,"Obsidian Micro choice missing before save");micro.PerformClick();
+                    Assert(saved.ObsidianLayout && saved.Layout=="Micro" && window.ClientSize==new Size(484,230),"Menu did not apply the selected layout");
+                }
+                Preferences restored=isolated.Load();
+                Assert(restored.ObsidianLayout && restored.Layout=="Micro" && restored.CircularWidth==620 && restored.ObsidianCircularWidth==700 && restored.X==123 && restored.Y==234 && !restored.Top && restored.Opacity==.83 && restored.ResetStyle=="relative" && restored.Color0=="#AB3456","Restart load lost layout, geometry or saved preferences");
+                using(MonitorForm restarted=new MonitorForm(restored)) {
+                    Assert(restarted.ClientSize==new Size(484,230),"Restart did not restore the selected layout dimensions");
+                    typeof(MonitorForm).GetMethod("MakeMenu",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(restarted,null);
+                    ContextMenuStrip menu=(ContextMenuStrip)typeof(MonitorForm).GetField("context",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(restarted);
+                    ToolStripMenuItem appearance=menu.Items.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="Appearance");Assert(appearance!=null,"Appearance menu was not built after restart");
+                    ToolStripMenuItem layouts=appearance.DropDownItems.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Text=="Layout");Assert(layouts!=null,"Layout menu missing after restart");
+                    ToolStripMenuItem classic=layouts.DropDownItems.OfType<ToolStripMenuItem>().Single(x=>x.Text=="CLASSIC");
+                    ToolStripMenuItem obsidian=layouts.DropDownItems.OfType<ToolStripMenuItem>().Single(x=>x.Text=="OBSIDIAN");
+                    MonitorForm.SyncLayoutChoices(classic,obsidian,restored.ObsidianLayout,restored.Layout);
+                    ToolStripMenuItem active=obsidian.DropDownItems.OfType<ToolStripMenuItem>().FirstOrDefault(x=>x.Checked);
+                    Assert(classic.DropDownItems.OfType<ToolStripMenuItem>().All(x=>!x.Checked) && active!=null && active.Text=="Micro","Restart menu did not restore the exclusive choice");
+                }
+            });
             report.AppendLine(pass+"/"+total+" final target checks passed");return report.ToString();
         }
     }
