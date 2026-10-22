@@ -24,12 +24,19 @@ namespace ShinoCodexMonitor
         internal static void Capture()
         {
             string folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"target-qa");Directory.CreateDirectory(folder);
-            foreach(bool obsidian in new[]{false,true})foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})foreach(string variant in new []{"single","double","A-completed-B-active","blocked-unverified","blocked-active","stale","unavailable","unverified"}) {
+            foreach(bool obsidian in new[]{false,true})foreach(string layout in new []{"Circular","Vertical","Compact","Micro"})foreach(string variant in new []{"single","double","A-completed-B-active","blocked-unverified","blocked-active","stale","unavailable","unverified","delegated-observed"}) {
                 bool blocked=variant.StartsWith("blocked");int count=variant=="single" || variant=="blocked-unverified"?1:2;
                 using(MonitorForm window=TargetWindow(layout,false,obsidian)) {
                     LiveTaskReport tasks=InstrumentTests.Tasks(count);
                     foreach(LiveTask t in tasks.Tasks){t.Model="gpt-6.1-sol";t.Effort="Medium";t.StartedUtc=InstrumentTests.Now.AddSeconds(-79);}
                     tasks.Tasks[0].Workspace="SHINO-TV-V06-AUDIT";
+                    if(variant=="delegated-observed") {
+                        LiveTask root=tasks.Tasks[0];root.ThreadId="synthetic-parent-thread";root.LastWriteUtc=InstrumentTests.Now.AddMinutes(-2);
+                        tasks.Tasks.RemoveAt(1);
+                        tasks.Tasks.Add(new LiveTask {Id="synthetic-child-turn",SessionKey="synthetic-child-file",ParentThreadId=root.ThreadId,
+                            IsSubagent=true,StartedUtc=InstrumentTests.Now.AddMinutes(-1),LastWriteUtc=InstrumentTests.Now.AddSeconds(-2),
+                            Phase=LiveTaskPhase.Active,Model="gpt-6.1-sol",Effort="Medium"});
+                    }
                     if(variant=="A-completed-B-active"){tasks.Tasks[0].Phase=LiveTaskPhase.Completed;tasks.Tasks[0].FinishedUtc=InstrumentTests.Now;tasks.Tasks[0].LastWriteUtc=InstrumentTests.Now;}
                     if(variant=="blocked-unverified" || variant=="unverified")foreach(LiveTask t in tasks.Tasks)t.IdentityUncertain=true;
                     if(variant=="stale")window.Present(Quotas(),tasks,InstrumentTests.Now,"Stale data");
@@ -238,3 +245,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+
