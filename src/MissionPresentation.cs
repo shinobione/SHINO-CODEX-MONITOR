@@ -304,7 +304,13 @@ namespace ShinoCodexMonitor
         internal void ScrollBy(int pixels){int pitch=CurrentRowPitch();int steps=(int)Math.Round((double)pixels/pitch,MidpointRounding.AwayFromZero);scroll.Offset+=steps*pitch;}
         internal void UpdateReport(LiveTaskReport report,DateTimeOffset now)
         {
-            tracker.Update(report);views=tracker.At(now);
+            tracker.Update(report);
+            List<MissionView> allViews=tracker.At(now);
+            // A missing turn is a historical observation, not a current mission card.
+            // Keep it in MissionTracker for diagnostics/identity reconciliation, but
+            // never let it impersonate another concurrent Codex job in the live deck.
+            int missingCount=allViews.Count(v=>v.Missing);
+            views=allViews.Where(v=>!v.Missing).ToList();
             string nextOrder=string.Join(",",views.Select(v=>v.Number));
             bool priorityOrderChanged=displayedOrderKey.Length>0 && displayedOrderKey!=nextOrder;
             displayedOrderKey=nextOrder;
@@ -319,9 +325,12 @@ namespace ShinoCodexMonitor
                 } else card.Update(view,now);
             }
             if(priorityOrderChanged)scroll.Offset=0;
-            heading.Text=views.Count<=1 ? "CODEX ACTIVITY / LOCAL OBSERVATION" : views.Count+" LOCAL TURNS / "+views.Count(v=>v.State==RadarState.Active)+" OBSERVED ACTIVE";
-            emptyTitle.Text=report==null ? "LOCAL ACTIVITY UNAVAILABLE" : "LOCAL ACTIVITY UNVERIFIED";
-            emptyDetail.Text="LOCAL JSONL / partial observation";
+            int verifiedCount=views.Count(v=>v.State==RadarState.Active||v.State==RadarState.Delegated);
+            heading.Text=views.Count==0 ? "CODEX ACTIVITY / NO VERIFIED ACTIVE" :
+                views.Count+" CURRENT LOCAL TURN(S) / "+verifiedCount+" VERIFIED ACTIVE";
+            emptyTitle.Text=report==null ? "LOCAL ACTIVITY UNAVAILABLE" : "NO VERIFIED LOCAL ACTIVITY";
+            emptyDetail.Text=missingCount>0 ? missingCount+" prior turn(s) no longer observed · check task diagnostics" :
+                "LOCAL JSONL / current activity not confirmed";
             emptyRadar.SetObservation(LiveTaskPhase.Unconfirmed,true,report==null);
             emptyRadar.Visible=cards.Count==0 && !(Parity && layoutMode=="Compact");emptyTitle.Visible=emptyDetail.Visible=cards.Count==0;
             Arrange();
