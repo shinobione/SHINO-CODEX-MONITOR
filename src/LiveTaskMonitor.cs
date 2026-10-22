@@ -415,7 +415,7 @@ namespace ShinoCodexMonitor
         private static extern bool GetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle handle,out ByHandleFileInformation info);
         private static readonly Dictionary<string,SessionCache> Sessions = new Dictionary<string,SessionCache>(StringComparer.OrdinalIgnoreCase);
         private static readonly object ReadGate = new object();
-        private static int recoveryCursor;
+        private static int childRecoveryCursor;
         // Immutable, sanitized metadata only; never keep the original session_meta,
         // system prompt, instructions, auth or response content in this cache.
         private static readonly Dictionary<string, string> HeaderCache =
@@ -471,12 +471,18 @@ namespace ShinoCodexMonitor
                 List<FileInfo> stableCandidates=candidates.OrderByDescending(f=>f.LastWriteTimeUtc).Take(DiscoveryFiles).ToList();
                 HashSet<string> admittedRootPaths=new HashSet<string>(stableCandidates.Where(f=>
                     HeaderThreadKind(ReadFirstMetadataLine(f.FullName)??"")=="user").Take(MaxFiles).Select(f=>f.FullName),StringComparer.OrdinalIgnoreCase);
-                List<FileInfo> orderedCandidates=stableCandidates;
-                if(orderedCandidates.Count>0) {
-                    int rotate=((recoveryCursor%orderedCandidates.Count)+orderedCandidates.Count)%orderedCandidates.Count;
-                    orderedCandidates=orderedCandidates.Skip(rotate).Concat(orderedCandidates.Take(rotate)).ToList();
-                    recoveryCursor=(rotate+1)%orderedCandidates.Count;
+                List<FileInfo> rootsForRecovery=stableCandidates.Where(f=>admittedRootPaths.Contains(f.FullName)).ToList();
+                List<FileInfo> childrenForRecovery=stableCandidates.Where(f=>
+                    HeaderThreadKind(ReadFirstMetadataLine(f.FullName)??"")=="subagent").ToList();
+                List<FileInfo> orderedCandidates=new List<FileInfo>(rootsForRecovery);
+                if(childrenForRecovery.Count>0) {
+                    int remainingRecoverySlots=Math.Max(0,(RecoveryMaxBytesPerRead-rootsForRecovery.Count*RecoverySliceBytes)/RecoverySliceBytes);
+                    int rotate=((childRecoveryCursor%childrenForRecovery.Count)+childrenForRecovery.Count)%childrenForRecovery.Count;
+                    orderedCandidates.AddRange(childrenForRecovery.Skip(rotate).Concat(childrenForRecovery.Take(rotate)));
+                    childRecoveryCursor=(rotate+Math.Max(1,remainingRecoverySlots))%childrenForRecovery.Count;
                 }
+                orderedCandidates.AddRange(stableCandidates.Where(f=>!admittedRootPaths.Contains(f.FullName)&&
+                    !childrenForRecovery.Any(c=>string.Equals(c.FullName,f.FullName,StringComparison.OrdinalIgnoreCase))));
                 foreach (FileInfo info in orderedCandidates)
                 {
                     try
