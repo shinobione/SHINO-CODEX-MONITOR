@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ShinoCodexMonitor
@@ -95,6 +96,7 @@ namespace ShinoCodexMonitor
         internal int ActiveChildSessions;
         internal int UnknownOrigins;
         internal long RecoveryBytesRead;
+        internal long RecoveryProgressBytes;
         internal int RecoverySessions;
         internal int RecoveryLimitedSessions;
         internal int RecoveryLimitedBySize;
@@ -128,7 +130,7 @@ namespace ShinoCodexMonitor
                 " ; linked=" + ChildSessionsLinked + " ; unlinked or ambiguous=" + ChildSessionsUnlinked +
                 " ; active and fresh=" + ActiveChildSessions);
             text.AppendLine("Recovery: " + RecoverySessions + " session(s), " + RecoveryBytesRead +
-                " byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions +
+                " byte(s) this poll, cumulative progress="+RecoveryProgressBytes+" byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions +
                 " ; reasons: size=" + RecoveryLimitedBySize + ", timeout=" + RecoveryLimitedByTimeout +
                 ", invalid-line=" + RecoveryLimitedByInvalidLine + ", partial-read=" + RecoveryLimitedByPartialRead);
             TaskDisplay display = DisplayAt(now);
@@ -327,7 +329,9 @@ namespace ShinoCodexMonitor
                     task.FinishedUtc.Value > current.CheckedUtc.AddSeconds(5)) continue;
                 bool wasActive = previous.Tasks.Any(old => old.Phase == LiveTaskPhase.Active &&
                     SameTurn(old, task));
-                bool wasAlreadySeen = previous.Tasks.Any(old => SameTurn(old, task));
+                bool wasAlreadySeen = previous.Tasks.Any(old => SameTurn(old, task) ||
+                    (!string.IsNullOrEmpty(old.SessionKey) && string.Equals(old.SessionKey,task.SessionKey,StringComparison.Ordinal) &&
+                     old.StartedUtc==task.StartedUtc && (string.IsNullOrEmpty(old.Id)||string.IsNullOrEmpty(task.Id)||old.Id==task.Id)));
                 // A short complete turn may start AND finish between 5 s polls.
                 // This path requires a valid completed event with both timestamps,
                 // observed AFTER the previous successful scan (not old history).
@@ -345,8 +349,10 @@ namespace ShinoCodexMonitor
     {
         internal const int ActivityMaxAgeSeconds = 90;
         private const int TailBytes = 524288;
-        internal const int RecoveryMaxBytes = 16777216;
+        internal const int RecoveryMaxBytes = 67108864;
         internal const int RecoveryMaxBytesPerRead = 33554432;
+        internal const int RecoverySliceBytes = 2097152;
+        internal const long RecoveryMaxBytesPerSource = 67108864;
         internal const int RecoveryMaxLineBytes = 1048576;
         private static readonly TimeSpan RecoveryTimeout = TimeSpan.FromSeconds(4);
         private const int MaxFiles = 12;
@@ -359,6 +365,10 @@ namespace ShinoCodexMonitor
             internal List<LiveTask> Turns;
             internal string ThreadId;
             internal string ParentThreadId;
+            internal string FileIdentity;
+            internal long RecoveryOffset;
+            internal long RecoveryBytesScanned;
+            internal bool SkippingOversizedLine;
             internal bool IsRoot;
             internal bool IsSubagent;
             internal bool Complete;
@@ -382,9 +392,30 @@ namespace ShinoCodexMonitor
             internal bool InvalidLine;
             internal bool LimitedBySize;
             internal bool PartialRead;
+            internal long StartOffset;
+            internal long NextOffset;
+            internal string FileIdentity;
+            internal bool SkippingOversizedLine;
         }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ByHandleFileInformation
+        {
+            internal uint FileAttributes;
+            internal System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
+            internal System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
+            internal System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
+            internal uint VolumeSerialNumber;
+            internal uint FileSizeHigh;
+            internal uint FileSizeLow;
+            internal uint NumberOfLinks;
+            internal uint FileIndexHigh;
+            internal uint FileIndexLow;
+        }
+        [DllImport("kernel32.dll", SetLastError=true)]
+        private static extern bool GetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle handle,out ByHandleFileInformation info);
         private static readonly Dictionary<string,SessionCache> Sessions = new Dictionary<string,SessionCache>(StringComparer.OrdinalIgnoreCase);
         private static readonly object ReadGate = new object();
+        private static int childRecoveryCursor;
         // Immutable, sanitized metadata only; never keep the original session_meta,
         // system prompt, instructions, auth or response content in this cache.
         private static readonly Dictionary<string, string> HeaderCache =
@@ -437,13 +468,31 @@ namespace ShinoCodexMonitor
                 List<ChildCandidate> childCandidates = new List<ChildCandidate>();
                 Stopwatch recoveryClock = Stopwatch.StartNew();
                 List<LiveTask> discovered = new List<LiveTask>();
-                foreach (FileInfo info in candidates.OrderByDescending(f => f.LastWriteTimeUtc)
-                    .Take(DiscoveryFiles))
+                List<FileInfo> stableCandidates=candidates.OrderByDescending(f=>f.LastWriteTimeUtc).Take(DiscoveryFiles).ToList();
+                HashSet<string> admittedRootPaths=new HashSet<string>(stableCandidates.Where(f=>
+                    HeaderThreadKind(ReadFirstMetadataLine(f.FullName)??"")=="user").Take(MaxFiles).Select(f=>f.FullName),StringComparer.OrdinalIgnoreCase);
+                List<FileInfo> rootsForRecovery=stableCandidates.Where(f=>admittedRootPaths.Contains(f.FullName)).ToList();
+                List<FileInfo> childrenForRecovery=stableCandidates.Where(f=>
+                    HeaderThreadKind(ReadFirstMetadataLine(f.FullName)??"")=="subagent").ToList();
+                List<FileInfo> orderedCandidates=new List<FileInfo>(rootsForRecovery);
+                if(childrenForRecovery.Count>0) {
+                    int remainingRecoverySlots=Math.Max(0,(RecoveryMaxBytesPerRead-rootsForRecovery.Count*RecoverySliceBytes)/RecoverySliceBytes);
+                    int rotate=((childRecoveryCursor%childrenForRecovery.Count)+childrenForRecovery.Count)%childrenForRecovery.Count;
+                    orderedCandidates.AddRange(childrenForRecovery.Skip(rotate).Concat(childrenForRecovery.Take(rotate)));
+                    childRecoveryCursor=(rotate+Math.Max(1,remainingRecoverySlots))%childrenForRecovery.Count;
+                }
+                orderedCandidates.AddRange(stableCandidates.Where(f=>!admittedRootPaths.Contains(f.FullName)&&
+                    !childrenForRecovery.Any(c=>string.Equals(c.FullName,f.FullName,StringComparison.OrdinalIgnoreCase))));
+                foreach (FileInfo info in orderedCandidates)
                 {
                     try
                     {
+                        string currentFileIdentity=GetFileIdentity(info.FullName);
                         SessionCache priorSource;
-                        if (Sessions.TryGetValue(info.FullName,out priorSource) && info.Length < priorSource.Length) HeaderCache.Remove(info.FullName);
+                        if (Sessions.TryGetValue(info.FullName,out priorSource) &&
+                            (info.Length<priorSource.Length || string.IsNullOrEmpty(currentFileIdentity) ||
+                             !string.Equals(priorSource.FileIdentity,currentFileIdentity,StringComparison.Ordinal)))
+                            HeaderCache.Remove(info.FullName);
                         string sessionMeta = ReadFirstMetadataLine(info.FullName);
                         if (sessionMeta == null) { unknownHeaders++; continue; }
                         string threadKind = HeaderThreadKind(sessionMeta);
@@ -458,7 +507,7 @@ namespace ShinoCodexMonitor
                             report.RootSessionCandidates++;
                             string candidateId=HeaderThreadId(sessionMeta);
                             if(!string.IsNullOrEmpty(candidateId))rootCandidateIds.Add(candidateId);
-                            if(checkedRoots>=MaxFiles){excludedRoots++;continue;}
+                            if(!admittedRootPaths.Contains(info.FullName)){excludedRoots++;continue;}
                             checkedRoots++;
                         }
                         else { unknownHeaders++; continue; }
@@ -468,7 +517,9 @@ namespace ShinoCodexMonitor
                         List<LiveTask> turns;
                         bool cacheResult=true;
                         bool sourceComplete=true;
-                        if (known && cache.Length == info.Length && cache.Write == info.LastWriteTimeUtc)
+                        bool checkpointValid=known && !string.IsNullOrEmpty(currentFileIdentity) &&
+                            string.Equals(cache.FileIdentity,currentFileIdentity,StringComparison.Ordinal) && info.Length>=cache.Length;
+                        if (known && cache.Complete && cache.Length == info.Length && cache.Write == info.LastWriteTimeUtc)
                         {
                             turns = cache.Turns.Select(t => t.Copy()).ToList();
                             sourceComplete=cache.Complete;
@@ -476,7 +527,7 @@ namespace ShinoCodexMonitor
                             if(!cache.Complete){report.RecoveryLimitedSessions++;AddRecoveryReasons(report,cache);}
                         }
                         else {
-                            bool appendOnly=known && info.Length>cache.Length && cache.ThreadId==HeaderThreadId(sessionMeta) &&
+                            bool appendOnly=checkpointValid && info.Length>cache.Length && cache.ThreadId==HeaderThreadId(sessionMeta) &&
                                 cache.ParentThreadId==HeaderParentThreadId(sessionMeta) && cache.Complete;
                             if(appendOnly) turns=ParseCollection(new [] {sessionMeta}.Concat(ReadTail(info.FullName,TailBytes)),
                                 new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,cache.Turns);
@@ -486,15 +537,24 @@ namespace ShinoCodexMonitor
                                 long remaining=Math.Max(0,RecoveryMaxBytesPerRead-report.RecoveryBytesRead);
                                 if(remaining<=0){scan.LimitedBySize=true;scan.PartialRead=info.Length>0;}
                                 if(recoveryClock.Elapsed>RecoveryTimeout){scan.TimedOut=true;scan.PartialRead=info.Length>0;}
-                                IEnumerable<string> lines=remaining>0&&recoveryClock.Elapsed<=RecoveryTimeout ?
-                                    ReadBoundedPrefix(info.FullName,scan,(int)Math.Min(RecoveryMaxBytes,remaining),recoveryClock) : Enumerable.Empty<string>();
+                                if(string.IsNullOrEmpty(currentFileIdentity)){scan.PartialRead=info.Length>0;remaining=0;}
+                                long startOffset=checkpointValid && cache.ThreadId==HeaderThreadId(sessionMeta) &&
+                                    cache.ParentThreadId==HeaderParentThreadId(sessionMeta) ? cache.RecoveryOffset : 0;
+                                long sourceBytes=checkpointValid?cache.RecoveryBytesScanned:0;
+                                long sourceRemaining=Math.Max(0,RecoveryMaxBytesPerSource-sourceBytes);
+                                scan.InvalidLine=checkpointValid&&cache.LimitedByInvalidLine;
+                                scan.PartialRead=info.Length>0;
+                                if(sourceRemaining==0){scan.LimitedBySize=true;scan.PartialRead=true;}
+                                List<LiveTask> priorTurns=startOffset>0 ? cache.Turns : null;
+                                IEnumerable<string> lines=remaining>0&&sourceRemaining>0&&recoveryClock.Elapsed<=RecoveryTimeout ?
+                                    ReadBoundedPrefix(info.FullName,scan,(int)Math.Min(RecoverySliceBytes,Math.Min(remaining,sourceRemaining)),recoveryClock,startOffset,
+                                        startOffset>0&&checkpointValid&&cache.SkippingOversizedLine) : Enumerable.Empty<string>();
                                 turns=ParseCollection(new [] {sessionMeta}.Concat(lines),
-                                    new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,null,scan);
+                                    new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,priorTurns,scan);
                                 sourceComplete=scan.Complete;
                                 report.RecoverySessions++;
                                 report.RecoveryBytesRead+=scan.BytesRead;
                                 if(!scan.Complete){report.RecoveryLimitedSessions++;AddRecoveryReasons(report,scan);cacheResult=false;}
-                                if(!scan.Complete)foreach(LiveTask open in turns.Where(t=>!t.FinishedUtc.HasValue)) Uncertain(open);
                                 if(!scan.Complete && scan.BytesRead>0)cacheResult=true;
                                 if(!scan.Complete && scan.BytesRead==0 && info.Length>0)cacheResult=false;
                             }
@@ -503,12 +563,20 @@ namespace ShinoCodexMonitor
                                 Sessions[info.FullName] = new SessionCache { Length = info.Length, Write = info.LastWriteTimeUtc,
                                 Turns = turns.Select(t => t.Copy()).ToList(), ThreadId=HeaderThreadId(sessionMeta),
                                 ParentThreadId=HeaderParentThreadId(sessionMeta),IsRoot=threadKind=="user",IsSubagent=isChild,
-                                Complete=sourceComplete,LimitedBySize=recoveryScan!=null&&recoveryScan.LimitedBySize,
+                                FileIdentity=currentFileIdentity,RecoveryOffset=recoveryScan==null?(sourceComplete?info.Length:cache.RecoveryOffset):recoveryScan.NextOffset,
+                                RecoveryBytesScanned=(checkpointValid?cache.RecoveryBytesScanned:0)+(recoveryScan==null?0:recoveryScan.BytesRead),
+                                SkippingOversizedLine=recoveryScan!=null&&recoveryScan.SkippingOversizedLine,
+                                Complete=sourceComplete,LimitedBySize=(checkpointValid&&cache.LimitedBySize)||(recoveryScan!=null&&recoveryScan.LimitedBySize),
                                 LimitedByTimeout=recoveryScan!=null&&recoveryScan.TimedOut,
-                                LimitedByInvalidLine=recoveryScan!=null&&recoveryScan.InvalidLine,
-                                LimitedByPartialRead=recoveryScan!=null&&recoveryScan.PartialRead };
+                                LimitedByInvalidLine=(checkpointValid&&cache.LimitedByInvalidLine)||(recoveryScan!=null&&recoveryScan.InvalidLine),
+                                LimitedByPartialRead=(checkpointValid&&cache.LimitedByPartialRead)||(recoveryScan!=null&&recoveryScan.PartialRead) };
                             }
                         }
+                        if(known||cacheResult) {
+                            SessionCache progress;
+                            if(Sessions.TryGetValue(info.FullName,out progress))report.RecoveryProgressBytes+=progress.RecoveryBytesScanned;
+                        }
+                        if(!sourceComplete)foreach(LiveTask open in turns)Uncertain(open);
                         foreach (LiveTask task in turns) {
                             task.SessionKey = info.Name;
                             Expire(task,now);
@@ -631,17 +699,33 @@ namespace ShinoCodexMonitor
             if(scan.PartialRead)report.RecoveryLimitedByPartialRead++;
         }
 
-        private static IEnumerable<string> ReadBoundedPrefix(string path,BoundedScan scan,int maxBytes,Stopwatch recoveryClock)
+        private static string GetFileIdentity(string path)
+        {
+            try {
+                using(FileStream stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)) {
+                    ByHandleFileInformation value;
+                    if(!GetFileInformationByHandle(stream.SafeFileHandle,out value))return "";
+                    return value.VolumeSerialNumber.ToString("X8",CultureInfo.InvariantCulture)+":"+
+                        value.FileIndexHigh.ToString("X8",CultureInfo.InvariantCulture)+value.FileIndexLow.ToString("X8",CultureInfo.InvariantCulture);
+                }
+            } catch(IOException) { return ""; } catch(UnauthorizedAccessException) { return ""; }
+        }
+
+        private static IEnumerable<string> ReadBoundedPrefix(string path,BoundedScan scan,int maxBytes,Stopwatch recoveryClock,long startOffset,bool resumeOversized)
         {
             using(FileStream stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)) {
                 long initialLength=stream.Length;
-                scan.LimitedBySize=initialLength>maxBytes;
+                scan.StartOffset=startOffset;scan.FileIdentity=GetFileIdentity(path);
+                stream.Seek(startOffset,SeekOrigin.Begin);
+                scan.LimitedBySize=false;
                 byte[] buffer=new byte[8192];
                 List<byte> line=new List<byte>(4096);
-                bool oversized=false;
-                while(scan.BytesRead<maxBytes && scan.BytesRead<initialLength) {
+                bool oversized=resumeOversized;
+                if(resumeOversized){scan.InvalidLine=true;scan.OversizedLine=true;}
+                long lastCompleteOffset=startOffset;
+                while(scan.BytesRead<maxBytes && stream.Position<initialLength) {
                     if(recoveryClock.Elapsed>RecoveryTimeout){scan.TimedOut=true;break;}
-                    int count=(int)Math.Min(buffer.Length,Math.Min(maxBytes-scan.BytesRead,initialLength-scan.BytesRead));
+                    int count=(int)Math.Min(buffer.Length,Math.Min(maxBytes-scan.BytesRead,initialLength-stream.Position));
                     int read=stream.Read(buffer,0,count);if(read<=0)break;scan.BytesRead+=read;
                     for(int i=0;i<read;i++) {
                         byte b=buffer[i];
@@ -652,20 +736,16 @@ namespace ShinoCodexMonitor
                                 catch(DecoderFallbackException){record=null;scan.OversizedLine=true;scan.InvalidLine=true;}
                                 if(record!=null){if(record.Length>0&&record[record.Length-1]=='\r')record=record.Substring(0,record.Length-1);if(Relevant(record))yield return record;}
                             }
-                            line.Clear();oversized=false;continue;
+                            line.Clear();oversized=false;lastCompleteOffset=startOffset+scan.BytesRead-(read-i-1);continue;
                         }
                         if(b==13)continue;
                         if(!oversized) { if(line.Count<RecoveryMaxLineBytes)line.Add(b); else {line.Clear();oversized=true;scan.OversizedLine=true;scan.InvalidLine=true;} }
                     }
                 }
-                if(!oversized&&line.Count>0&&scan.BytesRead>=initialLength) {
-                    string record;
-                    try {record=new UTF8Encoding(false,true).GetString(line.ToArray());}
-                    catch(DecoderFallbackException){record=null;scan.OversizedLine=true;scan.InvalidLine=true;}
-                    if(record!=null&&Relevant(record))yield return record;
-                }
-                scan.PartialRead=scan.BytesRead<initialLength;
-                scan.Complete=scan.BytesRead>=initialLength&&initialLength<=maxBytes&&!scan.TimedOut&&!scan.OversizedLine;
+                scan.NextOffset=oversized?stream.Position:lastCompleteOffset;
+                scan.SkippingOversizedLine=oversized;
+                scan.PartialRead=stream.Position<initialLength;
+                scan.Complete=stream.Position>=initialLength&&line.Count==0&&!oversized&&!scan.TimedOut&&!scan.OversizedLine;
             }
         }
 
@@ -907,3 +987,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+

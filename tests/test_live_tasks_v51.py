@@ -74,10 +74,11 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("'LiveTaskMonitor.cs'", "'ActivityGlyph.cs'",
                       "'LiveTaskTests.cs'"):
             self.assertIn(value, BUILD)
-        self.assertEqual(TESTS.count('Check("'), 63)
+        self.assertEqual(TESTS.count('Check("'), 69)
         self.assertIn("--live-task-self-test", CI)
-        self.assertIn("63/63", CI)
+        self.assertIn("69/69", CI)
 
 
 if __name__ == "__main__":
     unittest.main()
+

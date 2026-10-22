@@ -83,7 +83,14 @@ namespace ShinoCodexMonitor
                 else if (age < -5 || (task.Phase == LiveTaskPhase.Active && age > LiveTaskReader.ActivityMaxAgeSeconds)) view.State=RadarState.Stale;
                 else view.State=RadarMotion.Map(task.Phase,true,false);
             }
-            return known.Values.OrderBy(v => v.Number).ToList();
+            return known.Values.OrderBy(v => StateRank(v.State)).ThenBy(v => v.Number).ToList();
+        }
+        internal static int StateRank(RadarState state)
+        {
+            if(state==RadarState.Active)return 0;
+            if(state==RadarState.Delegated)return 1;
+            if(state==RadarState.Unverified||state==RadarState.Stale)return 2;
+            return 3;
         }
     }
     internal sealed class MissionCard : InstrumentPanel
@@ -267,6 +274,8 @@ namespace ShinoCodexMonitor
         private double lastFrame;
         private bool arranging;
         private string geometryKey;
+        private string displayedOrderKey="";
+        private int rowPitch=72;
         internal int GeometryPasses;
         private string layoutMode="Circular";
         internal bool Parity;
@@ -289,12 +298,16 @@ namespace ShinoCodexMonitor
             viewport.MouseWheel+=Wheel;emptyRadar.MouseWheel+=Wheel;
             emptyTitle.MouseWheel+=Wheel;emptyDetail.MouseWheel+=Wheel;
         }
-        private void Wheel(object sender,MouseEventArgs e){ScrollBy(-Math.Sign(e.Delta)*Math.Max(20,(int)(40*PeriscopeWindow.ScaleFor(this))));}
+        private void Wheel(object sender,MouseEventArgs e){int pitch=CurrentRowPitch();ScrollBy(-Math.Sign(e.Delta)*Math.Max(pitch,(int)Math.Ceiling(Math.Abs(e.Delta)/120.0)*pitch));}
         protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);Wheel(this,e);}
-        internal void ScrollBy(int pixels){scroll.Offset+=pixels;}
+        private int CurrentRowPitch(){return Math.Max(1,rowPitch);}
+        internal void ScrollBy(int pixels){int pitch=CurrentRowPitch();int steps=(int)Math.Round((double)pixels/pitch,MidpointRounding.AwayFromZero);scroll.Offset+=steps*pitch;}
         internal void UpdateReport(LiveTaskReport report,DateTimeOffset now)
         {
             tracker.Update(report);views=tracker.At(now);
+            string nextOrder=string.Join(",",views.Select(v=>v.Number));
+            bool priorityOrderChanged=displayedOrderKey.Length>0 && displayedOrderKey!=nextOrder;
+            displayedOrderKey=nextOrder;
             HashSet<int> present=new HashSet<int>(views.Select(v=>v.Number));
             foreach(int number in cards.Keys.Where(k=>!present.Contains(k)).ToArray()) {MissionCard card=cards[number];cards.Remove(number);card.Dispose();}
             foreach(MissionView view in views) {
@@ -305,6 +318,7 @@ namespace ShinoCodexMonitor
                     card.MouseWheel+=Wheel;foreach(Control child in card.Controls)child.MouseWheel+=Wheel;
                 } else card.Update(view,now);
             }
+            if(priorityOrderChanged)scroll.Offset=0;
             heading.Text=views.Count<=1 ? "CODEX ACTIVITY / LOCAL OBSERVATION" : views.Count+" LOCAL TURNS / "+views.Count(v=>v.State==RadarState.Active)+" OBSERVED ACTIVE";
             emptyTitle.Text=report==null ? "LOCAL ACTIVITY UNAVAILABLE" : "LOCAL ACTIVITY UNVERIFIED";
             emptyDetail.Text="LOCAL JSONL / partial observation";
@@ -319,7 +333,8 @@ namespace ShinoCodexMonitor
         private void Arrange()
         {
             if(arranging || viewport==null || heading==null || cards==null || scroll==null)return;
-            string key=Width+"/"+Height+"/"+PeriscopeWindow.ScaleFor(this)+"/"+layoutMode+"/"+Parity+"/"+scroll.Offset+"/"+BackColor.ToArgb()+"/"+string.Join(",",cards.Keys.OrderBy(n=>n));
+            string orderKey=string.Join(",",views.Select(v=>v.Number));
+            string key=Width+"/"+Height+"/"+PeriscopeWindow.ScaleFor(this)+"/"+layoutMode+"/"+Parity+"/"+scroll.Offset+"/"+BackColor.ToArgb()+"/"+orderKey;
             if(key==geometryKey) {if(Parity && layoutMode=="Compact" && CompactRadars!=null)CompactRadars.UpdateCards(cards.Values);return;}
             geometryKey=key;GeometryPasses++;arranging=true;
             try {
@@ -333,20 +348,25 @@ namespace ShinoCodexMonitor
                 int rows=(cards.Count+columns-1)/columns;
                 int rowHeight=cards.Count<=2 ? Math.Max(1,(height-Math.Max(0,rows-1)*gap)/Math.Max(1,rows)) : u(66);
                 if(Parity && layoutMode=="Compact" && cards.Count>2)rowHeight=u(160);
+                rowHeight=Math.Min(rowHeight,height);
+                rowPitch=rowHeight+gap;
                 int extent=rows*rowHeight+Math.Max(0,rows-1)*gap;
                 bool overflow=cards.Count>2 && extent>height;
-                scroll.SetBounds(Width-u(12),top,u(8),height);scroll.BackColor=BackColor;
-                scroll.Configure(overflow?extent:height,height);
+                int visibleRows=overflow?Math.Max(1,(height+gap)/Math.Max(1,rowHeight+gap)):rows;
+                int pageHeight=overflow?Math.Min(height,visibleRows*rowHeight+Math.Max(0,visibleRows-1)*gap):height;
+                scroll.SetBounds(Width-u(12),top,u(8),pageHeight);scroll.BackColor=BackColor;
+                scroll.Configure(overflow?extent:pageHeight,pageHeight);
+                if(overflow)scroll.Offset=Math.Min(scroll.Offset/Math.Max(1,rowHeight+gap)*(rowHeight+gap),Math.Max(0,extent-pageHeight));
                 if(!overflow)scroll.Offset=0;
-                viewport.SetBounds(inset,top,Math.Max(1,width-(overflow?u(12):0)),height);
+                viewport.SetBounds(inset,top,Math.Max(1,width-(overflow?u(12):0)),pageHeight);
                 viewport.BackColor=BackColor;viewport.AutoScrollMinSize=Size.Empty;viewport.AutoScrollMargin=Size.Empty;
                 int cw=Math.Max(1,(viewport.Width-(columns-1)*gap)/columns),i=0;
-                foreach(MissionCard card in cards.Values.OrderBy(c=>c.Mission.Number)) {
+                foreach(MissionCard card in cards.Values.OrderBy(c=>MissionTracker.StateRank(c.Mission.State)).ThenBy(c=>c.Mission.Number)) {
                     card.LayoutMode=layoutMode;card.Condensed=cards.Count>1;card.Parity=Parity;card.Radar.Parity=Parity;card.BackColor=Parity?InstrumentStyle.ActivityFace:InstrumentStyle.Blend(BackColor,Color.Black,.16);
                     card.SetBounds(i%columns*(cw+gap),i/columns*(rowHeight+gap)-scroll.Offset,cw,rowHeight);card.PerformLayout();i++;
                 }
                 if(CompactRadars!=null) {
-                    if(Parity && layoutMode=="Compact")CompactRadars.UpdateCards(cards.Values.OrderBy(c=>c.Mission.Number));
+                    if(Parity && layoutMode=="Compact")CompactRadars.UpdateCards(cards.Values.OrderBy(c=>MissionTracker.StateRank(c.Mission.State)).ThenBy(c=>c.Mission.Number));
                     else CompactRadars.Release();
                 }
                 int radar=Math.Min(u(layoutMode=="Micro"?40:layoutMode=="Circular"?100:72),Math.Max(1,height-u(4)));
@@ -410,7 +430,7 @@ namespace ShinoCodexMonitor
             try {
                 float scale=PeriscopeWindow.ScaleFor(this);Func<int,int> u=n=>(int)Math.Round(n*scale);
                 int rows=Math.Max(1,slots.Count),gap=slots.Count>1?u(4):0,row=(Height-(rows-1)*gap)/rows,index=0;
-                foreach(Slot slot in slots.Values.OrderBy(x=>x.Card.Mission.Number)) {
+            foreach(Slot slot in slots.Values.OrderBy(x=>MissionTracker.StateRank(x.Card.Mission.State)).ThenBy(x=>x.Card.Mission.Number)) {
                     slot.Face.SetBounds(0,index++*(row+gap),Width,row);int side=u(slots.Count==1?68:46);
                     slot.Card.Radar.SetBounds((Width-side)/2,Math.Max(u(6),(row-side-u(17))/2),side,side);
                     slot.State.SetBounds(u(4),row-u(18),Math.Max(1,Width-u(8)),u(14));InstrumentStyle.FontFor(slot.State,slots.Count==1?9:8,FontStyle.Bold);

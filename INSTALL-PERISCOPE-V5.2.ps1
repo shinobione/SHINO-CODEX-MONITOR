@@ -54,10 +54,10 @@ try {
         throw 'Task self-tests failed (nothing installed).'
     }
     $taskResult = [IO.File]::ReadAllText($taskReport)
-    if (!$taskResult.Contains('63/63') -or $taskResult.Contains('FAIL ')) {
+    if (!$taskResult.Contains('69/69') -or $taskResult.Contains('FAIL ')) {
         throw 'Incomplete task self-tests. Installation canceled.'
     }
-    Write-Host 'Task self-tests: 63/63 PASS.' -ForegroundColor Green
+    Write-Host 'Task self-tests: 69/69 PASS.' -ForegroundColor Green
     if ($ValidateOnly) { Write-Host 'Validation only: nothing installed.' -ForegroundColor Green; exit 0 }
 
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -137,3 +137,4 @@ catch {
     exit 1
 }
 finally { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+
