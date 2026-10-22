@@ -550,7 +550,43 @@ namespace ShinoCodexMonitor
                         data.RecoveryLimitedSessions==0&&totalBytes>eventOffset);
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
-            Check("Frontière UTF-8 partielle reprend la ligne sans confirmer avant son enregistrement", delegate {
+            Check("Queue récente confirme un départ vérifié dans une source de 22 Mio avant la fin de l'historique", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-recent-22m-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-recent-22m.jsonl");byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"recent-root\",\"thread_source\":\"user\"}}\n");
+                    byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}\n");
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)){stream.Write(header,0,header.Length);while(stream.Position<22L*1024*1024-2048)stream.Write(filler,0,filler.Length);byte[] recent=Encoding.UTF8.GetBytes(Event("task_started","recent-turn",2)+"\n"+Context("recent-turn","fixture","high")+"\n");stream.Write(recent,0,recent.Length);}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();LiveTaskReport sample=LiveTaskReader.Read(Now);
+                    LiveTask found=sample.Tasks.FirstOrDefault(t=>t.Id=="recent-turn");
+                    Assert(sample.RecoveryLimitedSessions>0&&found!=null&&found.Phase==LiveTaskPhase.Active&&!found.IdentityUncertain,"recent activity hidden during incomplete prefix recovery");
+                    Assert(sample.RecentTailBytesRead<=524288,"recent tail exceeded source budget");
+                    report.AppendLine("Synthetic 22 MiB: history_bytes="+sample.RecoveryBytesRead.ToString(CultureInfo.InvariantCulture)+"; tail_bytes="+sample.RecentTailBytesRead.ToString(CultureInfo.InvariantCulture)+"; elapsed_ms="+sample.RecoveryDurationMs.ToString(CultureInfo.InvariantCulture));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Queue récente traverse le plafond historique de 64 Mio sans promouvoir la croissance", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-recent-cap-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-recent-cap.jsonl");byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\"cap-root\",\"thread_source\":\"user\"}}\n");byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}\n");
+                    using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)){stream.Write(header,0,header.Length);while(stream.Position<65L*1024*1024)stream.Write(filler,0,filler.Length);}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-5).UtcDateTime);LiveTaskReader.ClearCacheForTests();LiveTaskReport sample=null;
+                    for(int i=0;i<33;i++)sample=LiveTaskReader.Read(Now);
+                    Assert(sample.RecoveryLimitedSessions>0&&sample.RecoveryProgressBytes>=LiveTaskReader.RecoveryMaxBytesPerSource,"did not reach 64 MiB historical cap");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_started","stale-after-cap",180));}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);sample=LiveTaskReader.Read(Now);
+                    Assert(!sample.Tasks.Any(t=>t.IsRootConfirmed&&!t.IsSubagent&&t.Phase==LiveTaskPhase.Active),"file growth promoted stale evidence");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_started","fresh-after-cap",2));writer.WriteLine(Context("fresh-after-cap","fixture","high"));}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);sample=LiveTaskReader.Read(Now);
+                    Assert(sample.Tasks.Any(t=>t.Id=="fresh-after-cap"&&t.Phase==LiveTaskPhase.Active&&!t.IdentityUncertain),"new activity starved after source cap");
+                    Assert(sample.RecentTailBytesRead<=524288,"recent tail exceeded source budget");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_complete","fresh-after-cap",1));}
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);sample=LiveTaskReader.Read(Now);
+                    Assert(sample.Tasks.Any(t=>t.Id=="fresh-after-cap"&&t.Phase==LiveTaskPhase.Completed&&!t.IdentityUncertain),"fresh parent terminal event was hidden by incomplete history");
+                    report.AppendLine("Synthetic >64 MiB: history_progress="+sample.RecoveryProgressBytes.ToString(CultureInfo.InvariantCulture)+"; poll_history_bytes="+sample.RecoveryBytesRead.ToString(CultureInfo.InvariantCulture)+"; tail_bytes="+sample.RecentTailBytesRead.ToString(CultureInfo.InvariantCulture)+"; elapsed_ms="+sample.RecoveryDurationMs.ToString(CultureInfo.InvariantCulture));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Frontière UTF-8 partielle reprend la ligne et conserve une preuve de queue complète", delegate {
                 string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-utf8-boundary-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
                 try {
                     Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
@@ -567,7 +603,8 @@ namespace ShinoCodexMonitor
                         byte[] start=Encoding.UTF8.GetBytes(Event("task_started","utf8-turn",2)+"\n");stream.Write(start,0,start.Length);
                     }
                     System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();
-                    LiveTaskReport first=LiveTaskReader.Read(Now);Assert(first.Tasks.Count==0,"A record crossing the slice boundary was interpreted early");
+                    LiveTaskReport first=LiveTaskReader.Read(Now);LiveTask early=first.Tasks.FirstOrDefault(t=>t.Id=="utf8-turn");
+                    Assert(early!=null&&early.Phase==LiveTaskPhase.Active&&!early.IdentityUncertain,"complete recent tail record was hidden by historical scan progress");
                     LiveTaskReport second=LiveTaskReader.Read(Now);LiveTask recovered=second.Tasks.FirstOrDefault(t=>t.Id=="utf8-turn");
                     Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Active&&!recovered.IdentityUncertain,"UTF-8 record was lost at the slice boundary");
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
@@ -592,7 +629,7 @@ namespace ShinoCodexMonitor
                 try {
                     Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions",Now.ToString("yyyy"),Now.ToString("MM"),Now.ToString("dd"));System.IO.Directory.CreateDirectory(dir);
                     byte[] filler=Encoding.UTF8.GetBytes("{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}\n");
-                    foreach(string id in new[]{"fair-a","fair-b"}) {
+                    foreach(string id in new[]{"fair-a","fair-b","fair-c"}) {
                         string path=System.IO.Path.Combine(dir,"rollout-"+id+".jsonl");
                         using(System.IO.FileStream stream=new System.IO.FileStream(path,System.IO.FileMode.CreateNew,System.IO.FileAccess.Write)) {
                             byte[] header=Encoding.UTF8.GetBytes("{\"type\":\"session_meta\",\"payload\":{\"id\":\""+id+"\",\"thread_source\":\"user\"}}\n");stream.Write(header,0,header.Length);
@@ -602,14 +639,22 @@ namespace ShinoCodexMonitor
                     }
                     LiveTaskReader.ClearCacheForTests();LiveTaskReport reportNow=LiveTaskReader.Read(Now);long totalBytes=reportNow.RecoveryBytesRead;
                     Assert(reportNow.Tasks.Count==0,"No start event should be invented");
-                    foreach(string id in new[]{"fair-a","fair-b"}) {
+                    foreach(string id in new[]{"fair-a","fair-b","fair-c"}) {
                         string path=System.IO.Path.Combine(dir,"rollout-"+id+".jsonl");
                         using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path,true)){writer.WriteLine(Event("task_started",id+"-turn",2));writer.WriteLine(Context(id+"-turn","fixture-model","high"));}
                         System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);
                     }
+                    string childPath=System.IO.Path.Combine(dir,"rollout-fair-child.jsonl");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(childPath,false)){
+                        writer.WriteLine("{\"type\":\"session_meta\",\"payload\":{\"id\":\"fair-child-thread\",\"parent_thread_id\":\"fair-a\",\"thread_source\":\"subagent\"}}");
+                        writer.WriteLine(Event("task_started","fair-child-turn",2));writer.WriteLine(Context("fair-child-turn","fixture-model","high"));
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(childPath,Now.AddSeconds(-1).UtcDateTime);
                     for(int cycle=0;cycle<5;cycle++){reportNow=LiveTaskReader.Read(Now);totalBytes+=reportNow.RecoveryBytesRead;}
-                    Assert(reportNow.Tasks.Count(t=>t.IsRootConfirmed&&t.Phase==LiveTaskPhase.Active)==2&&totalBytes>6*1024*1024,
-                        "Both growing sources must resume at their own checkpoints");
+                    MissionTracker tracker=new MissionTracker();tracker.Update(reportNow);List<MissionView> views=tracker.At(Now);
+                    Assert(reportNow.Tasks.Count(t=>t.IsRootConfirmed&&!t.IsSubagent&&t.Phase==LiveTaskPhase.Active)==3&&
+                        views.Count==3&&views.Any(v=>v.Task.SessionKey=="rollout-fair-a.jsonl"&&v.State==RadarState.Delegated)&&totalBytes>6*1024*1024,
+                        "three roots, including a confirmed delegated parent, must remain visible");
                 } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
             });
             Check("Cache vidé puis relu à froid reconstruit l'historique sans notification ancienne", delegate {

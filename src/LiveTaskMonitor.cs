@@ -35,6 +35,8 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset? FinishedUtc;
         internal DateTimeOffset LastWriteUtc;
         internal DateTimeOffset ChildEvidenceUtc;
+        internal bool RecentDirectEvidence;
+        internal DateTimeOffset DirectEvidenceUtc;
         internal int ActiveChildCount;
         internal string Source = "Local Codex / JSONL sessions (undocumented)";
         internal string LastAction = "Activity details unavailable";
@@ -97,6 +99,7 @@ namespace ShinoCodexMonitor
         internal int UnknownOrigins;
         internal long RecoveryBytesRead;
         internal long RecoveryProgressBytes;
+        internal long RecentTailBytesRead;
         internal int RecoverySessions;
         internal int RecoveryLimitedSessions;
         internal int RecoveryLimitedBySize;
@@ -130,7 +133,7 @@ namespace ShinoCodexMonitor
                 " ; linked=" + ChildSessionsLinked + " ; unlinked or ambiguous=" + ChildSessionsUnlinked +
                 " ; active and fresh=" + ActiveChildSessions);
             text.AppendLine("Recovery: " + RecoverySessions + " session(s), " + RecoveryBytesRead +
-                " byte(s) this poll, cumulative progress="+RecoveryProgressBytes+" byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions +
+                " byte(s) this poll, cumulative progress="+RecoveryProgressBytes+" byte(s), recent-tail="+RecentTailBytesRead+" byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions +
                 " ; reasons: size=" + RecoveryLimitedBySize + ", timeout=" + RecoveryLimitedByTimeout +
                 ", invalid-line=" + RecoveryLimitedByInvalidLine + ", partial-read=" + RecoveryLimitedByPartialRead);
             TaskDisplay display = DisplayAt(now);
@@ -349,6 +352,7 @@ namespace ShinoCodexMonitor
     {
         internal const int ActivityMaxAgeSeconds = 90;
         private const int TailBytes = 524288;
+        private const long RecentTailMaxBytesPerRead = 8388608;
         internal const int RecoveryMaxBytes = 67108864;
         internal const int RecoveryMaxBytesPerRead = 33554432;
         internal const int RecoverySliceBytes = 2097152;
@@ -468,6 +472,7 @@ namespace ShinoCodexMonitor
                 List<ChildCandidate> childCandidates = new List<ChildCandidate>();
                 Stopwatch recoveryClock = Stopwatch.StartNew();
                 List<LiveTask> discovered = new List<LiveTask>();
+                long recentTailBudget=RecentTailMaxBytesPerRead;
                 List<FileInfo> stableCandidates=candidates.OrderByDescending(f=>f.LastWriteTimeUtc).Take(DiscoveryFiles).ToList();
                 HashSet<string> admittedRootPaths=new HashSet<string>(stableCandidates.Where(f=>
                     HeaderThreadKind(ReadFirstMetadataLine(f.FullName)??"")=="user").Take(MaxFiles).Select(f=>f.FullName),StringComparer.OrdinalIgnoreCase);
@@ -529,8 +534,11 @@ namespace ShinoCodexMonitor
                         else {
                             bool appendOnly=checkpointValid && info.Length>cache.Length && cache.ThreadId==HeaderThreadId(sessionMeta) &&
                                 cache.ParentThreadId==HeaderParentThreadId(sessionMeta) && cache.Complete;
-                            if(appendOnly) turns=ParseCollection(new [] {sessionMeta}.Concat(ReadTail(info.FullName,TailBytes)),
-                                new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,cache.Turns);
+                            if(appendOnly) {
+                                long tailBytes=0;IEnumerable<string> tailLines=recentTailBudget>0?ReadTail(info.FullName,(int)Math.Min(TailBytes,recentTailBudget),out tailBytes):Enumerable.Empty<string>();
+                                recentTailBudget=Math.Max(0,recentTailBudget-tailBytes);report.RecentTailBytesRead+=tailBytes;
+                                turns=ParseCollection(new [] {sessionMeta}.Concat(tailLines),new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,cache.Turns);
+                            }
                             else {
                                 BoundedScan scan=new BoundedScan();
                                 recoveryScan=scan;
@@ -576,7 +584,30 @@ namespace ShinoCodexMonitor
                             SessionCache progress;
                             if(Sessions.TryGetValue(info.FullName,out progress))report.RecoveryProgressBytes+=progress.RecoveryBytesScanned;
                         }
-                        if(!sourceComplete)foreach(LiveTask open in turns)Uncertain(open);
+                        if(!sourceComplete) {
+                            // Historical prefix recovery and current activity observation are
+                            // separate bounded reads. A recent task is promoted only when its
+                            // start identity and a timestamped direct event are present in the
+                            // tail; file growth/mtime alone never qualifies.
+                            List<LiveTask> historical=turns;
+                            List<LiveTask> seed=cache!=null&&cache.Turns!=null?cache.Turns.Select(t=>{LiveTask copy=t.Copy();copy.RecentDirectEvidence=false;return copy;}).ToList():new List<LiveTask>();
+                            long tailBytes=0;IEnumerable<string> tailLines=recentTailBudget>0?ReadTail(info.FullName,(int)Math.Min(TailBytes,recentTailBudget),out tailBytes):Enumerable.Empty<string>();
+                            recentTailBudget=Math.Max(0,recentTailBudget-tailBytes);report.RecentTailBytesRead+=tailBytes;
+                            List<LiveTask> tail=ParseCollection(new [] {sessionMeta}.Concat(tailLines),new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,seed);
+                            foreach(LiveTask open in historical)Uncertain(open);
+                            foreach(LiveTask recent in tail.Where(t=>!t.IdentityUncertain&&t.Id.Length>0&&t.RecentDirectEvidence&&
+                                t.StartedUtc<=now.AddSeconds(5)&&(now-t.DirectEvidenceUtc).TotalSeconds>=-5&&
+                                (now-t.DirectEvidenceUtc).TotalSeconds<=ActivityMaxAgeSeconds&&
+                                ((!t.FinishedUtc.HasValue&&t.Phase==LiveTaskPhase.Active)||
+                                 (t.FinishedUtc.HasValue&&t.FinishedUtc.Value>=now.AddSeconds(-ActivityMaxAgeSeconds))))) {
+                                LiveTask prior=historical.FirstOrDefault(t=>t.Id==recent.Id);
+                                if(prior!=null) {
+                                    prior.IdentityUncertain=false;prior.Phase=recent.Phase;prior.FinishedUtc=recent.FinishedUtc;
+                                    prior.LastWriteUtc=recent.LastWriteUtc;prior.RecordedDurationMs=recent.RecordedDurationMs;
+                                    prior.StartedUtc=recent.StartedUtc;prior.RecentDirectEvidence=true;prior.DirectEvidenceUtc=recent.DirectEvidenceUtc;
+                                } else historical.Add(recent.Copy());
+                            }
+                        }
                         foreach (LiveTask task in turns) {
                             task.SessionKey = info.Name;
                             Expire(task,now);
@@ -805,15 +836,20 @@ namespace ShinoCodexMonitor
             catch (ArgumentException) { return null; }
         }
 
-        private static IEnumerable<string> ReadTail(string path, int maxBytes)
+        private static IEnumerable<string> ReadTail(string path, int maxBytes,out long bytesRead)
         {
+            bytesRead=0;
             List<string> records = new List<string>();
             using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete))
             {
-                long start = Math.Max(0, stream.Length - maxBytes);
-                stream.Seek(start, SeekOrigin.Begin);
-                using (StreamReader reader = new StreamReader(stream, new UTF8Encoding(false), true, 4096))
+                long snapshotLength=stream.Length;
+                long start = Math.Max(0, snapshotLength - maxBytes);
+                int count=(int)Math.Min(int.MaxValue,snapshotLength-start);
+                byte[] bytes=new byte[count];stream.Seek(start,SeekOrigin.Begin);
+                while(bytesRead<count) {int read=stream.Read(bytes,(int)bytesRead,count-(int)bytesRead);if(read<=0)break;bytesRead+=read;}
+                using (MemoryStream bounded=new MemoryStream(bytes,0,(int)bytesRead,false))
+                using (StreamReader reader = new StreamReader(bounded, new UTF8Encoding(false), true, 4096))
                 {
                     if (start > 0) reader.ReadLine(); // discard incomplete first record
                     string line;
@@ -880,6 +916,7 @@ namespace ShinoCodexMonitor
                     LiveTask existing = turns.FirstOrDefault(t => id.Length > 0 ? t.Id == id : t.StartedUtc == time);
                     if (existing != null) {
                         if (existing.StartedUtc != time) Uncertain(existing);
+                        else { existing.RecentDirectEvidence=true;existing.DirectEvidenceUtc=time; if(time>existing.LastWriteUtc)existing.LastWriteUtc=time; }
                         continue; // Repeated records in overlapping tails never create/restart a task.
                     }
                     List<LiveTask> open = turns.Where(t => !t.FinishedUtc.HasValue).ToList();
@@ -894,7 +931,7 @@ namespace ShinoCodexMonitor
                     }
                     turns.Add(new LiveTask { Id=id, ThreadId=threadId, ParentThreadId=parentThreadId, Workspace=workspace, Originator=originator, ThreadSource=threadSource,
                         IsSubagent=isSubagent, IsRootConfirmed=isRoot, StartedUtc=time, LastWriteUtc=time,
-                        Phase=LiveTaskPhase.Active, IdentityUncertain=invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0) });
+                        Phase=LiveTaskPhase.Active, RecentDirectEvidence=true,DirectEvidenceUtc=time, IdentityUncertain=invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0) });
                     continue;
                 }
                 if (invalidIdType || (!string.IsNullOrEmpty(rawId) && id.Length == 0)) { foreach (LiveTask t in turns.Where(t => !t.FinishedUtc.HasValue)) Uncertain(t); continue; }
@@ -919,11 +956,12 @@ namespace ShinoCodexMonitor
                     string effort = Json.String(Json.Get(payload,"effort")) ?? Json.String(Json.Get(payload,"reasoning_effort")) ?? Json.String(Json.Get(payload,"model_reasoning_effort"));
                     Dictionary<string,object> mode = Json.Object(Json.Get(payload,"collaboration_mode"));
                     if (effort == null) effort = Json.String(Json.Get(Json.Object(Json.Get(mode,"settings")),"model_reasoning_effort"));
-                    task.Effort=Clean(effort,task.Effort); task.LastWriteUtc = time > task.LastWriteUtc ? time : task.LastWriteUtc; task.Phase=LiveTaskPhase.Active;
+                    task.Effort=Clean(effort,task.Effort); task.LastWriteUtc = time > task.LastWriteUtc ? time : task.LastWriteUtc; task.Phase=LiveTaskPhase.Active;task.RecentDirectEvidence=true;task.DirectEvidenceUtc=time;
                 }
                 else if (ev == "task_complete" || ev == "turn_complete" || ev == "turn_completed" || ev == "turn_aborted" || ev == "task_aborted") {
                     LiveTaskPhase phase = ev == "turn_aborted" || ev == "task_aborted" ? LiveTaskPhase.Interrupted : Json.Get(payload,"error") != null ? LiveTaskPhase.Failed : LiveTaskPhase.Completed;
                     if (time < task.StartedUtc || (task.FinishedUtc.HasValue && (task.FinishedUtc != time || task.Phase != phase))) { Uncertain(task); continue; }
+                    task.RecentDirectEvidence=true;task.DirectEvidenceUtc=time;
                     task.Phase=phase; task.FinishedUtc=time; task.LastWriteUtc=time;
                     long? duration=Json.Long(Json.Get(payload,"duration_ms"));
                     if (duration.HasValue && duration.Value >= 0 && duration.Value <= 86400000L && Math.Abs((time-task.StartedUtc).TotalMilliseconds-duration.Value) <= 120000) task.RecordedDurationMs=duration;

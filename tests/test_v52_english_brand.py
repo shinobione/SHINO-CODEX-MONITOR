@@ -114,7 +114,7 @@ class CodexPeriscopeV52EnglishAudit(unittest.TestCase):
         installer = (ROOT/'INSTALL-PERISCOPE-V5.2.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('ValidateOnly', installer)
         self.assertIn('98/98', installer)
-        self.assertIn('69/69', installer)
+        self.assertIn('71/71', installer)
         self.assertIn('Codex Periscope.lnk', installer)
         self.assertNotIn('Set-ItemProperty -Path $runKey', installer)
 
