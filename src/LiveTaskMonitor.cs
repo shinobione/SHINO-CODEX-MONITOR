@@ -87,10 +87,20 @@ namespace ShinoCodexMonitor
         internal DateTimeOffset CheckedUtc;
         internal int ExaminedRoots;
         internal int IgnoredSubagents;
+        internal int RootSessionCandidates;
+        internal int RootSessionsExcludedByCap;
+        internal int ChildSessionCandidates;
+        internal int ChildSessionsLinked;
+        internal int ChildSessionsUnlinked;
+        internal int ActiveChildSessions;
         internal int UnknownOrigins;
         internal long RecoveryBytesRead;
         internal int RecoverySessions;
         internal int RecoveryLimitedSessions;
+        internal int RecoveryLimitedBySize;
+        internal int RecoveryLimitedByTimeout;
+        internal int RecoveryLimitedByInvalidLine;
+        internal int RecoveryLimitedByPartialRead;
         internal long RecoveryDurationMs;
         internal int ActiveCount { get { return Tasks.Count(t => t.IsRootConfirmed && !t.IsSubagent && t.Phase == LiveTaskPhase.Active); } }
         internal LiveTask Featured
@@ -111,19 +121,82 @@ namespace ShinoCodexMonitor
             text.AppendLine("Reading (UTC): " +
                 (CheckedUtc == DateTimeOffset.MinValue ? "none" :
                     CheckedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)));
-            text.AppendLine("Root sessions checked: " + ExaminedRoots +
-                " ; child sessions observed: " + IgnoredSubagents +
-                " ; unknown origins: " + UnknownOrigins);
+            text.AppendLine("Root sessions: candidates=" + RootSessionCandidates +
+                " ; examined=" + ExaminedRoots + " ; excluded by discovery cap=" + RootSessionsExcludedByCap +
+                " ; unknown origins=" + UnknownOrigins);
+            text.AppendLine("Child sessions: candidates=" + ChildSessionCandidates +
+                " ; linked=" + ChildSessionsLinked + " ; unlinked or ambiguous=" + ChildSessionsUnlinked +
+                " ; active and fresh=" + ActiveChildSessions);
             text.AppendLine("Recovery: " + RecoverySessions + " session(s), " + RecoveryBytesRead +
-                " byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions);
+                " byte(s), " + RecoveryDurationMs + " ms, limited=" + RecoveryLimitedSessions +
+                " ; reasons: size=" + RecoveryLimitedBySize + ", timeout=" + RecoveryLimitedByTimeout +
+                ", invalid-line=" + RecoveryLimitedByInvalidLine + ", partial-read=" + RecoveryLimitedByPartialRead);
             TaskDisplay display = DisplayAt(now);
-            text.AppendLine("Observed status: " + display.Kind + " ; " + display.Detail);
-            int i = 0;
-            foreach (LiveTask task in Tasks.OrderByDescending(t => t.StartedUtc).Take(6))
+            string selectedType = display.Kind == TaskDisplayKind.ObservedActive ? "ROOT ACTIVE" :
+                display.Kind == TaskDisplayKind.DelegatedObserved ? "ROOT DELEGATED" :
+                display.Kind == TaskDisplayKind.Uncertain || display.Kind == TaskDisplayKind.NotVerified ? "UNVERIFIED" :
+                display.Kind == TaskDisplayKind.RecentTerminal ? "ROOT RECENT TERMINAL" : "OTHER";
+            string evidenceAge = "none";
+            if (display.Primary != null)
             {
-                // No session UUID, full path, cwd, user message, command or token.
-                text.AppendLine("Turn #" + (++i) + " : " +
-                    task.Phase + " ; source=" + task.ThreadSource +
+                DateTimeOffset proof = display.Kind == TaskDisplayKind.DelegatedObserved ? display.Primary.ChildEvidenceUtc : display.Primary.LastWriteUtc;
+                if (proof != DateTimeOffset.MinValue) evidenceAge = Math.Max(0, (int)(now - proof).TotalSeconds).ToString(CultureInfo.InvariantCulture) + "s";
+            }
+            text.AppendLine("Global mission selection: " + selectedType +
+                " ; phase=" + (display.Primary == null ? "none" : display.Primary.Phase.ToString()) +
+                " ; evidence-age=" + evidenceAge + " ; reason=" + SafeDiagnosticReason(display));
+            text.AppendLine("Last primary evidence age (s): " + AgeSeconds(Tasks.Where(t => t.IsRootConfirmed && !t.IsSubagent).Select(t => t.LastWriteUtc), now));
+            text.AppendLine("Last child evidence age (s): " + AgeSeconds(Tasks.Where(t => t.IsSubagent).Select(t => t.LastWriteUtc), now));
+            List<LiveTask> roots = Tasks.Where(t => !t.IsSubagent).OrderByDescending(t => t.StartedUtc).Take(6).ToList();
+            List<LiveTask> children = Tasks.Where(t => t.IsSubagent).OrderByDescending(t => t.StartedUtc).Take(6).ToList();
+            AppendRecentTurns(text, "Last primary turns", roots, now);
+            AppendRecentTurns(text, "Last child turns", children, now);
+            List<LiveTask> sixRecent = Tasks.OrderByDescending(t => t.StartedUtc).Take(6).ToList();
+            bool sixTerminal = sixRecent.Count == 6 && sixRecent.All(t => t.Phase == LiveTaskPhase.Completed ||
+                t.Phase == LiveTaskPhase.Failed || t.Phase == LiveTaskPhase.Interrupted);
+            text.AppendLine("Recent history vs global status: " + (sixTerminal ?
+                "the six latest turns are terminal history; " : "latest turns do not determine global status; ") +
+                "global selection comes from the selected mission's fresh confirmed root or linked-child evidence, otherwise it is UNVERIFIED.");
+            text.AppendLine("No prompts, paths, session IDs or secrets copied.");
+            return text.ToString();
+        }
+
+        private static string SafeDiagnosticReason(TaskDisplay display)
+        {
+            if (display.Kind == TaskDisplayKind.ObservedActive) return "fresh confirmed primary-session evidence";
+            if (display.Kind == TaskDisplayKind.DelegatedObserved) return "fresh active child evidence linked by observed parent identifier; parent emission not observed";
+            if (display.Kind == TaskDisplayKind.Uncertain) return "a recent start exists but activity is not confirmed";
+            if (display.Kind == TaskDisplayKind.RecentTerminal) return "recent terminal is historical only";
+            if (display.Detail == "Task reading stale or unavailable") return "reader snapshot stale or unavailable";
+            return "no fresh confirmed root or linked-child evidence";
+        }
+
+        private static string SafeDiagnosticSource(string source)
+        {
+            if (string.Equals(source, "user", StringComparison.OrdinalIgnoreCase)) return "user";
+            if (string.Equals(source, "subagent", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(source, "sub_agent", StringComparison.OrdinalIgnoreCase)) return "subagent";
+            if (string.Equals(source, "guardian_review", StringComparison.OrdinalIgnoreCase)) return "guardian_review";
+            if (string.Equals(source, "system", StringComparison.OrdinalIgnoreCase)) return "system";
+            return "other";
+        }
+
+        private static string AgeSeconds(IEnumerable<DateTimeOffset> values, DateTimeOffset now)
+        {
+            DateTimeOffset value = values.Where(t => t != DateTimeOffset.MinValue).DefaultIfEmpty(DateTimeOffset.MinValue).Max();
+            return value == DateTimeOffset.MinValue ? "none" : Math.Max(0, (int)(now - value).TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static void AppendRecentTurns(StringBuilder text, string title, List<LiveTask> turns, DateTimeOffset now)
+        {
+            text.AppendLine(title + " (up to 6):");
+            if (turns.Count == 0) { text.AppendLine("  none"); return; }
+            int i = 0;
+            foreach (LiveTask task in turns)
+            {
+                // Only allowlisted source categories leave this report; no session IDs, paths, prompts or tokens.
+                text.AppendLine("  Turn #" + (++i) + " : " +
+                    task.Phase + " ; source=" + SafeDiagnosticSource(task.ThreadSource) +
                     " ; started (UTC)=" + task.StartedUtc.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture) +
                     " ; completed (UTC)=" +
                     (task.FinishedUtc.HasValue ?
@@ -133,9 +206,6 @@ namespace ShinoCodexMonitor
                         task.RecordedDurationMs.Value.ToString(CultureInfo.InvariantCulture) : "missing") +
                     " ; freshness (s)=" + Math.Max(0, (int)(now - task.LastWriteUtc).TotalSeconds));
             }
-            if (i == 0) text.AppendLine("No primary turn observed.");
-            text.AppendLine("No prompts, paths, session IDs or secrets copied.");
-            return text.ToString();
         }
 
         internal TaskDisplay DisplayAt(DateTimeOffset now)
@@ -292,6 +362,15 @@ namespace ShinoCodexMonitor
             internal bool IsRoot;
             internal bool IsSubagent;
             internal bool Complete;
+            internal bool LimitedBySize;
+            internal bool LimitedByTimeout;
+            internal bool LimitedByInvalidLine;
+            internal bool LimitedByPartialRead;
+        }
+        private sealed class ChildCandidate
+        {
+            internal string ParentThreadId;
+            internal bool ActiveAndFresh;
         }
         private sealed class BoundedScan
         {
@@ -300,6 +379,9 @@ namespace ShinoCodexMonitor
             internal bool Complete;
             internal bool TimedOut;
             internal bool OversizedLine;
+            internal bool InvalidLine;
+            internal bool LimitedBySize;
+            internal bool PartialRead;
         }
         private static readonly Dictionary<string,SessionCache> Sessions = new Dictionary<string,SessionCache>(StringComparer.OrdinalIgnoreCase);
         private static readonly object ReadGate = new object();
@@ -350,6 +432,9 @@ namespace ShinoCodexMonitor
                 int checkedRoots = 0;
                 int observedChildren = 0;
                 int unknownHeaders = 0;
+                int excludedRoots = 0;
+                List<string> rootCandidateIds = new List<string>();
+                List<ChildCandidate> childCandidates = new List<ChildCandidate>();
                 Stopwatch recoveryClock = Stopwatch.StartNew();
                 List<LiveTask> discovered = new List<LiveTask>();
                 foreach (FileInfo info in candidates.OrderByDescending(f => f.LastWriteTimeUtc)
@@ -364,11 +449,22 @@ namespace ShinoCodexMonitor
                         string threadKind = HeaderThreadKind(sessionMeta);
                         if (threadKind == "unknown") { unknownHeaders++; continue; }
                         bool isChild=threadKind=="subagent";
-                        if (isChild) { if(++observedChildren>DiscoveryFiles)continue; }
-                        else if (threadKind=="user") { if(++checkedRoots>MaxFiles)continue; }
+                        if (isChild) {
+                            observedChildren++;
+                            childCandidates.Add(new ChildCandidate { ParentThreadId=HeaderParentThreadId(sessionMeta) });
+                            if(observedChildren>DiscoveryFiles)continue;
+                        }
+                        else if (threadKind=="user") {
+                            report.RootSessionCandidates++;
+                            string candidateId=HeaderThreadId(sessionMeta);
+                            if(!string.IsNullOrEmpty(candidateId))rootCandidateIds.Add(candidateId);
+                            if(checkedRoots>=MaxFiles){excludedRoots++;continue;}
+                            checkedRoots++;
+                        }
                         else { unknownHeaders++; continue; }
                         SessionCache cache;
                         bool known = Sessions.TryGetValue(info.FullName,out cache);
+                        BoundedScan recoveryScan=null;
                         List<LiveTask> turns;
                         bool cacheResult=true;
                         bool sourceComplete=true;
@@ -377,7 +473,7 @@ namespace ShinoCodexMonitor
                             turns = cache.Turns.Select(t => t.Copy()).ToList();
                             sourceComplete=cache.Complete;
                             if(!cache.Complete)foreach(LiveTask open in turns.Where(t=>!t.FinishedUtc.HasValue))Uncertain(open);
-                            if(!cache.Complete)report.RecoveryLimitedSessions++;
+                            if(!cache.Complete){report.RecoveryLimitedSessions++;AddRecoveryReasons(report,cache);}
                         }
                         else {
                             bool appendOnly=known && info.Length>cache.Length && cache.ThreadId==HeaderThreadId(sessionMeta) &&
@@ -386,15 +482,18 @@ namespace ShinoCodexMonitor
                                 new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,cache.Turns);
                             else {
                                 BoundedScan scan=new BoundedScan();
+                                recoveryScan=scan;
                                 long remaining=Math.Max(0,RecoveryMaxBytesPerRead-report.RecoveryBytesRead);
+                                if(remaining<=0){scan.LimitedBySize=true;scan.PartialRead=info.Length>0;}
+                                if(recoveryClock.Elapsed>RecoveryTimeout){scan.TimedOut=true;scan.PartialRead=info.Length>0;}
                                 IEnumerable<string> lines=remaining>0&&recoveryClock.Elapsed<=RecoveryTimeout ?
                                     ReadBoundedPrefix(info.FullName,scan,(int)Math.Min(RecoveryMaxBytes,remaining),recoveryClock) : Enumerable.Empty<string>();
                                 turns=ParseCollection(new [] {sessionMeta}.Concat(lines),
-                                    new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,null);
+                                    new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,null,scan);
                                 sourceComplete=scan.Complete;
                                 report.RecoverySessions++;
                                 report.RecoveryBytesRead+=scan.BytesRead;
-                                if(!scan.Complete){report.RecoveryLimitedSessions++;cacheResult=false;}
+                                if(!scan.Complete){report.RecoveryLimitedSessions++;AddRecoveryReasons(report,scan);cacheResult=false;}
                                 if(!scan.Complete)foreach(LiveTask open in turns.Where(t=>!t.FinishedUtc.HasValue)) Uncertain(open);
                                 if(!scan.Complete && scan.BytesRead>0)cacheResult=true;
                                 if(!scan.Complete && scan.BytesRead==0 && info.Length>0)cacheResult=false;
@@ -404,7 +503,10 @@ namespace ShinoCodexMonitor
                                 Sessions[info.FullName] = new SessionCache { Length = info.Length, Write = info.LastWriteTimeUtc,
                                 Turns = turns.Select(t => t.Copy()).ToList(), ThreadId=HeaderThreadId(sessionMeta),
                                 ParentThreadId=HeaderParentThreadId(sessionMeta),IsRoot=threadKind=="user",IsSubagent=isChild,
-                                Complete=sourceComplete };
+                                Complete=sourceComplete,LimitedBySize=recoveryScan!=null&&recoveryScan.LimitedBySize,
+                                LimitedByTimeout=recoveryScan!=null&&recoveryScan.TimedOut,
+                                LimitedByInvalidLine=recoveryScan!=null&&recoveryScan.InvalidLine,
+                                LimitedByPartialRead=recoveryScan!=null&&recoveryScan.PartialRead };
                             }
                         }
                         foreach (LiveTask task in turns) {
@@ -419,18 +521,32 @@ namespace ShinoCodexMonitor
                                 (task.Phase==LiveTaskPhase.Unconfirmed && now-task.LastWriteUtc<TimeSpan.FromMinutes(30)) ||
                                 now-(task.FinishedUtc ?? task.StartedUtc)<TimeSpan.FromHours(2))) discovered.Add(task);
                         }
+                        if(isChild) {
+                            ChildCandidate candidate=childCandidates[childCandidates.Count-1];
+                            candidate.ActiveAndFresh=turns.Any(t=>t.IsSubagent&&t.IsRootConfirmed==false&&t.Phase==LiveTaskPhase.Active&&
+                                !t.IdentityUncertain&&
+                                t.StartedUtc<=now.AddSeconds(5)&&(now-t.LastWriteUtc).TotalSeconds>=-5&&
+                                (now-t.LastWriteUtc).TotalSeconds<=ActivityMaxAgeSeconds);
+                        }
                     }
                     catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
                     catch (ArgumentException) { }
                 }
                 report.RecoveryDurationMs=(long)recoveryClock.Elapsed.TotalMilliseconds;
+                report.ExaminedRoots=checkedRoots;
+                report.RootSessionsExcludedByCap=excludedRoots;
+                report.ChildSessionCandidates=observedChildren;
+                foreach(ChildCandidate child in childCandidates) {
+                    int matches=string.IsNullOrEmpty(child.ParentThreadId)?0:rootCandidateIds.Count(id=>id==child.ParentThreadId);
+                    if(matches==1)report.ChildSessionsLinked++;else report.ChildSessionsUnlinked++;
+                    if(child.ActiveAndFresh)report.ActiveChildSessions++;
+                }
                 LinkDelegatedEvidence(discovered,now);
                 report.Tasks.AddRange(discovered);
                 report.Tasks.Sort(delegate(LiveTask x, LiveTask y) {
                     return y.LastWriteUtc.CompareTo(x.LastWriteUtc);
                 });
-                report.ExaminedRoots = checkedRoots;
                 report.IgnoredSubagents = observedChildren;
                 report.UnknownOrigins = unknownHeaders;
                 report.Message = "Local root turns · " + checkedRoots +
@@ -500,10 +616,26 @@ namespace ShinoCodexMonitor
             }
         }
 
+        private static void AddRecoveryReasons(LiveTaskReport report,SessionCache cache)
+        {
+            if(cache.LimitedBySize)report.RecoveryLimitedBySize++;
+            if(cache.LimitedByTimeout)report.RecoveryLimitedByTimeout++;
+            if(cache.LimitedByInvalidLine)report.RecoveryLimitedByInvalidLine++;
+            if(cache.LimitedByPartialRead)report.RecoveryLimitedByPartialRead++;
+        }
+        private static void AddRecoveryReasons(LiveTaskReport report,BoundedScan scan)
+        {
+            if(scan.LimitedBySize)report.RecoveryLimitedBySize++;
+            if(scan.TimedOut)report.RecoveryLimitedByTimeout++;
+            if(scan.InvalidLine)report.RecoveryLimitedByInvalidLine++;
+            if(scan.PartialRead)report.RecoveryLimitedByPartialRead++;
+        }
+
         private static IEnumerable<string> ReadBoundedPrefix(string path,BoundedScan scan,int maxBytes,Stopwatch recoveryClock)
         {
             using(FileStream stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)) {
                 long initialLength=stream.Length;
+                scan.LimitedBySize=initialLength>maxBytes;
                 byte[] buffer=new byte[8192];
                 List<byte> line=new List<byte>(4096);
                 bool oversized=false;
@@ -517,21 +649,22 @@ namespace ShinoCodexMonitor
                             if(!oversized) {
                                 string record;
                                 try {record=new UTF8Encoding(false,true).GetString(line.ToArray());}
-                                catch(DecoderFallbackException){record=null;scan.OversizedLine=true;}
+                                catch(DecoderFallbackException){record=null;scan.OversizedLine=true;scan.InvalidLine=true;}
                                 if(record!=null){if(record.Length>0&&record[record.Length-1]=='\r')record=record.Substring(0,record.Length-1);if(Relevant(record))yield return record;}
                             }
                             line.Clear();oversized=false;continue;
                         }
                         if(b==13)continue;
-                        if(!oversized) { if(line.Count<RecoveryMaxLineBytes)line.Add(b); else {line.Clear();oversized=true;scan.OversizedLine=true;} }
+                        if(!oversized) { if(line.Count<RecoveryMaxLineBytes)line.Add(b); else {line.Clear();oversized=true;scan.OversizedLine=true;scan.InvalidLine=true;} }
                     }
                 }
                 if(!oversized&&line.Count>0&&scan.BytesRead>=initialLength) {
                     string record;
                     try {record=new UTF8Encoding(false,true).GetString(line.ToArray());}
-                    catch(DecoderFallbackException){record=null;scan.OversizedLine=true;}
+                    catch(DecoderFallbackException){record=null;scan.OversizedLine=true;scan.InvalidLine=true;}
                     if(record!=null&&Relevant(record))yield return record;
                 }
+                scan.PartialRead=scan.BytesRead<initialLength;
                 scan.Complete=scan.BytesRead>=initialLength&&initialLength<=maxBytes&&!scan.TimedOut&&!scan.OversizedLine;
             }
         }
@@ -620,6 +753,8 @@ namespace ShinoCodexMonitor
         internal static List<LiveTask> ParseTurns(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now)
         { return ParseCollection(lines,fileWriteUtc,now,null); }
         private static List<LiveTask> ParseCollection(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now, IEnumerable<LiveTask> seed)
+        { return ParseCollection(lines,fileWriteUtc,now,seed,null); }
+        private static List<LiveTask> ParseCollection(IEnumerable<string> lines, DateTimeOffset fileWriteUtc, DateTimeOffset now, IEnumerable<LiveTask> seed, BoundedScan diagnosticScan)
         {
             List<LiveTask> turns = seed == null ? new List<LiveTask>() : seed.Where(t =>
                 t.FinishedUtc.HasValue ? now-t.FinishedUtc.Value < TimeSpan.FromHours(2) : now-t.LastWriteUtc < TimeSpan.FromMinutes(30)).Select(t => t.Copy()).ToList();
@@ -629,8 +764,8 @@ namespace ShinoCodexMonitor
             foreach (string line in lines) {
                 if (string.IsNullOrEmpty(line) || line.Length > 1048576 || !Relevant(line)) continue;
                 Dictionary<string,object> root;
-                try { root = Json.Object(serializer.DeserializeObject(line)); } catch (ArgumentException) { continue; }
-                if (root == null) continue;
+                try { root = Json.Object(serializer.DeserializeObject(line)); } catch (ArgumentException) { if(diagnosticScan!=null)diagnosticScan.InvalidLine=true; continue; }
+                if (root == null) { if(diagnosticScan!=null)diagnosticScan.InvalidLine=true; continue; }
                 string type = Json.String(Json.Get(root,"type"));
                 Dictionary<string,object> payload = Json.Object(Json.Get(root,"payload")); if (payload == null) continue;
                 if (type == "session_meta") {
@@ -772,4 +907,3 @@ namespace ShinoCodexMonitor
         }
     }
 }
-
