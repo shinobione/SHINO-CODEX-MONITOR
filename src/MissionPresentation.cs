@@ -14,6 +14,10 @@ namespace ShinoCodexMonitor
         internal int Number;
         internal bool Missing;
         internal RadarState State;
+        internal DateTimeOffset ParentEvidenceUtc;
+        internal DateTimeOffset ChildEvidenceUtc;
+        internal int ActiveChildCount;
+        internal bool DelegatedEvidenceSeen;
         internal string Label { get { return Task.Workspace == "Project not provided" ? "Codex task #" + Number : Task.Workspace + " · #" + Number; } }
     }
     // Keeps missing observations uncertain; absence is never a terminal event.
@@ -28,7 +32,8 @@ namespace ShinoCodexMonitor
             last=report;
             if (report == null) { known.Clear(); return; }
             foreach (MissionView view in known.Values) view.Missing=true;
-            foreach (LiveTask task in report.Tasks.Where(t => t.IsRootConfirmed && !t.IsSubagent && !string.IsNullOrEmpty(t.SessionKey) &&
+            List<LiveTask> roots=report.Tasks.Where(t => t.IsRootConfirmed && !t.IsSubagent && !string.IsNullOrEmpty(t.SessionKey)).ToList();
+            foreach (LiveTask task in roots.Where(t =>
                 (t.FinishedUtc.HasValue ? report.CheckedUtc-t.FinishedUtc.Value <= TimeSpan.FromSeconds(30) : report.CheckedUtc-t.LastWriteUtc < TimeSpan.FromMinutes(30)))) {
                 MissionView view;
                 if (!known.TryGetValue(task.Identity,out view)) {
@@ -39,7 +44,22 @@ namespace ShinoCodexMonitor
                     else view=new MissionView { Number=++sequence };
                     known[task.Identity]=view;
                 }
-                view.Task=task.Copy(); view.Missing=false;
+                view.Task=task.Copy(); view.Missing=false; view.ParentEvidenceUtc=task.LastWriteUtc;
+                view.ChildEvidenceUtc=DateTimeOffset.MinValue; view.ActiveChildCount=0;
+                if (!task.FinishedUtc.HasValue && !task.IdentityUncertain && !string.IsNullOrEmpty(task.ThreadId) &&
+                    roots.Count(r => !r.FinishedUtc.HasValue && string.Equals(r.ThreadId,task.ThreadId,StringComparison.Ordinal))==1) {
+                    List<LiveTask> linked=report.Tasks.Where(c => c.IsSubagent && !c.IdentityUncertain &&
+                        !string.IsNullOrEmpty(c.ParentThreadId) && string.Equals(c.ParentThreadId,task.ThreadId,StringComparison.Ordinal) &&
+                        !string.IsNullOrEmpty(c.SessionKey) && c.StartedUtc<=report.CheckedUtc.AddSeconds(5)).ToList();
+                    view.DelegatedEvidenceSeen=linked.Count>0;
+                    foreach (LiveTask child in linked.GroupBy(c=>c.SessionKey,StringComparer.Ordinal).Where(g=>g.Count()==1).Select(g=>g.First())) {
+                        if(child.LastWriteUtc>view.ChildEvidenceUtc)view.ChildEvidenceUtc=child.LastWriteUtc;
+                        if(child.Phase==LiveTaskPhase.Active && !child.FinishedUtc.HasValue &&
+                            (report.CheckedUtc-child.LastWriteUtc).TotalSeconds>=-5 &&
+                            (report.CheckedUtc-child.LastWriteUtc).TotalSeconds<=LiveTaskReader.ActivityMaxAgeSeconds)
+                            view.ActiveChildCount++;
+                    }
+                }
             }
         }
         internal List<MissionView> At(DateTimeOffset now)
@@ -53,9 +73,14 @@ namespace ShinoCodexMonitor
                 LiveTask task=view.Task;
                 double age=(now-task.LastWriteUtc).TotalSeconds;
                 if (!scanFresh) view.State=RadarState.Stale;
-                else if (view.Missing || task.IdentityUncertain || task.Phase == LiveTaskPhase.Unconfirmed) view.State=RadarState.Unverified;
+                else if (view.Missing || task.IdentityUncertain) view.State=RadarState.Unverified;
+                else if (task.FinishedUtc.HasValue && (task.FinishedUtc.Value<task.StartedUtc || task.FinishedUtc.Value>now.AddSeconds(5))) view.State=RadarState.Unverified;
+                else if (task.FinishedUtc.HasValue) view.State=RadarMotion.Map(task.Phase,true,false);
+                else if (view.ActiveChildCount>0 && (now-view.ChildEvidenceUtc).TotalSeconds>=-5 &&
+                    (now-view.ChildEvidenceUtc).TotalSeconds<=LiveTaskReader.ActivityMaxAgeSeconds) view.State=RadarState.Delegated;
+                else if (view.DelegatedEvidenceSeen) view.State=RadarState.Unverified;
+                else if (task.Phase==LiveTaskPhase.Unconfirmed) view.State=RadarState.Unverified;
                 else if (age < -5 || (task.Phase == LiveTaskPhase.Active && age > LiveTaskReader.ActivityMaxAgeSeconds)) view.State=RadarState.Stale;
-                else if (task.FinishedUtc.HasValue && (task.FinishedUtc.Value < task.StartedUtc || task.FinishedUtc.Value > now.AddSeconds(5))) view.State=RadarState.Unverified;
                 else view.State=RadarMotion.Map(task.Phase,true,false);
             }
             return known.Values.OrderBy(v => v.Number).ToList();
@@ -76,11 +101,11 @@ namespace ShinoCodexMonitor
         private void TargetValues()
         {
             if(!Parity || Mission==null)return;
-            if(LayoutMode=="Circular")observation.Text="CODEX ACTIVITY / "+(Mission.State==RadarState.Unverified?"UNVERIFIED":Mission.State==RadarState.Stale?"STALE OBSERVATION":"LOCAL OBSERVED");
-            title.Text=Mission.Label;status.Text=Mission.State==RadarState.Active?"ACTIVE":Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
+            if(LayoutMode=="Circular")observation.Text="CODEX ACTIVITY / "+(Mission.State==RadarState.Delegated?"DELEGATED · OBSERVED":Mission.State==RadarState.Unverified?"UNVERIFIED":Mission.State==RadarState.Stale?"STALE OBSERVATION":"LOCAL OBSERVED");
+            title.Text=Mission.Label;status.Text=Mission.State==RadarState.Active?"ACTIVE":Mission.State==RadarState.Delegated?"DELEGATED · OBSERVED":Mission.State==RadarState.Complete?"COMPLETED":Mission.State.ToString().ToUpperInvariant();
             model.Text=Mission.Task.Model;effort.Text=Mission.Task.Effort;
             elapsed.Text=elapsedReadout=="Duration unverified"?"--":elapsedReadout.Replace("Elapsed  ","").Replace("Recorded  ","");
-            elapsedCaption.Text=Mission.State==RadarState.Active?"ELAPSED":"RECORDED";
+            elapsedCaption.Text=Mission.State==RadarState.Active?"ELAPSED":Mission.State==RadarState.Delegated?"PARENT ELAPSED":"RECORDED";
             if(Condensed)elapsed.Text=elapsed.Text.Replace(" h ","h").Replace(" min","m").Replace(" d ","d");
             if(LayoutMode=="Micro") {model.Text="Model: "+Mission.Task.Model+"  / "+Mission.Task.Effort;elapsed.Text=(Condensed?"T ":Mission.State==RadarState.Active?"Elapsed: ":"Recorded: ")+elapsed.Text;}
             status.ForeColor=Mission.State==RadarState.Active?Radar.Accent:Mission.State==RadarState.Complete?InstrumentStyle.Secondary:Mission.State==RadarState.Failed?InstrumentStyle.Red:InstrumentStyle.Amber;
@@ -103,19 +128,20 @@ namespace ShinoCodexMonitor
             Mission=mission; LiveTask task=mission.Task;
             Radar.Accent=InstrumentStyle.MissionAccent(mission.Number);
             title.Text=mission.Number.ToString("00",CultureInfo.InvariantCulture)+" / "+(task.Workspace=="Project not provided"?"Codex task":task.Workspace);
-            status.Text=mission.State==RadarState.Active ? "ACTIVE / OBSERVED" : mission.State==RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
+            status.Text=mission.State==RadarState.Active ? "ACTIVE / OBSERVED" : mission.State==RadarState.Delegated ? "DELEGATED · OBSERVED" : mission.State==RadarState.Complete ? "COMPLETED" : mission.State.ToString().ToUpperInvariant();
             bool current=mission.State==RadarState.Active;
             bool durationKnown=!task.IdentityUncertain && task.StartedUtc<=now.AddSeconds(5) && task.LastWriteUtc>=task.StartedUtc && task.LastWriteUtc<=now.AddSeconds(5) &&
                 (!task.FinishedUtc.HasValue || (task.FinishedUtc.Value>=task.StartedUtc && task.FinishedUtc.Value<=now.AddSeconds(5)));
-            elapsedReadout=durationKnown ? (current ? "Elapsed  " : "Recorded  ")+task.Duration(current ? now : task.LastWriteUtc) : "Duration unverified";
+            elapsedReadout=durationKnown ? (current ? "Elapsed  " : mission.State==RadarState.Delegated ? "Parent elapsed  " : "Recorded  ")+task.Duration(current || mission.State==RadarState.Delegated ? now : task.LastWriteUtc) : "Duration unverified";
             elapsed.Text=elapsedReadout;
             model.Text="MODEL  "+task.Model;effort.Text="EFFORT  "+task.Effort;
-            status.ForeColor=mission.State==RadarState.Active ? InstrumentStyle.Teal : mission.State==RadarState.Complete ? Color.FromArgb(72,214,155) :
+            status.ForeColor=mission.State==RadarState.Active || mission.State==RadarState.Delegated ? Radar.Accent : mission.State==RadarState.Complete ? Color.FromArgb(72,214,155) :
                 mission.State==RadarState.Failed ? InstrumentStyle.Red : InstrumentStyle.Amber;
             Edge=Parity?InstrumentStyle.Hairline:InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.3);
             Rail=Parity?Color.Transparent:InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.4);
             LiveTaskPhase phase=mission.State==RadarState.Unverified ? LiveTaskPhase.Unconfirmed : task.Phase;
-            Radar.SetObservation(phase,mission.State!=RadarState.Stale,false);
+            if(mission.State==RadarState.Delegated)Radar.SetDelegatedObserved(true);
+            else Radar.SetObservation(phase,mission.State!=RadarState.Stale,false);
             string detail=mission.Label+"\n"+status.Text+" / "+elapsed.Text+"\n"+model.Text+"\n"+effort.Text+
                 "\nLast source observation: "+task.LastWriteUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB"))+
                 (mission.Missing ? "\nNot present in latest bounded read; completion unverified." : "\nLocal JSONL observation; active Desktop tab not guaranteed.");
@@ -395,3 +421,4 @@ namespace ShinoCodexMonitor
     }
 
 }
+

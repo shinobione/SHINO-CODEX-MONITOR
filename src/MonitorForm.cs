@@ -583,7 +583,7 @@ namespace ShinoCodexMonitor
                 taskSourceInfo.Text = taskReport == null ?
                     "Source: no reading yet" :
                     "Sources: " + taskReport.ExaminedRoots + " primary, " +
-                    taskReport.IgnoredSubagents + " subagents excluded";
+                    taskReport.IgnoredSubagents + " child sessions inspected";
             };
             context.Items.Add(new ToolStripSeparator());
 
@@ -1618,3 +1618,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+
