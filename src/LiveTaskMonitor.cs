@@ -595,13 +595,15 @@ namespace ShinoCodexMonitor
                             recentTailBudget=Math.Max(0,recentTailBudget-tailBytes);report.RecentTailBytesRead+=tailBytes;
                             List<LiveTask> tail=ParseCollection(new [] {sessionMeta}.Concat(tailLines),new DateTimeOffset(info.LastWriteTimeUtc,TimeSpan.Zero),now,seed);
                             foreach(LiveTask open in historical)Uncertain(open);
-                            foreach(LiveTask recent in tail.Where(t=>!t.FinishedUtc.HasValue&&t.Phase==LiveTaskPhase.Active&&
-                                !t.IdentityUncertain&&t.Id.Length>0&&t.RecentDirectEvidence&&t.StartedUtc<=now.AddSeconds(5)&&
-                                (now-t.DirectEvidenceUtc).TotalSeconds>=-5&&(now-t.DirectEvidenceUtc).TotalSeconds<=ActivityMaxAgeSeconds)) {
+                            foreach(LiveTask recent in tail.Where(t=>!t.IdentityUncertain&&t.Id.Length>0&&t.RecentDirectEvidence&&
+                                t.StartedUtc<=now.AddSeconds(5)&&(now-t.DirectEvidenceUtc).TotalSeconds>=-5&&
+                                (now-t.DirectEvidenceUtc).TotalSeconds<=ActivityMaxAgeSeconds&&
+                                ((!t.FinishedUtc.HasValue&&t.Phase==LiveTaskPhase.Active)||
+                                 (t.FinishedUtc.HasValue&&t.FinishedUtc.Value>=now.AddSeconds(-ActivityMaxAgeSeconds))))) {
                                 LiveTask prior=historical.FirstOrDefault(t=>t.Id==recent.Id);
                                 if(prior!=null) {
-                                    prior.IdentityUncertain=false;prior.Phase=LiveTaskPhase.Active;prior.FinishedUtc=null;
-                                    prior.LastWriteUtc=recent.LastWriteUtc>prior.LastWriteUtc?recent.LastWriteUtc:prior.LastWriteUtc;
+                                    prior.IdentityUncertain=false;prior.Phase=recent.Phase;prior.FinishedUtc=recent.FinishedUtc;
+                                    prior.LastWriteUtc=recent.LastWriteUtc;prior.RecordedDurationMs=recent.RecordedDurationMs;
                                     prior.StartedUtc=recent.StartedUtc;prior.RecentDirectEvidence=true;prior.DirectEvidenceUtc=recent.DirectEvidenceUtc;
                                 } else historical.Add(recent.Copy());
                             }
@@ -959,6 +961,7 @@ namespace ShinoCodexMonitor
                 else if (ev == "task_complete" || ev == "turn_complete" || ev == "turn_completed" || ev == "turn_aborted" || ev == "task_aborted") {
                     LiveTaskPhase phase = ev == "turn_aborted" || ev == "task_aborted" ? LiveTaskPhase.Interrupted : Json.Get(payload,"error") != null ? LiveTaskPhase.Failed : LiveTaskPhase.Completed;
                     if (time < task.StartedUtc || (task.FinishedUtc.HasValue && (task.FinishedUtc != time || task.Phase != phase))) { Uncertain(task); continue; }
+                    task.RecentDirectEvidence=true;task.DirectEvidenceUtc=time;
                     task.Phase=phase; task.FinishedUtc=time; task.LastWriteUtc=time;
                     long? duration=Json.Long(Json.Get(payload,"duration_ms"));
                     if (duration.HasValue && duration.Value >= 0 && duration.Value <= 86400000L && Math.Abs((time-task.StartedUtc).TotalMilliseconds-duration.Value) <= 120000) task.RecordedDurationMs=duration;
