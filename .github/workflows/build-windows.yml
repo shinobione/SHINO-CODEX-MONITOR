@@ -165,7 +165,7 @@ jobs:
           if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Full-window benchmark failed.' }
           Get-Content -LiteralPath $report
       - name: Download prior PR preview for same-runner comparison
-        if: github.event_name == 'pull_request' && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
+        if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/p0-delegated-activity')) && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
         uses: actions/download-artifact@v4
         with:
           name: CODEX-PERISCOPE-V5.2-PREVIEW-WINDOWS
@@ -174,7 +174,7 @@ jobs:
           github-token: ${{ github.token }}
           path: bin/previous-candidate
       - name: Measure previous candidate (synthetic, same runner)
-        if: github.event_name == 'pull_request' && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
+        if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/p0-delegated-activity')) && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -201,7 +201,7 @@ jobs:
           if ($proc.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw 'Obsidian benchmark failed.' }
           Get-Content -LiteralPath $report
       - name: Compare previous and current candidates under identical conditions
-        if: github.event_name == 'pull_request' && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
+        if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/p0-delegated-activity')) && hashFiles('BUILD-PERISCOPE-V5.2.ps1') != ''
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
