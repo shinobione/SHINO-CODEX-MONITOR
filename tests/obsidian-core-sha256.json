@@ -1,6 +1,5 @@
 {
   "CodexReader.cs": "7b1b54629d9cbc905db7f8deb576c57261f886ae3d71dca3f139cbf9a89efdea",
-  "LiveTaskMonitor.cs": "4341fbd870eca1133aa4701cf96dd2354b5e4a24dff45ef0f188aa3fba6159f1",
   "Models.cs": "a9e0023af3b113181e54c054a6f27b6104a8f0ca818a95dbef5fee725c7ffaf6",
   "LocalStore.cs": "6147ca3ce009fbd374b42343d2f4de8f3ffa08f02e0c98016a8008d10c04c326",
   "HistoryData.cs": "a54cffaefd68d89663c0e25d097565e0cc3be121f23c0128dd3a3753d8c89808",
@@ -8,3 +7,4 @@
   "AlertRules.cs": "65539c002e6e61978c69d265033d2ecf18cb2c66cbcb4a38b3a73d3f8771ddfd",
   "QuotaTrayIcon.cs": "00687f20889f2fae4ffea9f8a531e191c98ce487f5868237cf5112ff81ce08cd"
 }
+

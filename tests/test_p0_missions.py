@@ -20,7 +20,10 @@ class P0Architecture(unittest.TestCase):
     def test_bounded_reader_keeps_only_sanitized_turn_cache(self):
         code = (ROOT / 'src/LiveTaskMonitor.cs').read_text(encoding='utf-8')
         self.assertIn('MaxTurnsPerSession = 64', code)
-        self.assertIn('expansionBudget = ActiveRootFallbackBytes', code)
+        self.assertIn('RecoveryMaxBytesPerRead = 33554432', code)
+        self.assertIn('RecoveryTimeout = TimeSpan.FromSeconds(4)', code)
+        self.assertIn('ReadBoundedPrefix', code)
+        self.assertIn('cache.Complete', code)
         self.assertIn('Turns = turns.Select(t => t.Copy())', code)
         for unsafe in ('auth.json', 'HttpClient', 'File.WriteAll', 'Process.Start'):
             self.assertNotIn(unsafe, code)
@@ -35,6 +38,13 @@ class P0Architecture(unittest.TestCase):
         for file in ('MonitorForm.cs', 'HistoryWindow.cs'):
             self.assertIn(': PeriscopeWindow', (ROOT / 'src' / file).read_text(encoding='utf-8'))
 
+    def test_native_qa_captures_delegated_observation(self):
+        code = (ROOT / 'src/TargetTests.cs').read_text(encoding='utf-8')
+        self.assertIn('"delegated-observed"', code)
+        self.assertIn('root.ThreadId="synthetic-parent-thread"', code)
+        self.assertIn('ParentThreadId=root.ThreadId', code)
+
 
 if __name__ == '__main__':
     unittest.main()
+

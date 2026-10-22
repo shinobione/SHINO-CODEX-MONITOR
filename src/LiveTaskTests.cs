@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace ShinoCodexMonitor
@@ -16,7 +17,7 @@ namespace ShinoCodexMonitor
         {
             total++;
             try { test(); passed++; report.AppendLine("PASS Test #" + total); }
-            catch (Exception e) { report.AppendLine("FAIL Test #" + total + " : " + e.GetType().Name); }
+            catch (Exception e) { report.AppendLine("FAIL Test #" + total + " [" + label + "] : " + e.GetType().Name); }
         }
         private static void Assert(bool condition)
         {
@@ -44,6 +45,12 @@ namespace ShinoCodexMonitor
             result.Tasks.AddRange(tasks);
             return result;
         }
+        private static LiveTask Root(string thread,string key,DateTimeOffset started,DateTimeOffset evidence,LiveTaskPhase phase=LiveTaskPhase.Active)
+        { return new LiveTask { Id="root",SessionKey=key,ThreadId=thread,IsRootConfirmed=true,StartedUtc=started,LastWriteUtc=evidence,Phase=phase,Workspace="fixture" }; }
+        private static LiveTask Child(string thread,string key,DateTimeOffset started,DateTimeOffset evidence,LiveTaskPhase phase=LiveTaskPhase.Active)
+        { return new LiveTask { Id="child",SessionKey=key,ThreadId="child-thread",ParentThreadId=thread,IsSubagent=true,StartedUtc=started,LastWriteUtc=evidence,Phase=phase }; }
+        private static MissionView Mission(params LiveTask[] tasks)
+        { MissionTracker tracker=new MissionTracker();tracker.Update(Report(Now,tasks));return tracker.At(Now).First(); }
         internal static string Run()
         {
             passed = 0; total = 0; report.Length = 0;
@@ -136,6 +143,7 @@ namespace ShinoCodexMonitor
                 LiveTask old = Parse(Now.AddSeconds(-20), Event("task_started", "", 40));
                 LiveTask done = Parse(Now, Event("task_started", "", 40),
                     Event("task_complete", "", 10));
+                old.IsRootConfirmed=done.IsRootConfirmed=true;
                 old.SessionKey = done.SessionKey = "rollout-0001.jsonl";
                 LiveTaskReport before = Report(Now.AddSeconds(-20), old);
                 LiveTaskReport after = Report(Now, done);
@@ -169,6 +177,7 @@ namespace ShinoCodexMonitor
             Check("Notification : tâche complète entièrement entre deux polls", delegate {
                 LiveTask done = Parse(Now, Event("task_started", "", 6),
                     Event("task_complete", "", 2));
+                done.IsRootConfirmed=true;
                 done.SessionKey = "rollout-short.jsonl";
                 Assert(TaskNotificationRules.NewTerminals(Report(Now.AddSeconds(-10)),
                     Report(Now, done)).Count == 1);
@@ -242,6 +251,7 @@ namespace ShinoCodexMonitor
                 LiveTask done = Parse(Now, Event("task_started", "old", 25),
                     Event("task_complete", "old", 5));
                 LiveTask active = Parse(Now.AddSeconds(-2), Event("task_started", "new", 15));
+                done.IsRootConfirmed=active.IsRootConfirmed=true;
                 TaskDisplay d = Report(Now, done, active).DisplayAt(Now);
                 Assert(d.Kind == TaskDisplayKind.ObservedActive && d.Primary == active &&
                     d.LastTerminal == done);
@@ -349,8 +359,8 @@ namespace ShinoCodexMonitor
                     System.IO.File.SetLastWriteTimeUtc(rootFile, Now.AddSeconds(-5).UtcDateTime);
                     System.IO.File.SetLastWriteTimeUtc(childFile, Now.AddSeconds(-2).UtcDateTime);
                     LiveTaskReport data = LiveTaskReader.Read(Now);
-                    Assert(data.Tasks.Count == 1 && data.Tasks[0].Id == "root" &&
-                        data.Tasks[0].Duration(Now) == "10:38" && data.Tasks[0].IsRootConfirmed);
+                    Assert(data.Tasks.Count(t=>t.IsRootConfirmed)==1 && data.Tasks.First(t=>t.IsRootConfirmed).Id == "root" &&
+                        data.Tasks.First(t=>t.IsRootConfirmed).Duration(Now) == "10:38" && data.Tasks.Count(t=>t.IsSubagent)==1);
                 }
                 finally
                 {
@@ -390,6 +400,136 @@ namespace ShinoCodexMonitor
                         System.IO.Directory.Delete(parent, true);
                 }
             });
+            Check("Sous-agent frais lié au seul tour racine ouvert : état délégué, distinct du LIVE parent", delegate {
+                LiveTask root = new LiveTask { Id="root-turn", SessionKey="root-file", ThreadId="root-thread",
+                    IsRootConfirmed=true, StartedUtc=Now.AddMinutes(-4), LastWriteUtc=Now.AddMinutes(-3),
+                    Phase=LiveTaskPhase.Active, Workspace="repo" };
+                LiveTask child = new LiveTask { Id="child-turn", SessionKey="child-file", ParentThreadId="root-thread",
+                    IsSubagent=true, StartedUtc=Now.AddMinutes(-2), LastWriteUtc=Now.AddSeconds(-4),
+                    Phase=LiveTaskPhase.Active };
+                MissionTracker tracker = new MissionTracker();
+                tracker.Update(Report(Now, root, child));
+                MissionView mission = tracker.At(Now).Single();
+                Assert(mission.State == RadarState.Delegated && mission.Task.Phase == LiveTaskPhase.Active &&
+                    mission.ParentEvidenceUtc == root.LastWriteUtc && mission.ChildEvidenceUtc == child.LastWriteUtc);
+            });
+            Check("Read() lie les vrais champs id et parent_thread_id et étiquette l'activité comme déléguée", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fixture-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions","2026","10","19");System.IO.Directory.CreateDirectory(dir);
+                    string rootPath=System.IO.Path.Combine(dir,"rollout-parent.jsonl"),childPath=System.IO.Path.Combine(dir,"rollout-child.jsonl");
+                    System.IO.File.WriteAllLines(rootPath,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"root-thread\",\"thread_source\":\"user\"}}",Event("task_started","root-turn",240)});
+                    System.IO.File.WriteAllLines(childPath,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"child-thread\",\"parent_thread_id\":\"root-thread\",\"thread_source\":\"subagent\"}}",Event("task_started","child-turn",5)});
+                    System.IO.File.SetLastWriteTimeUtc(rootPath,Now.AddSeconds(-180).UtcDateTime);System.IO.File.SetLastWriteTimeUtc(childPath,Now.AddSeconds(-2).UtcDateTime);
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport data=LiveTaskReader.Read(Now);MissionTracker tracker=new MissionTracker();tracker.Update(data);
+                    Assert(data.Tasks.Count(t=>t.IsRootConfirmed&&!t.IsSubagent)==1&&data.Tasks.Count(t=>t.IsSubagent)==1&&
+                        tracker.At(Now).Single().State==RadarState.Delegated&&data.DisplayAt(Now).Kind==TaskDisplayKind.DelegatedObserved);
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Fin racine confirmée prime sur enfant actif contradictoire", delegate {
+                LiveTask root = new LiveTask { Id="root-turn", SessionKey="root-file", ThreadId="root-thread",
+                    IsRootConfirmed=true, StartedUtc=Now.AddMinutes(-4), LastWriteUtc=Now.AddSeconds(-2),
+                    FinishedUtc=Now.AddSeconds(-2), Phase=LiveTaskPhase.Completed };
+                LiveTask child = new LiveTask { Id="child-turn", SessionKey="child-file", ParentThreadId="root-thread",
+                    IsSubagent=true, StartedUtc=Now.AddMinutes(-2), LastWriteUtc=Now.AddSeconds(-1),
+                    Phase=LiveTaskPhase.Active };
+                MissionTracker tracker = new MissionTracker();
+                tracker.Update(Report(Now, root, child));
+                Assert(tracker.At(Now).Single().State == RadarState.Complete);
+            });
+            Check("Racine active sans enfant conserve ACTIVE", delegate {
+                Assert(Mission(Root("root-thread","root-file",Now.AddMinutes(-1),Now.AddSeconds(-4))).State==RadarState.Active);
+            });
+            Check("Deux enfants frais du même parent sont observés sans exposer leurs identifiants", delegate {
+                MissionView m=Mission(Root("root-thread","root-file",Now.AddMinutes(-4),Now.AddMinutes(-3)),
+                    Child("root-thread","child-a",Now.AddMinutes(-2),Now.AddSeconds(-5)),
+                    Child("root-thread","child-b",Now.AddMinutes(-1),Now.AddSeconds(-2)));
+                Assert(m.State==RadarState.Delegated&&m.ActiveChildCount==2&&m.ChildEvidenceUtc==Now.AddSeconds(-2));
+            });
+            Check("Deux parents concurrents ne reçoivent que leurs enfants explicites", delegate {
+                MissionTracker tracker=new MissionTracker();
+                tracker.Update(Report(Now,Root("root-a","a",Now.AddMinutes(-5),Now.AddMinutes(-4)),
+                    Root("root-b","b",Now.AddMinutes(-5),Now.AddMinutes(-4)),
+                    Child("root-a","ca",Now.AddMinutes(-2),Now.AddSeconds(-3)),
+                    Child("root-b","cb",Now.AddMinutes(-1),Now.AddSeconds(-2))));
+                List<MissionView> views=tracker.At(Now);
+                Assert(views.Count==2&&views.All(v=>v.State==RadarState.Delegated)&&views.All(v=>v.ActiveChildCount==1));
+            });
+            Check("Enfant terminé : parent silencieux retombe sur UNVERIFIED", delegate {
+                MissionView m=Mission(Root("root-thread","root-file",Now.AddMinutes(-4),Now.AddMinutes(-3)),
+                    Child("root-thread","child-file",Now.AddMinutes(-2),Now.AddSeconds(-120),LiveTaskPhase.Completed));
+                Assert(m.State==RadarState.Unverified&&m.ActiveChildCount==0&&m.DelegatedEvidenceSeen);
+            });
+            Check("Enfant non lié ou parent thread ambigu ne confirme aucun parent", delegate {
+                MissionTracker tracker=new MissionTracker();
+                tracker.Update(Report(Now,Root("same-thread","root-a",Now.AddMinutes(-2),Now.AddMinutes(-2)),
+                    Root("same-thread","root-b",Now.AddMinutes(-1),Now.AddMinutes(-1)),
+                    Child("other-thread","child-file",Now.AddMinutes(-1),Now.AddSeconds(-1)),
+                    new LiveTask {IsSubagent=true,SessionKey="unlinked",StartedUtc=Now.AddSeconds(-2),LastWriteUtc=Now.AddSeconds(-1),Phase=LiveTaskPhase.Active}));
+                Assert(tracker.At(Now).All(v=>v.State!=RadarState.Delegated));
+            });
+            Check("Horodatage enfant périmé retombe sur UNVERIFIED", delegate {
+                MissionView m=Mission(Root("root-thread","root-file",Now.AddMinutes(-4),Now.AddMinutes(-3)),
+                    Child("root-thread","child-file",Now.AddMinutes(-4),Now.AddSeconds(-120)));
+                Assert(m.State==RadarState.Unverified&&m.ActiveChildCount==0);
+            });
+            Check("Terminal enfant ne produit ni événement ni replay de notification racine", delegate {
+                LiveTask child=Child("root-thread","child-file",Now.AddMinutes(-2),Now.AddSeconds(-2),LiveTaskPhase.Completed);
+                child.FinishedUtc=Now.AddSeconds(-2);child.IsRootConfirmed=false;
+                LiveTaskReport previous=Report(Now.AddSeconds(-10));
+                LiveTaskReport current=Report(Now,child);
+                Assert(TaskNotificationRules.NewTerminals(previous,current).Count==0&&
+                    TaskNotificationRules.NewTerminals(current,Report(Now.AddSeconds(40),child)).Count==0);
+            });
+            Check("Reprise bornée récupère un terminal avant plus de 512 Kio de lignes non pertinentes", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fixture-"+Guid.NewGuid().ToString("N"));
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);
+                    string dir=System.IO.Path.Combine(home,"sessions","2026","10","19");System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-recovery.jsonl");
+                    using(System.IO.StreamWriter writer=new System.IO.StreamWriter(path)) {
+                        writer.WriteLine("{\"type\":\"session_meta\",\"payload\":{\"id\":\"thread-root\",\"thread_source\":\"user\"}}");
+                        writer.WriteLine(Event("task_started","large-root",650));
+                        writer.WriteLine(Event("task_complete","large-root",12));
+                        string filler="{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"content\":\""+new string('x',900)+"\"}}";
+                        for(int i=0;i<11000;i++)writer.WriteLine(filler);
+                    }
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-2).UtcDateTime);
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport data=LiveTaskReader.Read(Now);
+                    LiveTask recovered=data.Tasks.FirstOrDefault(t=>t.IsRootConfirmed);
+                    Assert(recovered!=null&&recovered.Phase==LiveTaskPhase.Completed&&data.RecoveryBytesRead>9*1024*1024&&data.RecoveryLimitedSessions==0);
+                    report.AppendLine("Synthetic recovery measurement: bytes="+data.RecoveryBytesRead.ToString(CultureInfo.InvariantCulture)+
+                        "; sessions="+data.RecoverySessions.ToString(CultureInfo.InvariantCulture)+"; elapsed_ms="+
+                        data.RecoveryDurationMs.ToString(CultureInfo.InvariantCulture)+"; limited="+
+                        data.RecoveryLimitedSessions.ToString(CultureInfo.InvariantCulture));
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Cache vidé puis relu à froid reconstruit l'historique sans notification ancienne", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fixture-"+Guid.NewGuid().ToString("N"));
+                string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);string dir=System.IO.Path.Combine(home,"sessions","2026","10","19");System.IO.Directory.CreateDirectory(dir);
+                    string path=System.IO.Path.Combine(dir,"rollout-restart.jsonl");System.IO.File.WriteAllLines(path,new[]{"{\"type\":\"session_meta\",\"payload\":{\"id\":\"restart-thread\",\"thread_source\":\"user\"}}",Event("task_started","restart-turn",90),Event("task_complete","restart-turn",40)});
+                    System.IO.File.SetLastWriteTimeUtc(path,Now.AddSeconds(-1).UtcDateTime);LiveTaskReader.ClearCacheForTests();LiveTaskReport first=LiveTaskReader.Read(Now.AddSeconds(-10));
+                    LiveTaskReader.ClearCacheForTests();LiveTaskReport recovered=LiveTaskReader.Read(Now);LiveTask terminal=recovered.Tasks.First(t=>t.IsRootConfirmed);
+                    Assert(first.Tasks.Any(t=>t.IsRootConfirmed)&&terminal.Phase==LiveTaskPhase.Completed&&TaskNotificationRules.NewTerminals(first,recovered).Count==0);
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
+            Check("Sources manquantes, malformed et verrouillée restent indisponibles sans faux résultat", delegate {
+                string home=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"shino-fixture-"+Guid.NewGuid().ToString("N"));string prior=Environment.GetEnvironmentVariable("CODEX_HOME");
+                try {
+                    Environment.SetEnvironmentVariable("CODEX_HOME",home);LiveTaskReader.ClearCacheForTests();
+                    Assert(LiveTaskReader.Read(Now).Tasks.Count==0);
+                    string dir=System.IO.Path.Combine(home,"sessions","2026","10","19");System.IO.Directory.CreateDirectory(dir);
+                    string bad=System.IO.Path.Combine(dir,"rollout-malformed.jsonl");System.IO.File.WriteAllText(bad,"{broken header\n");
+                    System.IO.File.SetLastWriteTimeUtc(bad,Now.AddSeconds(-1).UtcDateTime);
+                    string lockedPath=System.IO.Path.Combine(dir,"rollout-locked.jsonl");System.IO.File.WriteAllText(lockedPath,"{}");System.IO.File.SetLastWriteTimeUtc(lockedPath,Now.AddSeconds(-1).UtcDateTime);
+                    using(System.IO.FileStream held=new System.IO.FileStream(lockedPath,System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite,System.IO.FileShare.None)) {
+                        LiveTaskReader.ClearCacheForTests();LiveTaskReport data=LiveTaskReader.Read(Now);Assert(data.Tasks.Count==0&&data.UnknownOrigins>0);
+                    }
+                } finally {Environment.SetEnvironmentVariable("CODEX_HOME",prior);LiveTaskReader.ClearCacheForTests();if(System.IO.Directory.Exists(home))System.IO.Directory.Delete(home,true);}
+            });
             Check("Diagnostic : aucune donnée privée ni ID de thread", delegate {
                 LiveTask t = Parse(Now,
                     "{\"type\":\"session_meta\",\"payload\":{\"thread_source\":\"user\",\"originator\":\"Codex Desktop\",\"cwd\":\"C:/secret/project\"}}",
@@ -417,3 +557,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+

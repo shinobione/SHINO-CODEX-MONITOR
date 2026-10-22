@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace ShinoCodexMonitor
 {
-    internal enum RadarState { Active, Complete, Unverified, Stale, Unavailable, Failed, Interrupted }
+    internal enum RadarState { Active, Delegated, Complete, Unverified, Stale, Unavailable, Failed, Interrupted }
     internal static class RadarMotion
     {
         internal static float AngleAt(double seconds) { return (float)((seconds % 3) * 120); }
@@ -59,7 +59,7 @@ namespace ShinoCodexMonitor
         internal LiveTaskPhase Phase { get { return phase; } }
         internal RadarState State { get { return state; } }
         internal bool Completing { get { return completing; } }
-        internal bool NeedsFrames { get { return Visible && (state == RadarState.Active || completing); } }
+        internal bool NeedsFrames { get { return Visible && (state == RadarState.Active || state == RadarState.Delegated || completing); } }
         internal bool MotionRunning { get { return sharedClock ? sharedRunning : clock.IsRunning; } }
         internal double ElapsedSeconds { get { return AnimationSeconds; } }
         internal ActivityGlyph()
@@ -72,6 +72,13 @@ namespace ShinoCodexMonitor
             head.StartCap = head.EndCap = LineCap.Round; success.StartCap = success.EndCap = LineCap.Round;
         }
         internal void SetPhase(LiveTaskPhase next) { SetObservation(next,true,next == LiveTaskPhase.Unknown); }
+        internal void SetDelegatedObserved(bool fresh)
+        {
+            RadarState mapped=fresh?RadarState.Delegated:RadarState.Unverified;
+            if(state==mapped)return;
+            phase=LiveTaskPhase.Unknown;state=mapped;FinishMotion();
+            AccessibleName="Observed delegated task radar: "+StateLabel;Invalidate();
+        }
         internal void SetObservation(LiveTaskPhase next, bool fresh, bool unavailable)
         {
             RadarState mapped = RadarMotion.Map(next,fresh,unavailable);
@@ -110,7 +117,7 @@ namespace ShinoCodexMonitor
             if (completing && seconds >= .9) { FinishMotion(); return; }
             lastFrame = seconds; Invalidate();
         }
-        private string StateLabel { get { return state == RadarState.Active ? "ACTIVE" : state == RadarState.Complete ? "COMPLETE" : state.ToString().ToUpperInvariant(); } }
+        private string StateLabel { get { return state == RadarState.Active ? "ACTIVE" : state == RadarState.Delegated ? "DELEGATED · OBSERVED" : state == RadarState.Complete ? "COMPLETE" : state.ToString().ToUpperInvariant(); } }
         protected override void OnVisibleChanged(EventArgs e) { if (!Visible) FinishMotion(); base.OnVisibleChanged(e); }
         private void EnsureLens()
         {
@@ -130,11 +137,11 @@ namespace ShinoCodexMonitor
                         g.FillEllipse(fill,ring);
                     }
                 }
-                using(Pen bezel=new Pen(state==RadarState.Active ? Color.FromArgb(105,accent) : Color.FromArgb(75,137,161,178),1f)) {
+                using(Pen bezel=new Pen(state==RadarState.Active || state==RadarState.Delegated ? Color.FromArgb(105,accent) : Color.FromArgb(75,137,161,178),1f)) {
                     if(!Parity)g.DrawEllipse(bezel,cx-side*.48f,cy-side*.48f,side*.96f,side*.96f);
                     if(!Parity)g.DrawEllipse(bezel,cx-side*.45f,cy-side*.45f,side*.9f,side*.9f);
                 }
-                using (Pen track = new Pen(state == RadarState.Active || state == RadarState.Complete ? Color.FromArgb(78,accent) : Color.FromArgb(70,135,147,165),1f)) {
+                using (Pen track = new Pen(state == RadarState.Active || state == RadarState.Delegated || state == RadarState.Complete ? Color.FromArgb(78,accent) : Color.FromArgb(70,135,147,165),1f)) {
                     for (int i=1; i<=4; i++) {
                         float r = radius*i/4;
                         RectangleF inner = new RectangleF(cx-r,cy-r,r*2,r*2);
@@ -169,7 +176,7 @@ namespace ShinoCodexMonitor
             float cx = Width/2f, cy = Height/2f, radius = side * (Parity?.49f:.41f);
             RectangleF ring = new RectangleF(cx-radius,cy-radius,radius*2,radius*2);
             double seconds = AnimationSeconds;
-            if (state == RadarState.Active || completing) {
+            if (state == RadarState.Active || state == RadarState.Delegated || completing) {
                 float angle = completing ? completionAngle : (Parity?(float)((seconds%4)*90):RadarMotion.AngleAt(seconds))-90;
                 float fade = completing ? (float)Math.Max(0,1-seconds/.55) : 1;
                 if (fade > 0) {
@@ -215,7 +222,7 @@ namespace ShinoCodexMonitor
                     g.DrawLine(success,cx-side*.05f,cy+side*.14f,cx+side*.24f,cy-side*.17f);
                 }
             }
-            else if (state != RadarState.Active) {
+            else if (state != RadarState.Active && state != RadarState.Delegated) {
                 stateInk.Color = state == RadarState.Failed ? Color.FromArgb(241,106,101) : state == RadarState.Interrupted ? Color.FromArgb(231,183,89) : Color.FromArgb(135,147,165);
                 if (side < 64) g.DrawString(state == RadarState.Failed || state == RadarState.Interrupted ? "×" : "?",stateFont,stateInk,new RectangleF(0,0,Width,Height),centered);
             }
@@ -231,3 +238,4 @@ namespace ShinoCodexMonitor
         }
     }
 }
+
