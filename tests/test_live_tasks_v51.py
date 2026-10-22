@@ -53,6 +53,13 @@ class LiveTaskV51Audit(unittest.TestCase):
         self.assertIn("duration_ms", READER)
         self.assertIn("ReadFirstMetadataLine", READER)
         self.assertIn("RedactedDiagnostics", READER)
+        self.assertIn("SafeDiagnosticSource", READER)
+        self.assertIn("guardian_review", READER)
+        self.assertIn("ChildSessionsLinked", READER)
+        self.assertIn("RecoveryLimitedByPartialRead", READER)
+        self.assertIn("Global mission selection:", READER)
+        self.assertIn("Last primary turns", READER)
+        self.assertIn("Last child turns", READER)
         self.assertIn("Copy privacy-safe task diagnostics", FORM)
         self.assertIn("tray.ShowBalloonTip(5500", FORM)
 
@@ -67,11 +74,10 @@ class LiveTaskV51Audit(unittest.TestCase):
         for value in ("'LiveTaskMonitor.cs'", "'ActivityGlyph.cs'",
                       "'LiveTaskTests.cs'"):
             self.assertIn(value, BUILD)
-        self.assertEqual(TESTS.count('Check("'), 59)
+        self.assertEqual(TESTS.count('Check("'), 63)
         self.assertIn("--live-task-self-test", CI)
-        self.assertIn("59/59", CI)
+        self.assertIn("63/63", CI)
 
 
 if __name__ == "__main__":
     unittest.main()
-
