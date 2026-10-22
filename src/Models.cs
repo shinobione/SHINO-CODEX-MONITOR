@@ -61,6 +61,8 @@ namespace ShinoCodexMonitor
     }
     internal sealed class Preferences
     {
+        public bool ObsidianLayout { get; set; } // PARITY_APPEARANCE_ONLY
+        public int ObsidianCircularWidth { get; set; } // PARITY_APPEARANCE_ONLY
         public int? X { get; set; }
         public int? Y { get; set; }
         public bool Top { get; set; }
@@ -111,6 +113,7 @@ namespace ShinoCodexMonitor
         }
         internal void Sanitize()
         {
+            if(ObsidianCircularWidth<470 || ObsidianCircularWidth>720)ObsidianCircularWidth=680; // PARITY_APPEARANCE_ONLY
             if (Layout != "Circular" && Layout != "Vertical" && Layout != "Compact" && Layout != "Micro") Layout = "Vertical";
             if (TrayStyle != "Percent" && TrayStyle != "Ring") TrayStyle = "Percent";
             if (ResetStyle != "both" && ResetStyle != "absolute" && ResetStyle != "relative" && ResetStyle != "hidden") ResetStyle = "both";

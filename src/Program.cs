@@ -9,6 +9,29 @@ namespace ShinoCodexMonitor
         [STAThread]
         private static void Main()
         {
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--target-video")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);TargetTests.Video();return;
+            }
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--target-captures")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);TargetTests.Capture();return;
+            }
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--target-self-test")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                string report=TargetTests.Run();System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"TARGET_TEST_REPORT.txt"),report);
+                Environment.ExitCode=report.Contains("FAIL ")?1:0;return;
+            }
+            if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--parity-performance")
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"PARITY_PERFORMANCE_REPORT.txt"),InstrumentTests.Performance(true));return;
+            }
             if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--instrument-performance")
             {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);

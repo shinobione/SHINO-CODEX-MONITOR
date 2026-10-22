@@ -23,7 +23,7 @@ namespace ShinoCodexMonitor
     }
     internal sealed class Meter
     {
-        internal Label Name, Number, Reset, Hint;
+        internal Label Name, Number, Reset, Hint, Badge, Relative;
         internal InstrumentPanel Face;
         internal Panel Track, Fill;
         internal CircularGauge Ring;
@@ -80,6 +80,12 @@ namespace ShinoCodexMonitor
         private ToolStripMenuItem updateMenuItem;
         private bool updateCheckRunning;
         private readonly Panel taskDock = new Panel();
+        private readonly MissionRadarDock compactRadars=new MissionRadarDock();
+        private readonly InstrumentLabel resetCount=new InstrumentLabel {Name="QuotaResets",AutoEllipsis=true,BackColor=Color.Transparent};
+        private readonly InstrumentLabel footerLeft=new InstrumentLabel {Name="InstrumentFooter",AutoEllipsis=true,BackColor=Color.Transparent};
+        private readonly InstrumentLabel footerRead=new InstrumentLabel {Name="QuotaObserved",AutoEllipsis=true,BackColor=Color.Transparent,TextAlign=ContentAlignment.MiddleCenter};
+        private readonly InstrumentLabel footerState=new InstrumentLabel {AutoEllipsis=true,BackColor=Color.Transparent,TextAlign=ContentAlignment.MiddleRight};
+        private bool targetBlockedLayout;
         private readonly InstrumentPanel sourceFace = new InstrumentPanel();
         private Bitmap chrome;
         private readonly MissionDeck taskDeck = new MissionDeck();
@@ -129,7 +135,7 @@ namespace ShinoCodexMonitor
             taskDock.BackColor = ColorTranslator.FromHtml("#1A2738");
             taskDeck.Dock = DockStyle.Fill;
             taskDock.Controls.Add(taskDeck);
-            Controls.Add(taskDock);
+            Controls.Add(taskDock);Controls.Add(compactRadars);compactRadars.Visible=false;taskDeck.CompactRadars=compactRadars;
             five = BuildMeter("5-HOUR QUOTA");
             week = BuildMeter("WEEKLY QUOTA");
             status = TextLabel("● Initializing Codex...", 8, UiColors.Muted, false);
@@ -140,7 +146,7 @@ namespace ShinoCodexMonitor
             sourceDetail=TextLabel("",8,InstrumentStyle.Muted,false);sourceDetail.Name="QuotaSource";
             sourceFace.Controls.Add(sourceDetail);
             status.Name="QuotaStatus";statusAge.Name="QuotaObserved";
-            Controls.Add(sourceFace);
+            Controls.Add(sourceFace);sourceFace.Controls.Add(resetCount);Controls.Add(footerLeft);Controls.Add(footerRead);Controls.Add(footerState);resetCount.Visible=false;
             statusDivider = new Panel { BackColor = UiColors.Track };
             Controls.Add(statusDivider);
             resizeGrip = TextLabel("◢", 11, UiColors.Muted, true);
@@ -211,14 +217,17 @@ namespace ShinoCodexMonitor
             m.Number = TextLabel("—", 17, UiColors.Muted, true);
             m.Number.TextAlign = ContentAlignment.MiddleRight;
             m.Track = new InstrumentPanel { BackColor = UiColors.Track, Height = 9 };
-            m.Fill = new Panel { BackColor = UiColors.Five, Width = 0, Height = 9 };
+            m.Fill = new InstrumentFill { BackColor = UiColors.Five, Width = 0, Height = 9 };
             m.Track.Controls.Add(m.Fill);
             m.Ring = new CircularGauge();
             m.Reset = TextLabel("Waiting for Codex...", 8, UiColors.Muted, false);
             m.Name.Name="QuotaTitle";m.Number.Name="QuotaValue";m.Reset.Name="QuotaReset";
+            m.Badge=TextLabel("",9,InstrumentStyle.Muted,true);m.Badge.Name="QuotaSeverity";m.Badge.TextAlign=ContentAlignment.MiddleCenter;
+            m.Relative=TextLabel("",10,InstrumentStyle.Muted,false);m.Relative.Name="QuotaReset";m.Relative.TextAlign=ContentAlignment.MiddleRight;
             m.Face=new InstrumentPanel();m.Hint=TextLabel("REMAINING",6.5f,InstrumentStyle.Muted,false);m.Hint.Name="QuotaProvenance";
             m.Face.Controls.Add(m.Name); m.Face.Controls.Add(m.Number); m.Face.Controls.Add(m.Track); m.Face.Controls.Add(m.Reset); m.Face.Controls.Add(m.Ring);m.Face.Controls.Add(m.Hint);
             Controls.Add(m.Face);
+            m.Face.Controls.Add(m.Badge);m.Face.Controls.Add(m.Relative);m.Badge.Visible=m.Relative.Visible=false;
             return m;
         }
         private int Unit(int value) {return (int)Math.Round(value*PeriscopeWindow.ScaleFor(this));}
@@ -259,6 +268,11 @@ namespace ShinoCodexMonitor
             if(five==null || week==null || statusAge==null || sourceDetail==null)return;
             SuspendLayout();
             try {
+                compactRadars.Visible=false;resetCount.Visible=footerLeft.Visible=footerRead.Visible=footerState.Visible=false;
+                if(settings.ObsidianLayout){ApplyParityLayout();ClearChrome();return;}
+                foreach(Meter m in new []{five,week}){m.Face.Flat=false;m.Face.FooterRule=0;m.Ring.Target=false;((InstrumentFill)m.Fill).Luminous=false;((InstrumentLabel)m.Badge).Framed=false;foreach(InstrumentLabel l in m.Face.Controls.OfType<InstrumentLabel>()){l.Family="Segoe UI";l.Tracking=0;l.Marker=Color.Transparent;}}
+                sourceFace.Strip=false;((InstrumentLabel)header).Family="Segoe UI";((InstrumentLabel)header).Tracking=0;
+                five.Badge.Visible=week.Badge.Visible=five.Relative.Visible=week.Relative.Visible=false;taskDeck.Parity=false;taskDeck.Flat=false;sourceFace.Flat=false;sourceDetail.Visible=true;
                 bool micro=settings.Layout=="Micro",circular=settings.Layout=="Circular";
                 MeterMode(five,circular);MeterMode(week,circular);
                 int width,quotaHeight;
@@ -267,9 +281,9 @@ namespace ShinoCodexMonitor
                 ClientSize=new Size(Unit(width),Unit(DesktopGeometry.CombinedHeight(width,quotaHeight,settings.Layout)));
                 header.Bounds=Units(new Rectangle(micro?29:34,micro?4:8,micro?290:width-200,micro?21:24));
                 InstrumentStyle.FontFor(header,micro?13:14,FontStyle.Bold);
-                version.Visible=!micro;version.Text="PERISCOPE / V5.2.0";
+                version.Visible=true;version.Text=LayoutVersionLabel(settings.ObsidianLayout,settings.Layout);
                 version.TextAlign=ContentAlignment.MiddleRight;
-                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,10.5f,FontStyle.Regular);
+                version.Bounds=Units(new Rectangle(width-169,10,126,21));InstrumentStyle.FontFor(version,settings.ObsidianLayout?10.5f:8.5f,FontStyle.Regular);
                 close.Bounds=Units(new Rectangle(width-34,micro?3:7,25,24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
                 if(circular) {
                     PlaceCircular(five,14,246);PlaceCircular(week,280,246);
@@ -305,6 +319,7 @@ namespace ShinoCodexMonitor
             } finally {ResumeLayout(true);}
             ClearChrome();
         }
+        private bool parityBlockedChrome;
         private void ClearChrome(){if(chrome!=null){chrome.Dispose();chrome=null;}Invalidate();}
         protected override void OnSizeChanged(EventArgs e){ClearChrome();base.OnSizeChanged(e);}
         protected override void OnPaintBackground(PaintEventArgs e)
@@ -314,13 +329,22 @@ namespace ShinoCodexMonitor
                 chrome=new Bitmap(Width,Height);
                 using(Graphics g=Graphics.FromImage(chrome))
                 using(Brush body=new SolidBrush(BackColor))
-                using(Brush bar=new SolidBrush(InstrumentStyle.Blend(BackColor,Color.FromArgb(19,30,44),.6)))
+                using(Brush bar=new SolidBrush(settings!=null && settings.ObsidianLayout && parityBlockedChrome?InstrumentStyle.AlertFace:(settings!=null && settings.ObsidianLayout?InstrumentStyle.Titlebar:InstrumentStyle.Blend(BackColor,Color.FromArgb(19,30,44),.6))))
                 using(Pen edge=new Pen(InstrumentStyle.Border))
                 using(Pen teal=new Pen(InstrumentStyle.Teal)) {
-                    g.FillRectangle(body,ClientRectangle);g.FillRectangle(bar,0,0,Width,Unit(settings!=null && settings.Layout=="Micro"?28:38));
+                    g.FillRectangle(body,ClientRectangle);g.FillRectangle(bar,0,0,Width,Unit(settings!=null && settings.ObsidianLayout?(settings.Layout=="Micro"?32:settings.Layout=="Compact"?36:40):settings!=null && settings.Layout=="Micro"?28:38));
                     g.DrawRectangle(edge,0,0,Width-1,Height-1);
+                    if(settings!=null && settings.ObsidianLayout) {
+                        int head=settings.Layout=="Micro"?32:settings.Layout=="Compact"?36:40,foot=settings.Layout=="Micro"?20:24;
+                        using(Brush footer=new SolidBrush(InstrumentStyle.FooterFace))g.FillRectangle(footer,0,Height-Unit(foot),Width,Unit(foot));
+                        using(Pen rule=new Pen(InstrumentStyle.Hairline)){g.DrawLine(rule,0,Unit(head),Width,Unit(head));g.DrawLine(rule,0,Height-Unit(foot),Width,Height-Unit(foot));}
+                        Color point=parityBlockedChrome?InstrumentStyle.Red:InstrumentStyle.Teal;
+                        using(Bitmap glow=InstrumentStyle.Halo(Unit(24),point))g.DrawImageUnscaled(glow,Unit(18-12),Unit(head/2-12));
+                        using(Brush dot=new SolidBrush(point))g.FillEllipse(dot,Unit(15),Unit(head/2-3),Unit(6),Unit(6));
+                    } else {
                     int r=Unit(12),x=Unit(settings!=null && settings.Layout=="Micro"?11:14),y=Unit(settings!=null && settings.Layout=="Micro"?9:14);
                     g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;g.DrawEllipse(teal,x,y,r,r);g.DrawLine(teal,x+r/2,y+r/2,x+r,y+r/2);
+                    }
                 }
             }
             e.Graphics.DrawImageUnscaled(chrome,0,0);
@@ -332,6 +356,122 @@ namespace ShinoCodexMonitor
         }
         private void PlaceActivityControls(bool circular, bool micro)
         { taskDeck.PerformLayout(); }
+
+        internal static string LayoutVersionLabel(bool obsidian,string layout)
+        {
+            string name=layout=="Compact"?"COMPACT":layout=="Micro"?"MICRO":layout=="Vertical"?"VERTICAL":"CIRCULAR";
+            return (obsidian?name:"CLASSIC "+name)+" \u00b7 v5.2.0";
+        }
+        internal static void SyncLayoutChoices(ToolStripMenuItem classic,ToolStripMenuItem obsidian,bool activeObsidian,string activeLayout)
+        {
+            foreach(ToolStripMenuItem option in classic.DropDownItems)option.Checked=!activeObsidian && option.Text==activeLayout;
+            foreach(ToolStripMenuItem option in obsidian.DropDownItems)option.Checked=activeObsidian && option.Text==activeLayout;
+        }
+        internal void SelectTargetLayout(string layout)
+        { SelectTargetLayout(layout,true); }
+        internal void SelectTargetLayout(string layout,bool obsidian)
+        {
+            if(!new []{"Circular","Vertical","Compact","Micro"}.Contains(layout))throw new ArgumentException("Unknown layout");
+            if(settings.Layout==layout && settings.ObsidianLayout==obsidian)return;
+            settings.Layout=layout;settings.ObsidianLayout=obsidian;ApplyLayout();Save();
+        }
+        private void PlaceParityMeter(Meter m,int x,int y,int w,int h,bool circle)
+        {
+            m.Face.Bounds=Units(new Rectangle(x,y,w,h));m.Face.Flat=true;m.Face.Edge=InstrumentStyle.Hairline;m.Face.BackColor=InstrumentStyle.QuotaFace;
+            ((InstrumentFill)m.Fill).Luminous=true;((InstrumentLabel)m.Badge).Framed=true;
+            MeterMode(m,circle);m.Name.TextAlign=ContentAlignment.MiddleLeft;m.Hint.TextAlign=ContentAlignment.MiddleLeft;
+            m.Name.Bounds=Units(new Rectangle(16,14,w-112,19));InstrumentStyle.Type(m.Name,InstrumentType.Panel);
+            m.Badge.Bounds=Units(new Rectangle(w-86,14,70,18));InstrumentStyle.Type(m.Badge,InstrumentType.Badge);m.Badge.Visible=circle;
+            m.Reset.TextAlign=ContentAlignment.MiddleLeft;
+            if(circle) {
+                m.Ring.Bounds=Units(new Rectangle((w-144)/2,44,144,144));m.Ring.Target=true;
+                m.Reset.Bounds=Units(new Rectangle(16,h-29,w-32,18));m.Face.FooterRule=Unit(h-40);
+            } else {
+                bool micro=settings.Layout=="Micro";
+                m.Name.Bounds=Units(new Rectangle(micro?8:12,micro?6:10,w-(micro?78:151),18));InstrumentStyle.Type(m.Name,InstrumentType.Label);
+                m.Number.Bounds=Units(new Rectangle(w-(micro?69:139),micro?3:5,micro?61:61,micro?23:28));InstrumentStyle.Type(m.Number,micro?InstrumentType.MicroValue:InstrumentType.Value);
+                m.Hint.Bounds=Units(new Rectangle(w-75,14,63,13));InstrumentStyle.Type(m.Hint,InstrumentType.Badge);m.Hint.Visible=!micro;
+                m.Track.Bounds=Units(new Rectangle(micro?8:12,micro?27:39,w-(micro?16:24),micro?6:10));m.Track.BackColor=InstrumentStyle.Track;
+                m.Fill.SetBounds(Unit(2),Unit(2),Math.Max(0,m.Fill.Width),Unit(micro?3:6));
+                m.Reset.Bounds=Units(new Rectangle(micro?8:12,h-(micro?18:24),w-(micro?16:24),micro?13:17));m.Face.FooterRule=0;
+            }
+            InstrumentStyle.Type(m.Reset,settings.Layout=="Micro"?InstrumentType.Metadata:InstrumentType.Technical);InstrumentStyle.Type(m.Relative,settings.Layout=="Micro"?InstrumentType.Metadata:InstrumentType.Technical);
+        }
+        private void ApplyParityLayout()
+        {
+            settings.Sanitize();bool micro=settings.Layout=="Micro",circle=settings.Layout=="Circular",vertical=settings.Layout=="Vertical",compact=settings.Layout=="Compact";
+            targetBlockedLayout=State()=="Direct" && snapshot!=null && snapshot.UsageAllowed==false;
+            int w=circle?settings.ObsidianCircularWidth:micro?484:vertical?360:640,h=circle?480:micro?230:vertical?580:260;
+            ClientSize=new Size(Unit(w),Unit(h));BackColor=ColorTranslator.FromHtml(settings.BackgroundColor);
+            header.SetBounds(Unit(31),Unit(micro?4:8),Unit(170),Unit(24));InstrumentStyle.Type(header,InstrumentType.Product);header.ForeColor=InstrumentStyle.Bright;
+            version.Visible=true;version.Text=LayoutVersionLabel(settings.ObsidianLayout,settings.Layout);version.TextAlign=ContentAlignment.MiddleRight;
+            version.SetBounds(Unit(w-178),Unit(micro?6:10),Unit(138),Unit(18));InstrumentStyle.Type(version,InstrumentType.Metadata);if(!settings.ObsidianLayout)InstrumentStyle.FontFor(version,8.5f,FontStyle.Regular);version.ForeColor=InstrumentStyle.Metadata;
+            close.SetBounds(Unit(w-31),Unit(micro?3:7),Unit(23),Unit(24));InstrumentStyle.FontFor(close,16,FontStyle.Regular);
+            taskDeck.Parity=true;taskDeck.Flat=true;taskDeck.LayoutMode=settings.Layout;taskDeck.BackColor=InstrumentStyle.Canvas;taskDeck.Edge=Color.Transparent;
+            compactRadars.Visible=compact;
+            if(circle) {
+                int mw=(w-48)/2;
+                PlaceParityMeter(five,16,targetBlockedLayout?84:56,mw,targetBlockedLayout?212:234,true);
+                PlaceParityMeter(week,32+mw,targetBlockedLayout?84:56,mw,targetBlockedLayout?212:234,true);
+                sourceFace.Bounds=Units(targetBlockedLayout?new Rectangle(0,40,w,30):new Rectangle(16,298,w-32,25));
+                taskDock.Bounds=Units(targetBlockedLayout?new Rectangle(16,308,w-32,140):new Rectangle(16,332,w-32,114));
+            } else if(vertical) {
+                PlaceParityMeter(five,14,86,332,84,false);PlaceParityMeter(week,14,178,332,84,false);
+                sourceFace.Bounds=Units(new Rectangle(14,54,332,28));taskDock.Bounds=Units(new Rectangle(14,270,332,274));
+            } else if(micro) {
+                PlaceParityMeter(five,10,42,228,56,false);PlaceParityMeter(week,246,42,228,56,false);
+                sourceFace.Bounds=Units(new Rectangle(0,210,484,20));taskDock.Bounds=Units(new Rectangle(10,136,464,64));
+            } else {
+                PlaceParityMeter(five,120,48,256,84,false);PlaceParityMeter(week,120,140,256,84,false);
+                sourceFace.Bounds=Units(new Rectangle(0,236,640,24));taskDock.Bounds=Units(new Rectangle(388,48,240,176));compactRadars.Bounds=Units(new Rectangle(12,48,96,176));
+            }
+            sourceFace.Flat=true;sourceFace.Strip=!vertical;sourceFace.TopRule=micro||compact;sourceFace.Rail=Color.Transparent;
+            sourceFace.BackColor=micro||compact?InstrumentStyle.FooterFace:InstrumentStyle.Canvas;sourceFace.Edge=InstrumentStyle.Hairline;
+            statusDivider.Visible=sourceDetail.Visible=false;statusAge.Visible=resetCount.Visible=true;
+            InstrumentStyle.Type(status,micro?InstrumentType.Metadata:InstrumentType.Technical);InstrumentStyle.Type(statusAge,InstrumentType.Metadata);InstrumentStyle.Type(resetCount,InstrumentType.Metadata);
+            status.TextAlign=ContentAlignment.MiddleLeft;resetCount.TextAlign=ContentAlignment.MiddleRight;
+            if(micro||compact) {
+                status.SetBounds(Unit(10),Unit(2),Unit(compact?120:102),Unit(16));statusAge.SetBounds(Unit(compact?140:116),Unit(2),Unit(compact?180:145),Unit(16));
+                resetCount.SetBounds(sourceFace.Width-Unit(140),Unit(2),Unit(130),Unit(16));
+            } else if(vertical) {
+                status.SetBounds(Unit(10),Unit(5),Unit(155),Unit(18));resetCount.SetBounds(Unit(174),Unit(5),Unit(148),Unit(18));statusAge.Visible=false;
+            } else {
+                status.SetBounds(Unit(targetBlockedLayout?36:8),Unit(3),Unit(targetBlockedLayout?280:170),Unit(19));
+                resetCount.SetBounds(Unit(182),Unit(3),Unit(170),Unit(19));statusAge.SetBounds(sourceFace.Width-Unit(194),Unit(3),Unit(186),Unit(19));
+                if(targetBlockedLayout)resetCount.SetBounds(Unit(326),Unit(3),Unit(126),Unit(19));
+                else if(w<600){status.Width=Unit(100);resetCount.SetBounds(Unit(114),Unit(3),Unit(110),Unit(19));}
+            }
+            foreach(InstrumentLabel label in new []{footerLeft,footerRead,footerState}){label.Visible=circle||vertical;InstrumentStyle.Type(label,InstrumentType.Metadata);label.ForeColor=InstrumentStyle.Metadata;}
+            footerLeft.SetBounds(Unit(12),Unit(h-21),Unit(vertical?104:300),Unit(17));footerRead.SetBounds(Unit(vertical?118:w-260),Unit(h-21),Unit(vertical?128:130),Unit(17));footerState.SetBounds(Unit(w-(vertical?112:128)),Unit(h-21),Unit(vertical?100:116),Unit(17));
+            resizeGrip.Visible=false;taskDeck.PerformLayout();UpdateTaskSurface(UiNow);PaintSnapshot();ClearChrome();
+        }
+        private void PaintClassicSource(TargetSource view,string state,bool blocked,bool live)
+        {
+            if(blocked){status.Text="CODEX USAGE BLOCKED";sourceDetail.Text="LAST KNOWN / CLI · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Red;}
+            else if(live){status.Text="QUOTAS / DIRECT READING";sourceDetail.Text="SOURCE / CLI · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Teal;}
+            else {
+                status.Text=state=="Unavailable"?"QUOTA SOURCE UNAVAILABLE":InstrumentStyle.IsStale(state)?"STALE QUOTA READING":"QUOTA READING UNVERIFIED";
+                sourceDetail.Text=(lastSuccess.HasValue?"LAST KNOWN / CLI":"NO READING")+" · "+view.ResetCountShort;status.ForeColor=InstrumentStyle.Amber;
+            }
+            InstrumentStyle.FontFor(status,live?11.5f:settings.Layout=="Micro"?12:13,FontStyle.Bold);
+            statusAge.Text=lastSuccess.HasValue?lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")):"No observation";
+            statusAge.ForeColor=sourceDetail.ForeColor=InstrumentStyle.Muted;
+            sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
+            sourceFace.Rail=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.7);sourceFace.Warning=blocked;status.Left=Unit(blocked?27:9);
+            status.Width=Math.Max(1,sourceFace.Width-status.Left-Unit(9));
+        }
+        private void PaintTargetSource(TargetSource view)
+        {
+            bool footer=settings.Layout=="Compact"||settings.Layout=="Micro",vertical=settings.Layout=="Vertical";
+            status.Text=footer || (settings.Layout=="Circular" && Width<Unit(600) && !view.Blocked)?view.CompactStatus:vertical?(view.Current?"CLI Direct":view.CompactStatus):view.Status;
+            status.ForeColor=view.Blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
+            resetCount.Text=view.ResetCount;resetCount.ForeColor=InstrumentStyle.Metadata;resetCount.Visible=true;
+            statusAge.Text=view.ReadTime;statusAge.ForeColor=InstrumentStyle.Metadata;
+            sourceFace.BackColor=view.Blocked?InstrumentStyle.AlertFace:footer?InstrumentStyle.FooterFace:InstrumentStyle.Canvas;sourceFace.Rail=Color.Transparent;sourceFace.Warning=view.Blocked && settings.Layout=="Circular";
+            footerLeft.Text="LOCAL JSONL / PARTIAL";footerRead.Text=view.ReadTime;footerState.Text=view.Footer;footerState.ForeColor=view.Blocked?InstrumentStyle.Red:view.Current?InstrumentStyle.Teal:InstrumentStyle.Amber;
+            string detail=view.Freshness+" / "+(lastSuccess.HasValue?lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")):"No reading")+"\nResetsAvailable is the explicit CLI field; absent is unknown, never inferred from timestamps.\nLocal activity is independently observed JSONL, not guaranteed Desktop state.";
+            foreach(Control c in new Control[]{status,statusAge,resetCount,footerRead,footerState})tooltip.SetToolTip(c,detail);
+        }
 
         private void UpdateTaskMotion()
         {
@@ -485,27 +625,24 @@ namespace ShinoCodexMonitor
             // APPEARANCE: layout, sizes, opacity, palette and the tray icon.
             ToolStripMenuItem appearance = Menu(context, "Appearance", null);
             ToolStripMenuItem layouts = Menu(appearance, "Layout", null);
-            foreach (string mode in new string[] { "Circular", "Vertical", "Compact", "Micro" })
+            ToolStripMenuItem classicLayouts=Menu(layouts,"CLASSIC",null);
+            ToolStripMenuItem obsidianLayouts=Menu(layouts,"OBSIDIAN",null);
+            foreach (string family in new string[] { "CLASSIC", "OBSIDIAN" })
             {
-                string layout = mode;
-                ToolStripMenuItem option = new ToolStripMenuItem(mode == "Circular" ?
-                    "Circular · 2 gauges" : mode == "Micro" ? "Micro widget" :
-                    mode == "Compact" ? "Horizontal compact" : "Vertical");
-                option.Click += delegate {
-                    settings.Layout = layout;
-                    foreach (ToolStripItem child in layouts.DropDownItems)
-                        ((ToolStripMenuItem)child).Checked = child == option;
-                    ApplyLayout(); Save();
-                };
-                layouts.DropDownItems.Add(option);
+                ToolStripMenuItem familyMenu=family=="CLASSIC"?classicLayouts:obsidianLayouts;
+                bool obsidian=family=="OBSIDIAN";
+                foreach (string mode in new string[] { "Circular", "Vertical", "Compact", "Micro" })
+                {
+                    string layout = mode;
+                    ToolStripMenuItem option = new ToolStripMenuItem(mode);
+                    option.ToolTipText="Select the "+family+" "+layout+" presentation.";
+                    option.Click += delegate { SelectTargetLayout(layout,obsidian); };
+                    familyMenu.DropDownItems.Add(option);
+                }
             }
-            layouts.DropDownOpening += delegate {
-                string[] choices = { "Circular", "Vertical", "Compact", "Micro" };
-                for (int i = 0; i < choices.Length; i++)
-                    ((ToolStripMenuItem)layouts.DropDownItems[i]).Checked = choices[i] == settings.Layout;
-            };
+            layouts.DropDownOpening += delegate { SyncLayoutChoices(classicLayouts,obsidianLayouts,settings.ObsidianLayout,settings.Layout); };
             ToolStripMenuItem circularSize = Menu(appearance, "Gauge size", null);
-            circularSize.ToolTipText = "Pinned circular mode only; drag the handle to resize.";
+            circularSize.ToolTipText = "Circular layout width; legacy pinned mode also supports the resize handle.";
             foreach (int value in new int[] { 480, 540, 620, 700 })
             {
                 int pixels = value;
@@ -514,7 +651,7 @@ namespace ShinoCodexMonitor
                     value == 620 ? "Large · 620 px" : "Extra large · 700 px");
                 option.Tag = pixels;
                 option.Click += delegate {
-                    settings.CircularWidth = pixels;
+                if(settings.ObsidianLayout)settings.ObsidianCircularWidth=pixels;else settings.CircularWidth = pixels;
                     settings.Layout = "Circular";
                     ApplyLayout(); Save();
                 };
@@ -524,13 +661,14 @@ namespace ShinoCodexMonitor
             ToolStripMenuItem customSizeInfo = new ToolStripMenuItem() { Enabled = false };
             circularSize.DropDownItems.Add(customSizeInfo);
             circularSize.DropDownOpening += delegate {
+                int activeWidth=settings.ObsidianLayout?settings.ObsidianCircularWidth:settings.CircularWidth;
                 foreach (ToolStripItem child in circularSize.DropDownItems)
                 {
                     ToolStripMenuItem option = child as ToolStripMenuItem;
                     if (option != null && option.Tag is int)
-                        option.Checked = (int)option.Tag == settings.CircularWidth;
+                        option.Checked = (int)option.Tag == activeWidth;
                 }
-                customSizeInfo.Text = "Current size: " + settings.CircularWidth + " px";
+                customSizeInfo.Text = "Current size: " + activeWidth + " px";
             };
             ToolStripMenuItem opacity = Menu(appearance, "Opacity", null);
             foreach (int value in new int[] { 70, 75, 80, 85, 90, 95, 96, 98, 100 })
@@ -1297,19 +1435,15 @@ namespace ShinoCodexMonitor
             string state = State();
             bool blocked = state == "Direct" && snapshot != null && snapshot.UsageAllowed == false;
             bool live = state == "Direct" && !blocked;
+            if(settings.ObsidianLayout && targetBlockedLayout!=blocked){ApplyLayout();return;}
+            if(settings.ObsidianLayout) {
+                if(parityBlockedChrome!=blocked){parityBlockedChrome=blocked;ClearChrome();}
+            }
             DrawMeter(five, snapshot == null ? null : snapshot.Five, "five", live, state, blocked);
             DrawMeter(week, snapshot == null ? null : snapshot.Week, "week", live, state, blocked);
-            string sample=lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM HH:mm:ss",CultureInfo.GetCultureInfo("en-GB")) : "No observation";
-            if(blocked) {status.Text="CODEX USAGE BLOCKED";sourceDetail.Text="LAST KNOWN / CLI";status.ForeColor=InstrumentStyle.Red;}
-            else if(live) {status.Text="QUOTAS / DIRECT READING";sourceDetail.Text="SOURCE / CODEX CLI";status.ForeColor=InstrumentStyle.Teal;}
-            else {
-                status.Text=state=="Unavailable" ? "QUOTA SOURCE UNAVAILABLE" : state=="Stale" ? "STALE QUOTA READING" : "QUOTA READING UNVERIFIED";
-                sourceDetail.Text=lastSuccess.HasValue ? "LAST KNOWN / CLI" : "NO QUOTA READING / CLI";status.ForeColor=InstrumentStyle.Amber;
-            }
-            InstrumentStyle.FontFor(status,live?11.5f:settings.Layout=="Micro"?12:13,FontStyle.Bold);
-            statusAge.Text=sample;sourceDetail.ForeColor=InstrumentStyle.Muted;statusAge.ForeColor=InstrumentStyle.Muted;
-            sourceFace.Edge=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.25);
-            sourceFace.Rail=InstrumentStyle.Blend(InstrumentStyle.Border,status.ForeColor,.7);
+            TargetSource source=TargetSource.From(snapshot,state,lastSuccess,UiNow);
+            if(settings.ObsidianLayout)PaintTargetSource(source);
+            else PaintClassicSource(source,state,blocked,live);
             string observation="Last Codex reading: "+(lastSuccess.HasValue ? lastSuccess.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss zzz",CultureInfo.GetCultureInfo("en-GB")) : "none")+
                 "\n"+FreshnessLabel(lastSuccess,UiNow)+". Status: "+(blocked?"Usage blocked":state)+". Task availability is independent.";
             tooltip.SetToolTip(statusAge,observation);tooltip.SetToolTip(sourceDetail,observation);tooltip.SetToolTip(status,observation+"\n"+(live?"Source: Codex CLI / account/rateLimits/read":lastError));
@@ -1364,10 +1498,15 @@ namespace ShinoCodexMonitor
         }
         private void DrawMeter(Meter meter, QuotaWindow data, string kind, bool live, string state, bool blocked)
         {
+            if(settings.ObsidianLayout) {meter.Face.BackColor=blocked?ColorTranslator.FromHtml("#110F15"):InstrumentStyle.QuotaFace;meter.Face.Edge=blocked?ColorTranslator.FromHtml("#302026"):InstrumentStyle.Hairline;}
             meter.Reset.Visible = settings.ResetStyle != "hidden";
-            meter.Hint.Text=live ? "REMAINING" : data==null ? "NO READING" : "LAST KNOWN";
+            bool exhausted=InstrumentStyle.Exhausted(data==null?(double?)null:data.Remaining,live);
+            meter.Hint.Text=live ? (exhausted?"EXHAUSTED":"REMAINING") : data==null ? "NO READING" : "LAST KNOWN";
+            meter.Relative.Visible=false;
             if (data == null)
             {
+                ((InstrumentLabel)meter.Name).Marker=settings.ObsidianLayout && settings.Layout!="Micro"?UiColors.Muted:Color.Transparent;
+                meter.Badge.Text="NO READING";meter.Badge.ForeColor=meter.Hint.ForeColor=UiColors.Muted;meter.Badge.BackColor=InstrumentStyle.QuotaFace;
                 meter.Number.Text = "—"; meter.Number.ForeColor = UiColors.Muted;
                 meter.Fill.Width = 0;
                 meter.Ring.SetReading(null, false, UiColors.Muted);
@@ -1376,15 +1515,30 @@ namespace ShinoCodexMonitor
             }
             int percent = Math.Max(0, Math.Min(100, (int)Math.Round(data.Remaining, MidpointRounding.AwayFromZero)));
             Color color = live ? QuotaColor(percent) : UiColors.Muted;
-            meter.Number.Text = percent + "%";
+            if(settings.ObsidianLayout){meter.Name.ForeColor=InstrumentStyle.Caption;((InstrumentLabel)meter.Name).Marker=settings.Layout=="Micro"?Color.Transparent:color;}
+            meter.Hint.ForeColor=color;
+            meter.Badge.Text=!live?"LAST KNOWN":exhausted?"EXHAUSTED":percent<=10?"CRITICAL":percent<=25?"ELEVATED":"NOMINAL";
+            meter.Badge.ForeColor=color;meter.Badge.BackColor=InstrumentStyle.Blend(InstrumentStyle.QuotaFace,color,.12);
+            meter.Number.Text = (settings.ObsidianLayout && percent>0 && percent<10 ? percent.ToString("00") : percent.ToString()) + "%";
             meter.Number.ForeColor = color;
-            meter.Ring.SetReading(percent, live, color);
+            meter.Ring.SetReading(percent, live, color,exhausted);
             meter.Fill.Width = (int)Math.Round(Math.Max(0,meter.Track.Width-2) * data.Remaining / 100.0);
             meter.Fill.BackColor = color;
             // Blocked ordinary usage does not make a fresh reset timestamp stale.
             // The block remains clearly visible in the status/footer and tooltips.
             meter.Reset.Text = ResetLabel(data.ResetUtc, kind, settings.ResetStyle,
                 settings.Layout, live || blocked, UiNow);
+            if(settings.ObsidianLayout) {
+                int total=meter.Face.Width-Unit(20);meter.Reset.Width=total;
+                if(total<Unit(220) && !live && !blocked)meter.Reset.Text="Reset unverified";
+                if(settings.ResetStyle=="both" && (live||blocked) && data.ResetUtc.HasValue) {
+                    meter.Reset.Text=ResetLabel(data.ResetUtc,kind,"absolute",settings.Layout,true,UiNow).Replace("Reset on ","Reset ").Replace(" at "," ");
+                    meter.Relative.Text=ResetLabel(data.ResetUtc,kind,"relative",settings.Layout,true,UiNow).Replace("Reset ","");
+                    int rw=Unit(settings.Layout=="Micro"?82:90);meter.Reset.Width=Math.Max(1,total-rw-Unit(5));
+                    if(meter.Reset.Width<Unit(132))meter.Reset.Text="Reset "+data.ResetUtc.Value.ToLocalTime().ToString(kind=="five"?"HH:mm":"MMM dd",CultureInfo.GetCultureInfo("en-GB"));
+                    meter.Relative.SetBounds(meter.Face.Width-Unit(10)-rw,meter.Reset.Top,rw,meter.Reset.Height);meter.Relative.Visible=true;meter.Relative.ForeColor=live?color:UiColors.Muted;
+                }
+            }
             tooltip.SetToolTip(meter.Ring, blocked ? "Codex usage blocked" :
                 live ? "Remaining quota · Codex CLI source" : "Stale quota reading");
             tooltip.SetToolTip(meter.Number, blocked ? "Codex reports usage is blocked" :

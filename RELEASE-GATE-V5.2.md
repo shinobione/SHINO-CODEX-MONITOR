@@ -1,3 +1,24 @@
+## Final Target Match — 2026-10-21 / owner visual HOLD
+
+Draft #17 now uses a single four-layout selector, stable HWND/material updates, shared source/reset-count contract, aligned target compositions and independent two-task variants. See [current implementation](OBSIDIAN-NATIVE-V5.2.md) and [visual review](design-qa.md). Local evidence: 128 Python + 347 C# checks, final native screenshots, actual synthetic Vertical/Compact motion captures and same-host baseline/candidate benchmarks. CI is a separate exact-source gate; evidence is recorded only after its current run completes.
+
+- [ ] Owner approves all five comparisons, four two-task variants, A completed/B active and both motion clips.
+- [ ] Physical mixed-DPI, real sessions and all existing field gates below are confirmed for this candidate.
+- [ ] Explicit promotion approval is received. No install, merge, tag or Release is authorized here.
+
+Older candidate measurements/activation descriptions below remain historical; the removed extra Obsidian checkbox is not the current user selection model. Protected PRs #14/#16 and owner BAT files remain unchanged.
+
+---
+
+## Obsidian parity candidate - separate Draft, owner approval pending
+
+The 2026-10-20 opt-in implementation is based on verified PR #14 head `074b41fddbd52b3c339d5b3d39ce89b2ebc2c86f`. PR #14 and Release Engineering PR #16 remain untouched. Validate this separate candidate with its own Windows CI Preview and QA artifacts, not an older #14 artifact. No merge, tag, Release, installation or autostart action is included.
+
+Current local evidence: 128 Python checks; C# 98 + 46 + 35 + 26 + 123 instrument checks; 88 explicitly synthetic opt-in renders and 154 legacy regression renders. Activation is explicit; existing geometry/data remain. The five individual Stitch references, current comparison decisions and residual differences are documented in [Obsidian implementation](OBSIDIAN-NATIVE-V5.2.md) and [visual review](design-qa.md).
+
+- [ ] Owner approves the five current native comparisons and four two-task variants, including A-completed/B-active.
+- [ ] All pre-existing real Windows field gates below remain required. Earlier owner-observed migration evidence remains valid for that earlier candidate; it is not automatically evidence for this new build.
+
 # CODEX PERISCOPE V5.2 — Pre-release acceptance report
 
 **Scope:** native Windows app for ChatGPT-account Codex quota monitoring and observable local Codex tasks. No general ChatGPT or API usage meter. Independent software, not affiliated with OpenAI.
