@@ -1472,7 +1472,7 @@ namespace ShinoCodexMonitor
                 }
             }
             int rounded = remaining.HasValue ? (int)Math.Round(remaining.Value, MidpointRounding.AwayFromZero) : -1;
-            List<MissionView> missions=taskDeck.At(DateTimeOffset.UtcNow);
+            List<MissionView> missions=taskDeck.VisibleSessions;
             int activeTasks=missions.Count(v => v.State == RadarState.Active);
             LiveTaskPhase livePhase=activeTasks > 0 ? LiveTaskPhase.Active :
                 missions.Any(v => v.State == RadarState.Complete) ? LiveTaskPhase.Completed : LiveTaskPhase.Unknown;
