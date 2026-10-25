@@ -47,10 +47,59 @@ namespace ShinoCodexMonitor
             Check("B completes while A stays active",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","A",40),Event("task_started","B",30),Event("task_complete","B",2));
                 Assert(tasks.Single(t => t.Id == "A").Phase == LiveTaskPhase.Active && tasks.Single(t => t.Id == "B").Phase == LiveTaskPhase.Completed,"A overwritten by B"); });
-            Check("Two separate root sessions and one workspace retain identities",delegate {
+            Check("Root session cards stay unique and stable across sequential turns",delegate {
                 LiveTask a=Task("A","session-a",40), b=Task("B","session-b",40);
                 MissionTracker tracker=new MissionTracker(); tracker.Update(Report(Now,a,b));
-                Assert(tracker.At(Now).Count == 2 && a.Identity != b.Identity,"Workspace collapsed identities"); });
+                Assert(tracker.At(Now).Count == 2 && a.Identity != b.Identity,
+                    "Different root sessions with the same workspace were merged");
+                using(Form host=new Form()) using(MissionDeck deck=new MissionDeck()) {
+                    host.Controls.Add(deck);deck.SetBounds(0,0,560,195);
+                    List<LiveTask> turns=new List<LiveTask>();
+                    for(int i=1;i<=16;i++) {
+                        LiveTask turn=Task("turn-"+i,"one-long-root",70-i*4);
+                        turn.ThreadId="one-verified-root";
+                        if(i<16) {
+                            turn.Phase=LiveTaskPhase.Completed;
+                            turn.FinishedUtc=Now.AddSeconds(-Math.Max(1,20-i));
+                            turn.LastWriteUtc=turn.FinishedUtc.Value;
+                        }
+                        turns.Add(turn);
+                    }
+                    deck.UpdateReport(Report(Now,turns.ToArray()),Now);
+                    Assert(deck.At(Now).Count==16,
+                        "Turn-level history was collapsed rather than retained");
+                    Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.Task.Id=="turn-16",
+                        "Sixteen sequential turns created more than one live session radar");
+                    Assert(deck.VisibleSessions.Count==1 &&
+                        deck.VisibleSessions.Single().State==RadarState.Active,
+                        "Tray-visible session projection still counts sixteen historical turns");
+                    int stable=deck.Cards.Single().Mission.Number;
+                    LiveTask prior=turns.Last().Copy();
+                    prior.Phase=LiveTaskPhase.Completed;
+                    prior.FinishedUtc=Now.AddSeconds(1);
+                    prior.LastWriteUtc=prior.FinishedUtc.Value;
+                    LiveTask next=Task("turn-17","one-long-root",0);
+                    next.ThreadId="one-verified-root";
+                    next.StartedUtc=Now.AddSeconds(2);
+                    next.LastWriteUtc=Now.AddSeconds(4);
+                    deck.UpdateReport(Report(Now.AddSeconds(5),prior,next),Now.AddSeconds(5));
+                    Assert(deck.Cards.Count()==1 &&
+                        deck.Cards.Single().Mission.Number==stable &&
+                        deck.Cards.Single().Mission.Task.Id=="turn-17" &&
+                        deck.Cards.Single().Mission.State==RadarState.Active,
+                        "Next turn created a ghost session or changed its radar identity");
+                    LiveTask other=Task("OTHER","another-root",3);
+                    other.ThreadId="different-verified-root";
+                    deck.UpdateReport(Report(Now.AddSeconds(6),next.Copy(),other),Now.AddSeconds(6));
+                    Assert(deck.Cards.Count()==2 &&
+                        deck.Cards.Select(c=>c.Mission.Task.SessionKey).Distinct().Count()==2 &&
+                        deck.Cards.Single(c=>c.Mission.Task.SessionKey=="one-long-root").Mission.Number==stable,
+                        "Distinct real root sessions were merged or lost");
+                    deck.UpdateReport(Report(Now.AddSeconds(7)),Now.AddSeconds(7));
+                    Assert(deck.Cards.Count()==0,
+                        "Previously observed roots still appeared as current cards after disappearing");
+                }
+            });
             Check("Distinct identifiers at same session timestamp remain independent",delegate {
                 List<LiveTask> tasks=Parse(Event("task_started","A",40),Event("task_started","B",40));
                 foreach (LiveTask t in tasks) t.SessionKey="one-source";

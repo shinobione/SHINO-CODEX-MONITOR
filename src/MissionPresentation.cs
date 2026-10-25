@@ -272,6 +272,10 @@ namespace ShinoCodexMonitor
     {
         private readonly MissionTracker tracker=new MissionTracker();
         private readonly Dictionary<int,MissionCard> cards=new Dictionary<int,MissionCard>();
+        // Card identity is the root session, NOT each turn inside that session.
+        // Retain turn-level evidence independently in MissionTracker.
+        private readonly Dictionary<string,int> rootCardNumbers=new Dictionary<string,int>(StringComparer.Ordinal);
+        private int nextRootCardNumber;
         private readonly Label heading=new InstrumentLabel(),emptyTitle=new InstrumentLabel(),emptyDetail=new InstrumentLabel();
         private readonly Panel viewport=new Panel { AutoScroll=false, Margin=Padding.Empty };
         private readonly ActivityGlyph emptyRadar=new ActivityGlyph();
@@ -312,11 +316,29 @@ namespace ShinoCodexMonitor
         {
             tracker.Update(report);
             List<MissionView> allViews=tracker.At(now);
-            // A missing turn is a historical observation, not a current mission card.
-            // Keep it in MissionTracker for diagnostics/identity reconciliation, but
-            // never let it impersonate another concurrent Codex job in the live deck.
+            // MissionTracker preserves individual turns for recovery and notifications,
+            // but the dashboard tracks distinct root SESSIONS. Sixteen sequential
+            // turns inside one Codex conversation must not create sixteen radars.
+            // A missing turn is history, not a current mission card.
             int missingCount=allViews.Count(v=>v.Missing);
-            views=allViews.Where(v=>!v.Missing).ToList();
+            views=allViews.Where(v=>!v.Missing)
+                .GroupBy(v=>v.Task.SessionKey,StringComparer.Ordinal)
+                .Select(group => {
+                    MissionView chosen=group.OrderBy(v=>MissionTracker.StateRank(v.State))
+                        .ThenByDescending(v=>v.Task.StartedUtc).First();
+                    int number;
+                    if(!rootCardNumbers.TryGetValue(group.Key,out number)){
+                        number=++nextRootCardNumber;rootCardNumbers[group.Key]=number;
+                    }
+                    // A presentation-only copy keeps the session's number and
+                    // colour stable when the latest turn changes in the same root.
+                    return new MissionView {
+                        Task=chosen.Task.Copy(),Number=number,Missing=false,State=chosen.State,
+                        ParentEvidenceUtc=chosen.ParentEvidenceUtc,ChildEvidenceUtc=chosen.ChildEvidenceUtc,
+                        ActiveChildCount=chosen.ActiveChildCount,DelegatedEvidenceSeen=chosen.DelegatedEvidenceSeen
+                    };
+                })
+                .OrderBy(v=>MissionTracker.StateRank(v.State)).ThenBy(v=>v.Number).ToList();
             string nextOrder=string.Join(",",views.Select(v=>v.Number));
             bool priorityOrderChanged=displayedOrderKey.Length>0 && displayedOrderKey!=nextOrder;
             displayedOrderKey=nextOrder;
@@ -332,16 +354,19 @@ namespace ShinoCodexMonitor
             }
             if(priorityOrderChanged)scroll.Offset=0;
             int verifiedCount=views.Count(v=>v.State==RadarState.Active||v.State==RadarState.Delegated);
-            heading.Text=views.Count==0 ? "CODEX ACTIVITY / NO VERIFIED ACTIVE" :
-                views.Count+" CURRENT LOCAL TURN(S) / "+verifiedCount+" VERIFIED ACTIVE";
+            heading.Text=views.Count==0 ? "CODEX ACTIVITY / NO VERIFIED LIVE SESSION" :
+                views.Count+" LOCAL ROOT SESSION(S) / "+verifiedCount+" VERIFIED LIVE";
             emptyTitle.Text=report==null ? "LOCAL ACTIVITY UNAVAILABLE" : "NO VERIFIED LOCAL ACTIVITY";
-            emptyDetail.Text=missingCount>0 ? missingCount+" prior turn(s) no longer observed · check task diagnostics" :
+            emptyDetail.Text=missingCount>0 ? "Previous turns retained · current activity unverified" :
                 "LOCAL JSONL / current activity not confirmed";
             emptyRadar.SetObservation(LiveTaskPhase.Unconfirmed,true,report==null);
             emptyRadar.Visible=cards.Count==0 && !(Parity && layoutMode=="Compact");emptyTitle.Visible=emptyDetail.Visible=cards.Count==0;
             Arrange();
         }
+        // Historical per-turn observations are for diagnostics/tests only.
         internal List<MissionView> At(DateTimeOffset now){return tracker.At(now);}
+        // The tray must count the same live root sessions as the visible deck.
+        internal List<MissionView> VisibleSessions { get { return new List<MissionView>(views); } }
         private bool InViewport(MissionCard card){return viewport.Visible && viewport.ClientRectangle.IntersectsWith(card.Bounds);}
         protected override void OnLayout(LayoutEventArgs e){base.OnLayout(e);Arrange();}
         protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Arrange();}
