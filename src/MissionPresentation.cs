@@ -363,7 +363,10 @@ namespace ShinoCodexMonitor
             emptyRadar.Visible=cards.Count==0 && !(Parity && layoutMode=="Compact");emptyTitle.Visible=emptyDetail.Visible=cards.Count==0;
             Arrange();
         }
+        // Historical per-turn observations are for diagnostics/tests only.
         internal List<MissionView> At(DateTimeOffset now){return tracker.At(now);}
+        // The tray must count the same live root sessions as the visible deck.
+        internal List<MissionView> VisibleSessions { get { return new List<MissionView>(views); } }
         private bool InViewport(MissionCard card){return viewport.Visible && viewport.ClientRectangle.IntersectsWith(card.Bounds);}
         protected override void OnLayout(LayoutEventArgs e){base.OnLayout(e);Arrange();}
         protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Arrange();}
