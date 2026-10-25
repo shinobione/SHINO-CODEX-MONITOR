@@ -70,6 +70,9 @@ namespace ShinoCodexMonitor
                         "Turn-level history was collapsed rather than retained");
                     Assert(deck.Cards.Count()==1 && deck.Cards.Single().Mission.Task.Id=="turn-16",
                         "Sixteen sequential turns created more than one live session radar");
+                    Assert(deck.VisibleSessions.Count==1 &&
+                        deck.VisibleSessions.Single().State==RadarState.Active,
+                        "Tray-visible session projection still counts sixteen historical turns");
                     int stable=deck.Cards.Single().Mission.Number;
                     LiveTask prior=turns.Last().Copy();
                     prior.Phase=LiveTaskPhase.Completed;
