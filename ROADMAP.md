@@ -36,6 +36,35 @@ Périmètre immuable : utilitaire **local Windows** surveillant les **quotas Cod
 - Une bulle `NotifyIcon.ShowBalloonTip` envoyée ne prouve pas son affichage par Windows. L'EXE portable n'est pas signé.
 - Ne jamais inventer les limites, heures de reset, crédits ou pourcentages. Pas d'appel payant à un modèle pour collecter les quotas.
 
+## Revue comparative — AI Limits (Rust) (1er novembre 2026)
+
+**Statut : observations documentaires, non implémentées.** Référence : [napxlexn/ailimits](https://github.com/napxlexn/ailimits), version `0.7.0` indiquée dans son `Cargo.toml` à la date de l'examen. L'étude a porté sur le code Rust des fournisseurs, du scheduler, des tendances et de la géométrie taskbar, ainsi que sur nos `CodexReader.cs`, `Models.cs`, `QuotaTrayIcon.cs` et `AlertRules.cs`. Aucune installation, benchmark comparatif ni validation terrain effectuée.
+
+### Pistes à retenir, par ordre de priorité
+
+| Priorité | Piste / constat | Mise en œuvre envisagée et critère de validation |
+|---|---|---|
+| **P1** | **Détails des crédits de réinitialisation** : notre parser lit déjà `rateLimitResetCredits.availableCount`, mais pas les détails optionnels. | Étudier la lecture seule des crédits fournis par l'app-server (`credits[].status`, `expiresAt`, `title`, `description`) ; afficher une expiration **uniquement si présente** et valide. Aucune action de consommation ; tester absence/null, liste partielle, crédits expirés et valeurs contradictoires. Pour les sondages de fond, examiner `excludeResetCreditDetails` afin d'éviter les lectures détaillées inutiles. |
+| **P1** | **Fraîcheur robuste** : notre code possède déjà un statut d'ancienneté et un backoff, calculés notamment depuis l'heure système. | Étudier un ancrage monotone **pendant l'exécution** (avec horodatage UTC conservé pour l'affichage/persistance), y compris après mise en veille, reprise, changement NTP/fuseau/DST et redémarrage. Une horloge incohérente, une réponse manquante ou un échec réseau ne doivent jamais rendre un relevé ancien « Direct ». |
+| **P2** | **Actualisation adaptative** : notre rafraîchissement et son backoff existent ; AI Limits suspend ses polls en cas d'inactivité/verrouillage. | Évaluer la pause lorsque la session Windows est inactive ou verrouillée, puis reprise contrôlée au déverrouillage/retour utilisateur ; garder l'actualisation manuelle, un timeout et un backoff borné. Mesurer appels, latence de reprise et CPU/RAM avant/après. Ne jamais faire passer un cache pour un relevé frais. |
+| **P2 / option** | **Prévision d'épuisement (« burn rate »)** : régression sur un historique court de consommation mesurée. | Option désactivée par défaut, explicitement libellée **estimation** et jamais confondue avec le reset officiel. Minimum d'échantillons frais de **la même fenêtre**, exclusion des resets, des données périmées, des tendances non croissantes et des prévisions postérieures au reset. Tester les baisses abruptes, l'activité intermittente et les petits échantillons. |
+| **P3 / étude UX** | **Mini-panneau taskbar** indépendant du widget principal : AI Limits utilise une fenêtre superposée près de la zone de notification et revient au tray quand l'espace manque. | Ne le retenir qu'après validation sur Windows 11, auto-hide, DPI 100–200 %, trois écrans, plein écran/jeux et barre saturée ; repli explicite sur l'icône tray. Ne pas confondre ce panneau avec notre option actuelle « Afficher dans la barre des tâches ». |
+| **P3 / étude UX** | **Densité adaptative** : niveaux Compact / Medium / Expanded et réduction de largeur sans superposition dans AI Limits. | Comparer à nos quatre dispositions existantes ; améliorer uniquement les cas de chevauchement ou de lisibilité mesurés, sans créer une cinquième refonte ni perdre les libellés « restant », reset et fraîcheur. |
+
+### Décisions de non-adoption
+
+- **Conserver C# WinForms** pour l'existant ; ne pas migrer vers Rust sur la seule base des mesures publiées par AI Limits (~3 Mo d'exécutable, 45 Mo de RAM privée, 0,012 % d'un cœur dans son environnement). Un éventuel changement de pile exigerait un benchmark équivalent **sur notre application et notre PC cible**.
+- **Conserver les quotas via le CLI Codex / app-server `account/rateLimits/read`**, déjà en place : ne pas copier la lecture de `~/.codex/auth.json` ni l'appel direct à `chatgpt.com/backend-api/wham/usage`, endpoint non documenté utilisé par AI Limits. Aucun cookie, jeton ou mot de passe à extraire ; ne pas confondre abonnement Codex, chat classique et API facturée.
+- **Ne pas afficher `≈0 %` comme un nouveau quota mesuré après l'heure présumée de reset** : conserver la dernière valeur, son âge et l'état **Ancienne donnée / À vérifier** jusqu'à un nouveau relevé valide.
+- **Ne pas adopter la mise à jour silencieuse par défaut** : garder le consentement explicite avant installation, contrôle d'intégrité, sauvegarde/retour arrière et aucun autostart imposé.
+- **Respecter la licence GPL-3.0-or-later d'AI Limits** : s'inspirer des principes sans copier du code Rust dans un projet redistribué sans analyse des obligations de licence.
+
+### Ordonnancement et preuves attendues
+
+Ces pistes sont **indépendantes des correctifs de fiabilité de l'activité Codex** : ne pas retarder un P0 en cours (lecture JSONL progressive, visibilité des missions réelles) pour une amélioration cosmétique. Avant de cocher un point : tests unitaires de source absente, 401/403, données anciennes, fenêtres multiples et resets ; comparaison au tableau Codex officiel sur **le même compte et au même instant** lorsque possible ; tests de veille/reprise/hors ligne, DPI/écrans multiples et benchmark CPU/RAM/I/O. Distinguer tests synthétiques et observation terrain. Pas de Release implicite.
+
+**Sources consultées :** [architecture AI Limits](https://github.com/napxlexn/ailimits/blob/master/docs/en/ARCHITECTURE.md) · [collecteur Codex](https://github.com/napxlexn/ailimits/blob/master/src/providers/codex.rs) · [scheduler](https://github.com/napxlexn/ailimits/blob/master/src/monitor/scheduler.rs) · [projection d'usage](https://github.com/napxlexn/ailimits/blob/master/src/monitor/trend.rs) · [géométrie taskbar](https://github.com/napxlexn/ailimits/blob/master/src/platform/taskbar_geom.rs) · [schéma OpenAI app-server](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/account.rs).
+
 ## Actions prioritaires
 
 1. **Publié :** V5.1.0 sur GitHub, tag `v5.1.0`, ZIP avec SHA-256 publié ; [workflow de publication](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39255792594) et [CI de `main`](https://github.com/shinobione/SHINO-CODEX-MONITOR/actions/runs/39255792674) réussis.
